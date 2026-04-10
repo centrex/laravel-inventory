@@ -4,9 +4,9 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Tests;
 
+use Centrex\Inventory\InventoryServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Centrex\Inventory\InventoryServiceProvider;
 
 class TestCase extends Orchestra
 {
