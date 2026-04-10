@@ -2,11 +2,11 @@
 
 declare(strict_types = 1);
 
-namespace VendorName\Skeleton\Tests;
+namespace Centrex\Inventory\Tests;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use VendorName\Skeleton\SkeletonServiceProvider;
+use Centrex\Inventory\InventoryServiceProvider;
 
 class TestCase extends Orchestra
 {
@@ -15,14 +15,14 @@ class TestCase extends Orchestra
         parent::setUp();
 
         Factory::guessFactoryNamesUsing(
-            fn (string $modelName) => 'VendorName\\Skeleton\\Database\\Factories\\' . class_basename($modelName) . 'Factory',
+            fn (string $modelName) => 'Centrex\\Inventory\\Database\\Factories\\' . class_basename($modelName) . 'Factory',
         );
     }
 
     protected function getPackageProviders($app)
     {
         return [
-            SkeletonServiceProvider::class,
+            InventoryServiceProvider::class,
         ];
     }
 
@@ -31,7 +31,7 @@ class TestCase extends Orchestra
         config()->set('database.default', 'testing');
 
         /*
-        $migration = include __DIR__.'/../database/migrations/create_skeleton_table.php.stub';
+        $migration = include __DIR__.'/../database/migrations/create_laravel-inventory_table.php.stub';
         $migration->up();
         */
     }

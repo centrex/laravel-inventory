@@ -2,13 +2,13 @@
 
 declare(strict_types = 1);
 
-namespace VendorName\Skeleton\Commands;
+namespace Centrex\Inventory\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class InventoryCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'laravel-inventory';
 
     public $description = 'My command';
 
