@@ -13,6 +13,6 @@ class Inventory extends Facade
 {
     protected static function getFacadeAccessor()
     {
-        return \Centrex\Inventory\Inventory::class;
+        return 'inventory';
     }
 }

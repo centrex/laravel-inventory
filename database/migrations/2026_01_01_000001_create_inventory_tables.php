@@ -1,0 +1,408 @@
+<?php
+
+declare(strict_types = 1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class() extends Migration
+{
+    public function up(): void
+    {
+        $p = config('inventory.table_prefix') ?: 'inv_';
+        $c = config('inventory.drivers.database.connection', config('database.default'));
+
+        // ── Warehouses ────────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'warehouses', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code', 20)->unique();
+            $table->string('name', 200);
+            $table->char('country_code', 2)->index();
+            $table->char('currency', 3); // native purchase/sale currency
+            $table->text('address')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_default')->default(false)->index();
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // ── Product Categories ────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'product_categories', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('parent_id')->nullable()->constrained($p . 'product_categories')->onDelete('set null');
+            $table->string('name', 200);
+            $table->string('slug', 200)->unique();
+            $table->text('description')->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // ── Products ──────────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'products', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('category_id')->nullable()->constrained($p . 'product_categories')->onDelete('set null');
+            $table->string('sku', 100)->unique();
+            $table->string('name', 300);
+            $table->text('description')->nullable();
+            $table->string('unit', 30)->default('pcs');
+            $table->decimal('weight_kg', 10, 4)->nullable(); // per unit — for transfer shipping calc
+            $table->string('barcode', 100)->nullable()->unique();
+            $table->boolean('is_active')->default(true)->index();
+            $table->boolean('is_stockable')->default(true);
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // ── Suppliers ─────────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'suppliers', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code', 30)->unique();
+            $table->string('name', 300);
+            $table->char('country_code', 2)->nullable();
+            $table->char('currency', 3)->default('BDT');
+            $table->string('contact_name', 200)->nullable();
+            $table->string('contact_email', 200)->nullable();
+            $table->string('contact_phone', 50)->nullable();
+            $table->text('address')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // ── Price Tiers ───────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'price_tiers', function (Blueprint $table): void {
+            $table->id();
+            $table->string('code', 30)->unique();
+            $table->string('name', 100);
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+
+        // ── Customers ─────────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'customers', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('code', 30)->unique();
+            $table->string('name', 300);
+            $table->string('email', 200)->nullable();
+            $table->string('phone', 50)->nullable();
+            $table->char('currency', 3)->default('BDT');
+            $table->foreignId('price_tier_id')->nullable()->constrained($p . 'price_tiers')->onDelete('set null');
+            $table->boolean('is_active')->default(true);
+            $table->nullableMorphs('modelable');
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // ── Product Prices ────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'product_prices', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('cascade');
+            $table->foreignId('price_tier_id')->constrained($p . 'price_tiers')->onDelete('restrict');
+            $table->foreignId('warehouse_id')->nullable()->constrained($p . 'warehouses')->onDelete('cascade');
+            $table->decimal('price_bdt', 18, 4);         // always stored in BDT
+            $table->decimal('price_local', 18, 4)->nullable(); // in warehouse currency (informational)
+            $table->char('currency', 3)->nullable();
+            $table->date('effective_from')->nullable();
+            $table->date('effective_to')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+
+            $table->index(['product_id', 'price_tier_id']);
+            $table->index('warehouse_id');
+        });
+
+        // ── Warehouse-Product Stock Ledger ────────────────────────────────────
+        Schema::connection($c)->create($p . 'warehouse_products', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->decimal('qty_on_hand', 18, 4)->default(0);
+            $table->decimal('qty_reserved', 18, 4)->default(0);
+            $table->decimal('qty_in_transit', 18, 4)->default(0);
+            $table->decimal('wac_bdt', 18, 4)->default(0); // weighted average cost in BDT
+            $table->decimal('reorder_point', 18, 4)->nullable();
+            $table->decimal('reorder_qty', 18, 4)->nullable();
+            $table->string('bin_location', 100)->nullable();
+            $table->timestamps();
+
+            $table->unique(['warehouse_id', 'product_id']);
+        });
+
+        // ── Exchange Rates ────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'exchange_rates', function (Blueprint $table): void {
+            $table->id();
+            $table->char('currency', 3);
+            $table->decimal('rate_bdt', 18, 8);  // 1 unit of currency = N BDT
+            $table->string('source', 30)->default('manual');
+            $table->date('valid_at');
+            $table->timestamps();
+
+            $table->unique(['currency', 'valid_at']);
+            $table->index(['currency', 'valid_at']);
+        });
+
+        // ── Purchase Orders ───────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'purchase_orders', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('po_number', 50)->unique();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->foreignId('supplier_id')->constrained($p . 'suppliers')->onDelete('restrict');
+            $table->char('currency', 3);
+            $table->decimal('exchange_rate_bdt', 18, 8);
+            $table->decimal('subtotal_local', 18, 4)->default(0);
+            $table->decimal('subtotal_bdt', 18, 4)->default(0);
+            $table->decimal('tax_local', 18, 4)->default(0);
+            $table->decimal('tax_bdt', 18, 4)->default(0);
+            $table->decimal('shipping_local', 18, 4)->default(0);
+            $table->decimal('shipping_bdt', 18, 4)->default(0);
+            $table->decimal('other_charges_bdt', 18, 4)->default(0);
+            $table->decimal('total_local', 18, 4)->default(0);
+            $table->decimal('total_bdt', 18, 4)->default(0);
+            $table->string('status', 30)->default('draft');
+            $table->timestamp('ordered_at')->nullable();
+            $table->date('expected_at')->nullable();
+            $table->text('notes')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['warehouse_id', 'status']);
+            $table->index('supplier_id');
+            $table->index('status');
+        });
+
+        // ── Purchase Order Items ──────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'purchase_order_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('purchase_order_id')->constrained($p . 'purchase_orders')->onDelete('cascade');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->decimal('qty_ordered', 18, 4);
+            $table->decimal('qty_received', 18, 4)->default(0);
+            $table->decimal('unit_price_local', 18, 4);
+            $table->decimal('unit_price_bdt', 18, 4);
+            $table->decimal('line_total_local', 18, 4)->default(0);
+            $table->decimal('line_total_bdt', 18, 4)->default(0);
+            $table->string('notes', 500)->nullable();
+            $table->timestamps();
+
+            $table->index('purchase_order_id');
+            $table->index('product_id');
+        });
+
+        // ── Stock Receipts (GRN) ──────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'stock_receipts', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('grn_number', 50)->unique();
+            $table->foreignId('purchase_order_id')->nullable()->constrained($p . 'purchase_orders')->onDelete('set null');
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->timestamp('received_at');
+            $table->text('notes')->nullable();
+            $table->string('status', 30)->default('draft');
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamps();
+
+            $table->index('purchase_order_id');
+            $table->index(['warehouse_id', 'status']);
+        });
+
+        // ── Stock Receipt Items ───────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'stock_receipt_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('stock_receipt_id')->constrained($p . 'stock_receipts')->onDelete('cascade');
+            $table->foreignId('purchase_order_item_id')->nullable()->constrained($p . 'purchase_order_items')->onDelete('set null');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->decimal('qty_received', 18, 4);
+            $table->decimal('unit_cost_local', 18, 4);
+            $table->decimal('unit_cost_bdt', 18, 4);
+            $table->decimal('exchange_rate_bdt', 18, 8);
+            $table->decimal('wac_before_bdt', 18, 4)->default(0);
+            $table->decimal('wac_after_bdt', 18, 4)->default(0);
+            $table->string('notes', 500)->nullable();
+            $table->timestamps();
+
+            $table->index('stock_receipt_id');
+            $table->index('product_id');
+        });
+
+        // ── Sale Orders ───────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'sale_orders', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('so_number', 50)->unique();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->foreignId('customer_id')->nullable()->constrained($p . 'customers')->onDelete('set null');
+            $table->foreignId('price_tier_id')->constrained($p . 'price_tiers')->onDelete('restrict');
+            $table->char('currency', 3);
+            $table->decimal('exchange_rate_bdt', 18, 8);
+            $table->decimal('subtotal_local', 18, 4)->default(0);
+            $table->decimal('subtotal_bdt', 18, 4)->default(0);
+            $table->decimal('tax_local', 18, 4)->default(0);
+            $table->decimal('tax_bdt', 18, 4)->default(0);
+            $table->decimal('discount_local', 18, 4)->default(0);
+            $table->decimal('discount_bdt', 18, 4)->default(0);
+            $table->decimal('total_local', 18, 4)->default(0);
+            $table->decimal('total_bdt', 18, 4)->default(0);
+            $table->decimal('cogs_bdt', 18, 4)->default(0);
+            $table->string('status', 30)->default('draft');
+            $table->timestamp('ordered_at')->nullable();
+            $table->text('notes')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['warehouse_id', 'status']);
+            $table->index('customer_id');
+            $table->index('status');
+        });
+
+        // ── Sale Order Items ──────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'sale_order_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('sale_order_id')->constrained($p . 'sale_orders')->onDelete('cascade');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->foreignId('price_tier_id')->constrained($p . 'price_tiers')->onDelete('restrict');
+            $table->decimal('qty_ordered', 18, 4);
+            $table->decimal('qty_fulfilled', 18, 4)->default(0);
+            $table->decimal('unit_price_local', 18, 4);
+            $table->decimal('unit_price_bdt', 18, 4);
+            $table->decimal('unit_cost_bdt', 18, 4)->default(0); // WAC at fulfillment
+            $table->decimal('discount_pct', 5, 2)->default(0);
+            $table->decimal('line_total_local', 18, 4)->default(0);
+            $table->decimal('line_total_bdt', 18, 4)->default(0);
+            $table->string('notes', 500)->nullable();
+            $table->timestamps();
+
+            $table->index('sale_order_id');
+            $table->index('product_id');
+        });
+
+        // ── Inter-Warehouse Transfers ─────────────────────────────────────────
+        Schema::connection($c)->create($p . 'transfers', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('transfer_number', 50)->unique();
+            $table->foreignId('from_warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->foreignId('to_warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->string('status', 30)->default('draft');
+            $table->decimal('total_weight_kg', 18, 4)->default(0);
+            $table->decimal('shipping_rate_per_kg_bdt', 18, 4)->default(0);
+            $table->decimal('shipping_cost_bdt', 18, 4)->default(0);
+            $table->text('notes')->nullable();
+            $table->timestamp('shipped_at')->nullable();
+            $table->timestamp('received_at')->nullable();
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['from_warehouse_id', 'status']);
+            $table->index(['to_warehouse_id', 'status']);
+            $table->index('status');
+        });
+
+        // ── Transfer Items ────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'transfer_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('transfer_id')->constrained($p . 'transfers')->onDelete('cascade');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->decimal('qty_sent', 18, 4);
+            $table->decimal('qty_received', 18, 4)->default(0);
+            $table->decimal('unit_cost_source_bdt', 18, 4);  // WAC at source warehouse
+            $table->decimal('weight_kg_total', 18, 4)->default(0); // qty_sent × product.weight_kg
+            $table->decimal('shipping_allocated_bdt', 18, 4)->default(0); // pro-rated share
+            $table->decimal('unit_landed_cost_bdt', 18, 4)->default(0);   // source cost + shipping / qty
+            $table->decimal('wac_source_before_bdt', 18, 4)->default(0);
+            $table->decimal('wac_dest_before_bdt', 18, 4)->default(0);
+            $table->decimal('wac_dest_after_bdt', 18, 4)->default(0);
+            $table->string('notes', 500)->nullable();
+            $table->timestamps();
+
+            $table->index('transfer_id');
+            $table->index('product_id');
+        });
+
+        // ── Adjustments ───────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'adjustments', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('adjustment_number', 50)->unique();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->string('reason', 30);
+            $table->text('notes')->nullable();
+            $table->string('status', 30)->default('draft');
+            $table->timestamp('adjusted_at');
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamps();
+
+            $table->index(['warehouse_id', 'status']);
+        });
+
+        // ── Adjustment Items ──────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'adjustment_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('adjustment_id')->constrained($p . 'adjustments')->onDelete('cascade');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->decimal('qty_system', 18, 4);
+            $table->decimal('qty_actual', 18, 4);
+            $table->decimal('qty_delta', 18, 4);  // qty_actual - qty_system
+            $table->decimal('unit_cost_bdt', 18, 4)->default(0);
+            $table->string('notes', 500)->nullable();
+            $table->timestamps();
+
+            $table->index('adjustment_id');
+            $table->index('product_id');
+        });
+
+        // ── Stock Movements (append-only audit log) ───────────────────────────
+        Schema::connection($c)->create($p . 'stock_movements', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->onDelete('restrict');
+            $table->foreignId('product_id')->constrained($p . 'products')->onDelete('restrict');
+            $table->string('movement_type', 30);
+            $table->enum('direction', ['in', 'out']);
+            $table->decimal('qty', 18, 4);
+            $table->decimal('qty_before', 18, 4);
+            $table->decimal('qty_after', 18, 4);
+            $table->decimal('unit_cost_bdt', 18, 4)->nullable();
+            $table->decimal('wac_bdt', 18, 4)->nullable();
+            $table->string('reference_type', 100)->nullable();
+            $table->unsignedBigInteger('reference_id')->nullable();
+            $table->text('notes')->nullable();
+            $table->timestamp('moved_at');
+            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->timestamp('created_at')->nullable();
+
+            $table->index(['warehouse_id', 'product_id']);
+            $table->index('movement_type');
+            $table->index(['reference_type', 'reference_id']);
+            $table->index('moved_at');
+            $table->index(['product_id', 'moved_at']);
+        });
+    }
+
+    public function down(): void
+    {
+        $p = config('inventory.table_prefix') ?: 'inv_';
+        $c = config('inventory.drivers.database.connection', config('database.default'));
+
+        $tables = [
+            'stock_movements', 'adjustment_items', 'adjustments',
+            'transfer_items', 'transfers',
+            'sale_order_items', 'sale_orders',
+            'stock_receipt_items', 'stock_receipts',
+            'purchase_order_items', 'purchase_orders',
+            'exchange_rates', 'warehouse_products',
+            'product_prices', 'customers',
+            'price_tiers', 'suppliers',
+            'products', 'product_categories', 'warehouses',
+        ];
+
+        foreach ($tables as $table) {
+            Schema::connection($c)->dropIfExists($p . $table);
+        }
+    }
+};
