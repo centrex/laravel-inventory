@@ -6,15 +6,15 @@ namespace Centrex\Inventory\Enums;
 
 enum MovementType: string
 {
-    case PURCHASE_RECEIPT    = 'purchase_receipt';
-    case SALE_FULFILLMENT    = 'sale_fulfillment';
-    case TRANSFER_OUT        = 'transfer_out';
-    case TRANSFER_IN         = 'transfer_in';
-    case ADJUSTMENT_IN       = 'adjustment_in';
-    case ADJUSTMENT_OUT      = 'adjustment_out';
-    case OPENING_STOCK       = 'opening_stock';
-    case RETURN_TO_SUPPLIER  = 'return_to_supplier';
-    case CUSTOMER_RETURN     = 'customer_return';
+    case PURCHASE_RECEIPT = 'purchase_receipt';
+    case SALE_FULFILLMENT = 'sale_fulfillment';
+    case TRANSFER_OUT = 'transfer_out';
+    case TRANSFER_IN = 'transfer_in';
+    case ADJUSTMENT_IN = 'adjustment_in';
+    case ADJUSTMENT_OUT = 'adjustment_out';
+    case OPENING_STOCK = 'opening_stock';
+    case RETURN_TO_SUPPLIER = 'return_to_supplier';
+    case CUSTOMER_RETURN = 'customer_return';
 
     public function direction(): string
     {
@@ -23,7 +23,7 @@ enum MovementType: string
             self::TRANSFER_IN,
             self::ADJUSTMENT_IN,
             self::OPENING_STOCK,
-            self::CUSTOMER_RETURN  => 'in',
+            self::CUSTOMER_RETURN => 'in',
 
             self::SALE_FULFILLMENT,
             self::TRANSFER_OUT,

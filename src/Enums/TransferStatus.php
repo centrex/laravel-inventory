@@ -6,11 +6,11 @@ namespace Centrex\Inventory\Enums;
 
 enum TransferStatus: string
 {
-    case DRAFT      = 'draft';
+    case DRAFT = 'draft';
     case IN_TRANSIT = 'in_transit';
-    case PARTIAL    = 'partial';
-    case RECEIVED   = 'received';
-    case CANCELLED  = 'cancelled';
+    case PARTIAL = 'partial';
+    case RECEIVED = 'received';
+    case CANCELLED = 'cancelled';
 
     public function label(): string
     {

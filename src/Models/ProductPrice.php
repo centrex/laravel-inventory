@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\{BelongsTo};
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductPrice extends Model
 {
@@ -65,10 +65,6 @@ class ProductPrice extends Model
             return false;
         }
 
-        if ($this->effective_to && $date->gt($this->effective_to)) {
-            return false;
-        }
-
-        return true;
+        return !($this->effective_to && $date->gt($this->effective_to));
     }
 }

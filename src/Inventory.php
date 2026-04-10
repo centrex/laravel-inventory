@@ -18,7 +18,7 @@ class Inventory
 
     public function setExchangeRate(string $currency, float $rateBdt, ?string $date = null, string $source = 'manual'): ExchangeRate
     {
-        $date = $date ?? now()->toDateString();
+        $date ??= now()->toDateString();
 
         return ExchangeRate::updateOrCreate(
             ['currency' => strtoupper($currency), 'valid_at' => $date],
@@ -34,7 +34,7 @@ class Inventory
             return 1.0;
         }
 
-        $date = $date ?? now()->toDateString();
+        $date ??= now()->toDateString();
 
         $rate = ExchangeRate::where('currency', $currency)
             ->where('valid_at', '<=', $date)
@@ -117,7 +117,7 @@ class Inventory
     public function resolvePrice(int $productId, string $tierCode, int $warehouseId, ?string $date = null): ProductPrice
     {
         $tier = PriceTier::where('code', $tierCode)->firstOrFail();
-        $date = $date ?? now()->toDateString();
+        $date ??= now()->toDateString();
 
         $base = ProductPrice::where('product_id', $productId)
             ->where('price_tier_id', $tier->id)
@@ -428,7 +428,7 @@ class Inventory
         $grn = StockReceipt::with('items')->findOrFail($grnId);
 
         if ($grn->status !== StockReceiptStatus::POSTED) {
-            throw new InvalidTransitionException("Only posted GRNs can be voided.");
+            throw new InvalidTransitionException('Only posted GRNs can be voided.');
         }
 
         return DB::transaction(function () use ($grn): StockReceipt {

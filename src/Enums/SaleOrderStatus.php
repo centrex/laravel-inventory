@@ -6,13 +6,13 @@ namespace Centrex\Inventory\Enums;
 
 enum SaleOrderStatus: string
 {
-    case DRAFT      = 'draft';
-    case CONFIRMED  = 'confirmed';
+    case DRAFT = 'draft';
+    case CONFIRMED = 'confirmed';
     case PROCESSING = 'processing';
-    case PARTIAL    = 'partial';
-    case FULFILLED  = 'fulfilled';
-    case CANCELLED  = 'cancelled';
-    case RETURNED   = 'returned';
+    case PARTIAL = 'partial';
+    case FULFILLED = 'fulfilled';
+    case CANCELLED = 'cancelled';
+    case RETURNED = 'returned';
 
     public function label(): string
     {

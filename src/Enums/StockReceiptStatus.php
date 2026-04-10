@@ -6,9 +6,9 @@ namespace Centrex\Inventory\Enums;
 
 enum StockReceiptStatus: string
 {
-    case DRAFT  = 'draft';
+    case DRAFT = 'draft';
     case POSTED = 'posted';
-    case VOID   = 'void';
+    case VOID = 'void';
 
     public function label(): string
     {

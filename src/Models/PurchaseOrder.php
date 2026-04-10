@@ -37,19 +37,19 @@ class PurchaseOrder extends Model
     ];
 
     protected $casts = [
-        'status'             => PurchaseOrderStatus::class,
-        'exchange_rate_bdt'  => 'decimal:8',
-        'subtotal_local'     => 'decimal:4',
-        'subtotal_bdt'       => 'decimal:4',
-        'tax_local'          => 'decimal:4',
-        'tax_bdt'            => 'decimal:4',
-        'shipping_local'     => 'decimal:4',
-        'shipping_bdt'       => 'decimal:4',
-        'other_charges_bdt'  => 'decimal:4',
-        'total_local'        => 'decimal:4',
-        'total_bdt'          => 'decimal:4',
-        'ordered_at'         => 'datetime',
-        'expected_at'        => 'date',
+        'status'            => PurchaseOrderStatus::class,
+        'exchange_rate_bdt' => 'decimal:8',
+        'subtotal_local'    => 'decimal:4',
+        'subtotal_bdt'      => 'decimal:4',
+        'tax_local'         => 'decimal:4',
+        'tax_bdt'           => 'decimal:4',
+        'shipping_local'    => 'decimal:4',
+        'shipping_bdt'      => 'decimal:4',
+        'other_charges_bdt' => 'decimal:4',
+        'total_local'       => 'decimal:4',
+        'total_bdt'         => 'decimal:4',
+        'ordered_at'        => 'datetime',
+        'expected_at'       => 'date',
     ];
 
     public function warehouse(): BelongsTo
@@ -76,7 +76,7 @@ class PurchaseOrder extends Model
     {
         return $this->items->every(
             fn (PurchaseOrderItem $item) => (float) $item->qty_received >= (float) $item->qty_ordered
-                - (float) config('inventory.qty_tolerance', 0.0001)
+                - (float) config('inventory.qty_tolerance', 0.0001),
         );
     }
 }

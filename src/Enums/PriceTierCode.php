@@ -6,11 +6,11 @@ namespace Centrex\Inventory\Enums;
 
 enum PriceTierCode: string
 {
-    case BASE         = 'base';
-    case WHOLESALE    = 'wholesale';
-    case RETAIL       = 'retail';
+    case BASE = 'base';
+    case WHOLESALE = 'wholesale';
+    case RETAIL = 'retail';
     case DROPSHIPPING = 'dropshipping';
-    case FCOM         = 'fcom';
+    case FCOM = 'fcom';
 
     public function label(): string
     {

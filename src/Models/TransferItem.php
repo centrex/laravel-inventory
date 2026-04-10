@@ -33,15 +33,15 @@ class TransferItem extends Model
     ];
 
     protected $casts = [
-        'qty_sent'                => 'decimal:4',
-        'qty_received'            => 'decimal:4',
-        'unit_cost_source_bdt'    => 'decimal:4',
-        'weight_kg_total'         => 'decimal:4',
-        'shipping_allocated_bdt'  => 'decimal:4',
-        'unit_landed_cost_bdt'    => 'decimal:4',
-        'wac_source_before_bdt'   => 'decimal:4',
-        'wac_dest_before_bdt'     => 'decimal:4',
-        'wac_dest_after_bdt'      => 'decimal:4',
+        'qty_sent'               => 'decimal:4',
+        'qty_received'           => 'decimal:4',
+        'unit_cost_source_bdt'   => 'decimal:4',
+        'weight_kg_total'        => 'decimal:4',
+        'shipping_allocated_bdt' => 'decimal:4',
+        'unit_landed_cost_bdt'   => 'decimal:4',
+        'wac_source_before_bdt'  => 'decimal:4',
+        'wac_dest_before_bdt'    => 'decimal:4',
+        'wac_dest_after_bdt'     => 'decimal:4',
     ];
 
     public function transfer(): BelongsTo

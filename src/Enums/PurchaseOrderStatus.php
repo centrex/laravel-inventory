@@ -6,11 +6,11 @@ namespace Centrex\Inventory\Enums;
 
 enum PurchaseOrderStatus: string
 {
-    case DRAFT     = 'draft';
+    case DRAFT = 'draft';
     case SUBMITTED = 'submitted';
     case CONFIRMED = 'confirmed';
-    case PARTIAL   = 'partial';
-    case RECEIVED  = 'received';
+    case PARTIAL = 'partial';
+    case RECEIVED = 'received';
     case CANCELLED = 'cancelled';
 
     public function label(): string

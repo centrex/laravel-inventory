@@ -7,12 +7,12 @@ namespace Centrex\Inventory\Enums;
 enum AdjustmentReason: string
 {
     case CYCLE_COUNT = 'cycle_count';
-    case WRITE_OFF   = 'write_off';
-    case DAMAGE      = 'damage';
-    case THEFT       = 'theft';
-    case EXPIRY      = 'expiry';
+    case WRITE_OFF = 'write_off';
+    case DAMAGE = 'damage';
+    case THEFT = 'theft';
+    case EXPIRY = 'expiry';
     case FOUND_STOCK = 'found_stock';
-    case OTHER       = 'other';
+    case OTHER = 'other';
 
     public function label(): string
     {
