@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types = 1);
+
 namespace VendorName\Skeleton;
 
 use Illuminate\Support\ServiceProvider;
@@ -21,7 +23,7 @@ class SkeletonServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../config/config.php' => config_path(':package_slug.php'),
+                __DIR__ . '/../config/config.php' => config_path(':package_slug.php'),
             ], ':package_slug-config');
 
             // Publishing the migrations.
@@ -55,11 +57,11 @@ class SkeletonServiceProvider extends ServiceProvider
     public function register()
     {
         // Automatically apply the package configuration
-        $this->mergeConfigFrom(__DIR__.'/../config/config.php', ':package_slug');
+        $this->mergeConfigFrom(__DIR__ . '/../config/config.php', ':package_slug');
 
         // Register the main class to use with the facade
         $this->app->singleton(':package_slug', function () {
-            return new Skeleton;
+            return new Skeleton();
         });
     }
 }
