@@ -10,7 +10,7 @@ use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('inventory::layouts.app')]
+#[Layout('layouts.app')]
 class TransferFormPage extends Component
 {
     public ?int $from_warehouse_id = null;

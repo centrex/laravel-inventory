@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('inventory::layouts.app')]
+#[Layout('layouts.app')]
 class EntityFormPage extends Component
 {
     public string $entity = '';

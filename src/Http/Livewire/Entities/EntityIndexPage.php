@@ -9,7 +9,7 @@ use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
 
-#[Layout('inventory::layouts.app')]
+#[Layout('layouts.app')]
 class EntityIndexPage extends Component
 {
     use WithPagination;
