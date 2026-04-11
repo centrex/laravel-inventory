@@ -1,3 +1,4 @@
+<x-layouts::app>
 <div class="grid">
     <x-tallui-page-header title="Inventory Operations" subtitle="Manage stock, pricing, vendors, customers, and warehouse workflows from the package UI." icon="o-building-storefront">
         <x-slot:actions>
@@ -24,4 +25,5 @@
         </div>
     </x-tallui-card>
 </div>
+</x-layouts::app>
 
