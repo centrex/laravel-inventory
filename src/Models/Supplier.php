@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\{HasMany, MorphTo};
 
 class Supplier extends Model
 {
@@ -27,7 +27,7 @@ class Supplier extends Model
     protected $fillable = [
         'code', 'name', 'country_code', 'currency',
         'contact_name', 'contact_email', 'contact_phone',
-        'address', 'is_active', 'meta',
+        'address', 'is_active', 'modelable_type', 'modelable_id', 'accounting_vendor_id', 'meta',
     ];
 
     protected $casts = [
@@ -38,5 +38,10 @@ class Supplier extends Model
     public function purchaseOrders(): HasMany
     {
         return $this->hasMany(PurchaseOrder::class);
+    }
+
+    public function modelable(): MorphTo
+    {
+        return $this->morphTo();
     }
 }

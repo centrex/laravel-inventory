@@ -30,7 +30,7 @@ class StockMovement extends Model
         'warehouse_id', 'product_id',
         'movement_type', 'direction',
         'qty', 'qty_before', 'qty_after',
-        'unit_cost_bdt', 'wac_bdt',
+        'unit_cost_amount', 'wac_amount',
         'reference_type', 'reference_id',
         'notes', 'moved_at', 'created_by',
     ];
@@ -40,8 +40,8 @@ class StockMovement extends Model
         'qty'           => 'decimal:4',
         'qty_before'    => 'decimal:4',
         'qty_after'     => 'decimal:4',
-        'unit_cost_bdt' => 'decimal:4',
-        'wac_bdt'       => 'decimal:4',
+        'unit_cost_amount' => 'decimal:4',
+        'wac_amount'       => 'decimal:4',
         'moved_at'      => 'datetime',
     ];
 

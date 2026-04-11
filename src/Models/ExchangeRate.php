@@ -22,24 +22,34 @@ class ExchangeRate extends Model
         $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
     }
 
-    protected $fillable = ['currency', 'rate_bdt', 'source', 'valid_at'];
+    protected $fillable = ['currency', 'rate', 'source', 'valid_at'];
 
     protected $casts = [
-        'rate_bdt' => 'decimal:8',
+        'rate' => 'decimal:8',
         'valid_at' => 'date',
     ];
 
+    public function convertToBase(float $amount): float
+    {
+        return round($amount * (float) $this->rate, (int) config('inventory.wac_precision', 4));
+    }
+
     public function convertToBdt(float $amount): float
     {
-        return round($amount * (float) $this->rate_bdt, (int) config('inventory.wac_precision', 4));
+        return $this->convertToBase($amount);
+    }
+
+    public function convertFromBase(float $amount): float
+    {
+        if ((float) $this->rate == 0.0) {
+            return 0.0;
+        }
+
+        return round($amount / (float) $this->rate, (int) config('inventory.wac_precision', 4));
     }
 
     public function convertFromBdt(float $amountBdt): float
     {
-        if ((float) $this->rate_bdt == 0.0) {
-            return 0.0;
-        }
-
-        return round($amountBdt / (float) $this->rate_bdt, (int) config('inventory.wac_precision', 4));
+        return $this->convertFromBase($amountBdt);
     }
 }

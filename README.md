@@ -64,7 +64,7 @@ return [
     'exchange_rate_stale_days'         => 1,
     'price_not_found_throws'           => true,
     'qty_tolerance'                    => 0.0001,
-    'default_shipping_rate_per_kg_bdt' => 0,
+    'default_shipping_rate_per_kg' => 0,
     'seed_price_tiers'                 => true,
 ];
 ```
@@ -187,17 +187,17 @@ Inventory::setPrice($product->id, PriceTierCode::RETAIL->value, 5500.00, null, [
 // Resolve the effective retail price at Dhaka warehouse
 // (warehouse-specific wins over global; falls back to global if no warehouse price)
 $price = Inventory::resolvePrice($product->id, 'retail', $wh_dhaka->id);
-echo $price->price_bdt; // 6500.00
+echo $price->price_amount; // 6500.00
 
 // Get the full price sheet for a product at a warehouse (all tiers)
 $sheet = Inventory::getPriceSheet($product->id, $wh_china->id);
 // Returns a Collection:
 // [
-//   ['tier_code' => 'base',         'price_bdt' => 5500.00, 'source' => 'global'],
-//   ['tier_code' => 'wholesale',    'price_bdt' => 4800.00, 'source' => 'warehouse'],
-//   ['tier_code' => 'retail',       'price_bdt' => 5900.00, 'source' => 'warehouse'],
-//   ['tier_code' => 'dropshipping', 'price_bdt' => 6200.00, 'source' => 'global'],
-//   ['tier_code' => 'fcom',         'price_bdt' => 6800.00, 'source' => 'global'],
+//   ['tier_code' => 'base',         'price_amount' => 5500.00, 'source' => 'global'],
+//   ['tier_code' => 'wholesale',    'price_amount' => 4800.00, 'source' => 'warehouse'],
+//   ['tier_code' => 'retail',       'price_amount' => 5900.00, 'source' => 'warehouse'],
+//   ['tier_code' => 'dropshipping', 'price_amount' => 6200.00, 'source' => 'global'],
+//   ['tier_code' => 'fcom',         'price_amount' => 6800.00, 'source' => 'global'],
 // ]
 ```
 
@@ -224,7 +224,7 @@ $po = Inventory::createPurchaseOrder([
     'warehouse_id'      => $wh_china->id,
     'supplier_id'       => $supplier->id,
     'currency'          => 'CNY',
-    'exchange_rate_bdt' => 16.50,  // optional: auto-fetched from exchange_rates if omitted
+    'exchange_rate' => 16.50,  // optional: auto-fetched from exchange_rates if omitted
     'tax_local'         => 100.00,
     'shipping_local'    => 50.00,
     'notes'             => 'Spring restock order',
@@ -238,7 +238,7 @@ $po = Inventory::createPurchaseOrder([
 ]);
 
 // $po->po_number  => "PO-20260410-0001"
-// $po->total_bdt  => (200 × 180 × 16.50) + tax_bdt + shipping_bdt
+// $po->total_amount  => (200 × 180 × 16.50) + tax_amount + shipping_amount
 
 // Move through statuses
 Inventory::submitPurchaseOrder($po->id);   // draft → submitted
@@ -264,7 +264,7 @@ $grn = Inventory::postStockReceipt($grn->id);
 // Check new stock level
 $stock = Inventory::getStockLevel($product->id, $wh_china->id);
 echo $stock->qty_on_hand; // 200
-echo $stock->wac_bdt;     // 2970.0000 (180 CNY × 16.50)
+echo $stock->wac_amount;     // 2970.0000 (180 CNY × 16.50)
 
 // Void a posted GRN (writes compensating movement — never deletes)
 Inventory::voidStockReceipt($grn->id);
@@ -293,7 +293,7 @@ $so = Inventory::createSaleOrder([
     'customer_id'       => $customer->id,
     'price_tier_code'   => 'wholesale',
     'currency'          => 'USD',
-    'exchange_rate_bdt' => 110.00,
+    'exchange_rate' => 110.00,
     'items'             => [
         [
             'product_id'  => $product->id,
@@ -311,7 +311,7 @@ Inventory::fulfillSaleOrder($so->id);     // decrements qty_on_hand, stamps COGS
 
 $so->refresh();
 echo $so->status->value;   // "fulfilled"
-echo $so->cogs_bdt;        // 50 × wac_bdt at time of fulfillment
+echo $so->cogs_amount;        // 50 × wac_amount at time of fulfillment
 echo $so->grossMarginPct(); // gross margin %
 
 // Partial fulfillment — supply a qty per line item
@@ -331,7 +331,7 @@ $so = Inventory::createSaleOrder([
     'warehouse_id'    => $wh_dhaka->id,
     'price_tier_code' => 'retail',       // order-level default
     'currency'        => 'BDT',
-    'exchange_rate_bdt' => 1.0,
+    'exchange_rate' => 1.0,
     'items'           => [
         [
             'product_id'       => $product->id,
@@ -356,7 +356,7 @@ use Centrex\Inventory\Facades\Inventory;
 $transfer = Inventory::createTransfer([
     'from_warehouse_id'        => $wh_china->id,
     'to_warehouse_id'          => $wh_dhaka->id,
-    'shipping_rate_per_kg_bdt' => 15.00,
+    'shipping_rate_per_kg' => 15.00,
     'notes'                    => 'Monthly replenishment',
     'items'                    => [
         [
@@ -367,15 +367,15 @@ $transfer = Inventory::createTransfer([
     ],
 ]);
 
-// $transfer->shipping_cost_bdt          => 35 kg × 15 = 525.00 BDT
-// $transfer->items[0]->shipping_allocated_bdt => 525.00 (100% weight share)
-// $transfer->items[0]->unit_landed_cost_bdt   => source_wac + 525/100 = WAC + 5.25
+// $transfer->shipping_cost_amount          => 35 kg × 15 = 525.00 BDT
+// $transfer->items[0]->shipping_allocated_amount => 525.00 (100% weight share)
+// $transfer->items[0]->unit_landed_cost_amount   => source_wac + 525/100 = WAC + 5.25
 
 // Dispatch: decrements China stock, increments China qty_in_transit
 Inventory::dispatchTransfer($transfer->id);
 
 // Receive at Dhaka: increments Dhaka stock, recalculates Dhaka WAC
-// using unit_landed_cost_bdt (source WAC + allocated shipping)
+// using unit_landed_cost_amount (source WAC + allocated shipping)
 Inventory::receiveTransfer($transfer->id);
 
 // Partial receipt — supply a qty per transfer item
@@ -391,7 +391,7 @@ Inventory::receiveTransfer($transfer->id, [
 $transfer = Inventory::createTransfer([
     'from_warehouse_id'        => $wh_us->id,
     'to_warehouse_id'          => $wh_dhaka->id,
-    'shipping_rate_per_kg_bdt' => 80.00,  // air freight
+    'shipping_rate_per_kg' => 80.00,  // air freight
     'items'                    => [
         ['product_id' => $productA->id, 'qty_sent' => 20],  // 2 kg each → 40 kg
         ['product_id' => $productB->id, 'qty_sent' => 50],  // 0.1 kg each → 5 kg
@@ -454,7 +454,7 @@ echo $stock->qty_on_hand;   // 145
 echo $stock->qty_reserved;  // 50 (reserved by pending sale orders)
 echo $stock->qty_in_transit; // 100 (dispatched transfer not yet received)
 echo $stock->qtyAvailable(); // qty_on_hand - qty_reserved = 95
-echo $stock->wac_bdt;        // weighted average cost in BDT
+echo $stock->wac_amount;        // weighted average cost in BDT
 
 // All products at a warehouse
 $levels = Inventory::getStockLevels($wh_dhaka->id);
@@ -480,8 +480,8 @@ $report = Inventory::stockValuationReport($wh_dhaka->id);
 //   'qty_on_hand'     => 145.0,
 //   'qty_reserved'    => 50.0,
 //   'qty_available'   => 95.0,
-//   'wac_bdt'         => 3105.2500,
-//   'total_value_bdt' => 450261.25,
+//   'wac_amount'         => 3105.2500,
+//   'total_value_amount' => 450261.25,
 // ]
 ```
 
@@ -498,7 +498,7 @@ $movements = Inventory::getMovementHistory(
 foreach ($movements as $m) {
     echo "[{$m->moved_at}] {$m->movement_type->label()} {$m->direction} {$m->qty} "
        . "| before: {$m->qty_before} → after: {$m->qty_after} "
-       . "| WAC: {$m->wac_bdt} BDT\n";
+       . "| WAC: {$m->wac_amount} BDT\n";
 }
 ```
 

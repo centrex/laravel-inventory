@@ -7,6 +7,7 @@ namespace Centrex\Inventory;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, ExchangeRate, PriceTier, Product, ProductPrice, PurchaseOrder, PurchaseOrderItem, SaleOrder, SaleOrderItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -16,13 +17,13 @@ class Inventory
     // Exchange Rates
     // -------------------------------------------------------------------------
 
-    public function setExchangeRate(string $currency, float $rateBdt, ?string $date = null, string $source = 'manual'): ExchangeRate
+    public function setExchangeRate(string $currency, float $rate, ?string $date = null, string $source = 'manual'): ExchangeRate
     {
         $date ??= now()->toDateString();
 
         return ExchangeRate::updateOrCreate(
             ['currency' => strtoupper($currency), 'valid_at' => $date],
-            ['rate_bdt' => $rateBdt, 'source' => $source],
+            ['rate' => $rate, 'source' => $source],
         );
     }
 
@@ -45,15 +46,20 @@ class Inventory
             throw new \RuntimeException("No exchange rate found for currency [{$currency}] on or before [{$date}].");
         }
 
-        return (float) $rate->rate_bdt;
+        return (float) $rate->rate;
     }
 
-    public function convertToBdt(float $amount, string $currency, ?string $date = null): float
+    public function convertToBase(float $amount, string $currency, ?string $date = null): float
     {
         return round($amount * $this->getExchangeRate($currency, $date), (int) config('inventory.wac_precision', 4));
     }
 
-    public function convertFromBdt(float $amountBdt, string $currency, ?string $date = null): float
+    public function convertToBdt(float $amount, string $currency, ?string $date = null): float
+    {
+        return $this->convertToBase($amount, $currency, $date);
+    }
+
+    public function convertFromBase(float $amount, string $currency, ?string $date = null): float
     {
         $rate = $this->getExchangeRate($currency, $date);
 
@@ -61,7 +67,12 @@ class Inventory
             return 0.0;
         }
 
-        return round($amountBdt / $rate, (int) config('inventory.wac_precision', 4));
+        return round($amount / $rate, (int) config('inventory.wac_precision', 4));
+    }
+
+    public function convertFromBdt(float $amountBdt, string $currency, ?string $date = null): float
+    {
+        return $this->convertFromBase($amountBdt, $currency, $date);
     }
 
     // -------------------------------------------------------------------------
@@ -86,12 +97,12 @@ class Inventory
      * Set or update a sell price for a product + tier (optionally scoped to a warehouse).
      * warehouse_id = null means global/default.
      */
-    public function setPrice(int $productId, string $tierCode, float $priceBdt, ?int $warehouseId = null, array $options = []): ProductPrice
+    public function setPrice(int $productId, string $tierCode, float $priceAmount, ?int $warehouseId = null, array $options = []): ProductPrice
     {
         $tier = PriceTier::where('code', $tierCode)->firstOrFail();
 
         $data = [
-            'price_bdt'      => $priceBdt,
+            'price_amount'   => $priceAmount,
             'price_local'    => $options['price_local'] ?? null,
             'currency'       => $options['currency'] ?? null,
             'effective_from' => $options['effective_from'] ?? null,
@@ -133,7 +144,7 @@ class Inventory
                 throw new PriceNotFoundException("No price found for product [{$productId}], tier [{$tierCode}], warehouse [{$warehouseId}].");
             }
 
-            return new ProductPrice(['price_bdt' => 0, 'price_local' => 0]);
+            return new ProductPrice(['price_amount' => 0, 'price_local' => 0]);
         }
 
         return $price;
@@ -155,7 +166,7 @@ class Inventory
                 return [
                     'tier_code'   => $tier->code,
                     'tier_name'   => $tier->name,
-                    'price_bdt'   => $price?->price_bdt,
+                    'price_amount'   => $price?->price_amount,
                     'price_local' => $price?->price_local,
                     'currency'    => $price?->currency,
                     'source'      => $price ? ($price->warehouse_id ? 'warehouse' : 'global') : null,
@@ -171,7 +182,7 @@ class Inventory
     {
         return WarehouseProduct::firstOrCreate(
             ['warehouse_id' => $warehouseId, 'product_id' => $productId],
-            ['qty_on_hand' => 0, 'qty_reserved' => 0, 'qty_in_transit' => 0, 'wac_bdt' => 0],
+            ['qty_on_hand' => 0, 'qty_reserved' => 0, 'qty_in_transit' => 0, 'wac_amount' => 0],
         );
     }
 
@@ -197,7 +208,7 @@ class Inventory
     public function getStockValue(?int $warehouseId = null): float
     {
         return (float) (WarehouseProduct::when($warehouseId, fn ($q) => $q->where('warehouse_id', $warehouseId))
-            ->selectRaw('SUM(qty_on_hand * wac_bdt) as total_value')
+            ->selectRaw('SUM(qty_on_hand * wac_amount) as total_value')
             ->value('total_value') ?? 0.0);
     }
 
@@ -205,21 +216,21 @@ class Inventory
     // WAC Engine (internal)
     // -------------------------------------------------------------------------
 
-    private function recalculateWac(WarehouseProduct $wp, float $qtyIn, float $unitCostBdt): float
+    private function recalculateWac(WarehouseProduct $wp, float $qtyIn, float $unitCostAmount): float
     {
         $currentQty = (float) $wp->qty_on_hand;
-        $currentWac = (float) $wp->wac_bdt;
+        $currentWac = (float) $wp->wac_amount;
 
         if ($currentQty <= 0) {
-            return round($unitCostBdt, (int) config('inventory.wac_precision', 4));
+            return round($unitCostAmount, (int) config('inventory.wac_precision', 4));
         }
 
-        $newWac = (($currentQty * $currentWac) + ($qtyIn * $unitCostBdt)) / ($currentQty + $qtyIn);
+        $newWac = (($currentQty * $currentWac) + ($qtyIn * $unitCostAmount)) / ($currentQty + $qtyIn);
 
         return round($newWac, (int) config('inventory.wac_precision', 4));
     }
 
-    private function writeMovement(int $warehouseId, int $productId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostBdt, ?float $wacBdt, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null): StockMovement
+    private function writeMovement(int $warehouseId, int $productId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null): StockMovement
     {
         return StockMovement::create([
             'warehouse_id'   => $warehouseId,
@@ -229,8 +240,8 @@ class Inventory
             'qty'            => $qty,
             'qty_before'     => $qtyBefore,
             'qty_after'      => $qtyAfter,
-            'unit_cost_bdt'  => $unitCostBdt,
-            'wac_bdt'        => $wacBdt,
+            'unit_cost_amount'  => $unitCostAmount,
+            'wac_amount'        => $wacAmount,
             'reference_type' => $refType,
             'reference_id'   => $refId,
             'notes'          => $notes,
@@ -242,9 +253,58 @@ class Inventory
     private function nextNumber(string $prefix, string $model, string $column): string
     {
         $today = now()->format('Ymd');
-        $count = $model::whereDate('created_at', now())->count() + 1;
+        $latest = $model::query()
+            ->where($column, 'like', "{$prefix}-{$today}-%")
+            ->orderByDesc($column)
+            ->value($column);
+
+        $count = $latest
+            ? ((int) substr((string) $latest, -4)) + 1
+            : 1;
 
         return "{$prefix}-{$today}-" . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+    }
+
+    private function lockWarehouseProduct(int $warehouseId, int $productId): WarehouseProduct
+    {
+        $model = new WarehouseProduct();
+
+        $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
+            ->where('product_id', $productId)
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        DB::connection($model->getConnectionName())->table($model->getTable())->insertOrIgnore([
+            'warehouse_id'    => $warehouseId,
+            'product_id'      => $productId,
+            'qty_on_hand'     => 0,
+            'qty_reserved'    => 0,
+            'qty_in_transit'  => 0,
+            'wac_amount'         => 0,
+            'created_at'      => now(),
+            'updated_at'      => now(),
+        ]);
+
+        return WarehouseProduct::where('warehouse_id', $warehouseId)
+            ->where('product_id', $productId)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function ensurePositiveQuantity(float $qty, string $field): void
+    {
+        if ($qty <= 0) {
+            throw new \InvalidArgumentException("{$field} must be greater than zero.");
+        }
+    }
+
+    private function erp(): ErpIntegration
+    {
+        return app(ErpIntegration::class);
     }
 
     // -------------------------------------------------------------------------
@@ -253,8 +313,8 @@ class Inventory
 
     public function createPurchaseOrder(array $data): PurchaseOrder
     {
-        return DB::transaction(function () use ($data): PurchaseOrder {
-            $rate = (float) ($data['exchange_rate_bdt'] ?? $this->getExchangeRate($data['currency']));
+        $po = DB::transaction(function () use ($data): PurchaseOrder {
+            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $shippingLocal = (float) ($data['shipping_local'] ?? 0);
@@ -264,21 +324,21 @@ class Inventory
                 'warehouse_id'      => $data['warehouse_id'],
                 'supplier_id'       => $data['supplier_id'],
                 'currency'          => strtoupper($data['currency']),
-                'exchange_rate_bdt' => $rate,
+                'exchange_rate' => $rate,
                 'status'            => PurchaseOrderStatus::DRAFT,
                 'ordered_at'        => $data['ordered_at'] ?? null,
                 'expected_at'       => $data['expected_at'] ?? null,
                 'notes'             => $data['notes'] ?? null,
                 'created_by'        => $data['created_by'] ?? null,
                 'tax_local'         => $taxLocal,
-                'tax_bdt'           => round($taxLocal * $rate, 4),
+                'tax_amount'           => round($taxLocal * $rate, 4),
                 'shipping_local'    => $shippingLocal,
-                'shipping_bdt'      => round($shippingLocal * $rate, 4),
-                'other_charges_bdt' => (float) ($data['other_charges_bdt'] ?? 0),
+                'shipping_amount'      => round($shippingLocal * $rate, 4),
+                'other_charges_amount' => (float) ($data['other_charges_amount'] ?? 0),
                 'subtotal_local'    => 0,
-                'subtotal_bdt'      => 0,
+                'subtotal_amount'      => 0,
                 'total_local'       => 0,
-                'total_bdt'         => 0,
+                'total_amount'         => 0,
             ]);
 
             $subtotalLocal = 0.0;
@@ -297,21 +357,25 @@ class Inventory
                     'qty_ordered'       => $qty,
                     'qty_received'      => 0,
                     'unit_price_local'  => $unitPriceLocal,
-                    'unit_price_bdt'    => $unitPriceBdt,
+                    'unit_price_amount'    => $unitPriceBdt,
                     'line_total_local'  => $lineTotalLocal,
-                    'line_total_bdt'    => $lineTotalBdt,
+                    'line_total_amount'    => $lineTotalBdt,
                     'notes'             => $item['notes'] ?? null,
                 ]);
             }
 
             $subtotalBdt = round($subtotalLocal * $rate, 4);
             $totalLocal = $subtotalLocal + (float) $po->tax_local + (float) $po->shipping_local;
-            $totalBdt = $subtotalBdt + (float) $po->tax_bdt + (float) $po->shipping_bdt + (float) $po->other_charges_bdt;
+            $totalBdt = $subtotalBdt + (float) $po->tax_amount + (float) $po->shipping_amount + (float) $po->other_charges_amount;
 
-            $po->update(['subtotal_local' => $subtotalLocal, 'subtotal_bdt' => $subtotalBdt, 'total_local' => $totalLocal, 'total_bdt' => $totalBdt]);
+            $po->update(['subtotal_local' => $subtotalLocal, 'subtotal_amount' => $subtotalBdt, 'total_local' => $totalLocal, 'total_amount' => $totalBdt]);
 
             return $po->refresh();
         });
+
+        $this->erp()->syncPurchaseOrderDocument($po);
+
+        return $po;
     }
 
     public function submitPurchaseOrder(int $poId): PurchaseOrder
@@ -328,6 +392,7 @@ class Inventory
         $po = PurchaseOrder::findOrFail($poId);
         $this->assertTransition($po->status, PurchaseOrderStatus::CONFIRMED, "purchase order #{$poId}");
         $po->update(['status' => PurchaseOrderStatus::CONFIRMED]);
+        $this->erp()->syncPurchaseOrderDocument($po->fresh(['supplier', 'items.product']));
 
         return $po;
     }
@@ -358,7 +423,19 @@ class Inventory
             foreach ($items as $item) {
                 $poItem = PurchaseOrderItem::findOrFail($item['purchase_order_item_id']);
                 $qty = (float) $item['qty_received'];
-                $rate = (float) $po->exchange_rate_bdt;
+                $this->ensurePositiveQuantity($qty, 'qty_received');
+
+                if ($poItem->purchase_order_id !== $po->id) {
+                    throw new \InvalidArgumentException("Purchase order item [{$poItem->id}] does not belong to purchase order [{$po->id}].");
+                }
+
+                $pendingQty = max(0.0, (float) $poItem->qty_ordered - (float) $poItem->qty_received);
+
+                if ($qty > $pendingQty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    throw new \InvalidArgumentException("Cannot receive {$qty} units for purchase order item [{$poItem->id}]; only {$pendingQty} remain open.");
+                }
+
+                $rate = (float) $po->exchange_rate;
                 $unitCostLocal = (float) ($item['unit_cost_local'] ?? $poItem->unit_price_local);
                 $unitCostBdt = round($unitCostLocal * $rate, 4);
 
@@ -368,10 +445,10 @@ class Inventory
                     'product_id'             => $poItem->product_id,
                     'qty_received'           => $qty,
                     'unit_cost_local'        => $unitCostLocal,
-                    'unit_cost_bdt'          => $unitCostBdt,
-                    'exchange_rate_bdt'      => $rate,
-                    'wac_before_bdt'         => 0,
-                    'wac_after_bdt'          => 0,
+                    'unit_cost_amount'          => $unitCostBdt,
+                    'exchange_rate'      => $rate,
+                    'wac_before_amount'         => 0,
+                    'wac_after_amount'          => 0,
                 ]);
             }
 
@@ -388,27 +465,24 @@ class Inventory
             throw new InvalidTransitionException("GRN #{$grnId} is already {$grn->status->value}.");
         }
 
-        return DB::transaction(function () use ($grn): StockReceipt {
+        $grn = DB::transaction(function () use ($grn): StockReceipt {
             foreach ($grn->items as $item) {
-                $wp = WarehouseProduct::where('warehouse_id', $grn->warehouse_id)
-                    ->where('product_id', $item->product_id)
-                    ->lockForUpdate()
-                    ->first() ?? $this->getOrCreateWarehouseProduct($grn->warehouse_id, $item->product_id);
+                $wp = $this->lockWarehouseProduct($grn->warehouse_id, $item->product_id);
 
                 $qtyBefore = (float) $wp->qty_on_hand;
-                $wacBefore = (float) $wp->wac_bdt;
-                $newWac = $this->recalculateWac($wp, (float) $item->qty_received, (float) $item->unit_cost_bdt);
+                $wacBefore = (float) $wp->wac_amount;
+                $newWac = $this->recalculateWac($wp, (float) $item->qty_received, (float) $item->unit_cost_amount);
                 $qtyAfter = $qtyBefore + (float) $item->qty_received;
 
-                $wp->update(['qty_on_hand' => $qtyAfter, 'wac_bdt' => $newWac]);
-                $item->update(['wac_before_bdt' => $wacBefore, 'wac_after_bdt' => $newWac]);
+                $wp->update(['qty_on_hand' => $qtyAfter, 'wac_amount' => $newWac]);
+                $item->update(['wac_before_amount' => $wacBefore, 'wac_after_amount' => $newWac]);
 
                 if ($item->purchase_order_item_id) {
                     PurchaseOrderItem::where('id', $item->purchase_order_item_id)
                         ->increment('qty_received', $item->qty_received);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_bdt, $newWac, StockReceipt::class, $grn->id);
+                $this->writeMovement($grn->warehouse_id, $item->product_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id);
             }
 
             $grn->update(['status' => StockReceiptStatus::POSTED]);
@@ -420,6 +494,10 @@ class Inventory
 
             return $grn->refresh();
         });
+
+        $this->erp()->postStockReceipt($grn);
+
+        return $grn;
     }
 
     /** Void a posted GRN: write compensating movements, reverse stock. */
@@ -431,7 +509,7 @@ class Inventory
             throw new InvalidTransitionException('Only posted GRNs can be voided.');
         }
 
-        return DB::transaction(function () use ($grn): StockReceipt {
+        $grn = DB::transaction(function () use ($grn): StockReceipt {
             foreach ($grn->items as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $grn->warehouse_id)
                     ->where('product_id', $item->product_id)
@@ -439,21 +517,31 @@ class Inventory
                     ->firstOrFail();
 
                 $qtyBefore = (float) $wp->qty_on_hand;
-                $qtyAfter = max(0.0, $qtyBefore - (float) $item->qty_received);
-                $wp->decrement('qty_on_hand', $item->qty_received);
+                $qtyDelta = (float) $item->qty_received;
+
+                if ($qtyBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qtyDelta) {
+                    throw new InsufficientStockException("Cannot void GRN #{$grnId} for product [{$item->product_id}] because only {$qtyBefore} units remain in stock.");
+                }
+
+                $qtyAfter = $qtyBefore - $qtyDelta;
+                $wp->update(['qty_on_hand' => $qtyAfter]);
 
                 if ($item->purchase_order_item_id) {
                     PurchaseOrderItem::where('id', $item->purchase_order_item_id)
                         ->decrement('qty_received', $item->qty_received);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_bdt, (float) $wp->fresh()->wac_bdt, StockReceipt::class, $grn->id, null, 'GRN void');
+                $this->writeMovement($grn->warehouse_id, $item->product_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, StockReceipt::class, $grn->id, null, 'GRN void');
             }
 
             $grn->update(['status' => StockReceiptStatus::VOID]);
 
             return $grn->refresh();
         });
+
+        $this->erp()->voidStockReceipt($grn);
+
+        return $grn;
     }
 
     // -------------------------------------------------------------------------
@@ -462,9 +550,9 @@ class Inventory
 
     public function createSaleOrder(array $data): SaleOrder
     {
-        return DB::transaction(function () use ($data): SaleOrder {
+        $so = DB::transaction(function () use ($data): SaleOrder {
             $tier = PriceTier::where('code', $data['price_tier_code'] ?? PriceTierCode::RETAIL->value)->firstOrFail();
-            $rate = (float) ($data['exchange_rate_bdt'] ?? $this->getExchangeRate($data['currency']));
+            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $discountLocal = (float) ($data['discount_local'] ?? 0);
@@ -475,20 +563,20 @@ class Inventory
                 'customer_id'       => $data['customer_id'] ?? null,
                 'price_tier_id'     => $tier->id,
                 'currency'          => strtoupper($data['currency']),
-                'exchange_rate_bdt' => $rate,
+                'exchange_rate' => $rate,
                 'status'            => SaleOrderStatus::DRAFT,
                 'ordered_at'        => $data['ordered_at'] ?? now(),
                 'notes'             => $data['notes'] ?? null,
                 'created_by'        => $data['created_by'] ?? null,
                 'tax_local'         => $taxLocal,
-                'tax_bdt'           => round($taxLocal * $rate, 4),
+                'tax_amount'           => round($taxLocal * $rate, 4),
                 'discount_local'    => $discountLocal,
-                'discount_bdt'      => round($discountLocal * $rate, 4),
+                'discount_amount'      => round($discountLocal * $rate, 4),
                 'subtotal_local'    => 0,
-                'subtotal_bdt'      => 0,
+                'subtotal_amount'      => 0,
                 'total_local'       => 0,
-                'total_bdt'         => 0,
-                'cogs_bdt'          => 0,
+                'total_amount'         => 0,
+                'cogs_amount'          => 0,
             ]);
 
             $subtotalLocal = 0.0;
@@ -500,7 +588,7 @@ class Inventory
 
                 $unitPriceBdt = isset($item['unit_price_local'])
                     ? round((float) $item['unit_price_local'] * $rate, 4)
-                    : (float) $this->resolvePrice($item['product_id'], $itemTier->code, $data['warehouse_id'])->price_bdt;
+                    : (float) $this->resolvePrice($item['product_id'], $itemTier->code, $data['warehouse_id'])->price_amount;
 
                 $unitPriceLocal = round($unitPriceBdt / ($rate ?: 1), 4);
                 $qty = (float) $item['qty_ordered'];
@@ -516,11 +604,11 @@ class Inventory
                     'qty_ordered'      => $qty,
                     'qty_fulfilled'    => 0,
                     'unit_price_local' => $unitPriceLocal,
-                    'unit_price_bdt'   => $unitPriceBdt,
-                    'unit_cost_bdt'    => 0,
+                    'unit_price_amount'   => $unitPriceBdt,
+                    'unit_cost_amount'    => 0,
                     'discount_pct'     => $discountPct,
                     'line_total_local' => $lineTotalLocal,
-                    'line_total_bdt'   => $lineTotalBdt,
+                    'line_total_amount'   => $lineTotalBdt,
                     'notes'            => $item['notes'] ?? null,
                 ]);
             }
@@ -529,10 +617,14 @@ class Inventory
             $totalLocal = $subtotalLocal + $taxLocal - $discountLocal;
             $totalBdt = $subtotalBdt + round($taxLocal * $rate, 4) - round($discountLocal * $rate, 4);
 
-            $so->update(['subtotal_local' => $subtotalLocal, 'subtotal_bdt' => $subtotalBdt, 'total_local' => $totalLocal, 'total_bdt' => $totalBdt]);
+            $so->update(['subtotal_local' => $subtotalLocal, 'subtotal_amount' => $subtotalBdt, 'total_local' => $totalLocal, 'total_amount' => $totalBdt]);
 
             return $so->refresh();
         });
+
+        $this->erp()->syncSaleOrderDocument($so);
+
+        return $so;
     }
 
     public function confirmSaleOrder(int $soId): SaleOrder
@@ -540,6 +632,7 @@ class Inventory
         $so = SaleOrder::findOrFail($soId);
         $this->assertTransition($so->status, SaleOrderStatus::CONFIRMED, "sale order #{$soId}");
         $so->update(['status' => SaleOrderStatus::CONFIRMED]);
+        $this->erp()->syncSaleOrderDocument($so->fresh(['customer', 'items.product']));
 
         return $so;
     }
@@ -591,8 +684,9 @@ class Inventory
             throw new InvalidTransitionException("Sale order #{$soId} cannot be fulfilled from status [{$so->status->value}].");
         }
 
-        return DB::transaction(function () use ($so, $fulfilledQtys): SaleOrder {
-            $totalCogs = 0.0;
+        $totalCogs = 0.0;
+
+        $so = DB::transaction(function () use ($so, $fulfilledQtys, &$totalCogs): SaleOrder {
             $fullyFulfilled = true;
 
             foreach ($so->items as $item) {
@@ -604,21 +698,37 @@ class Inventory
                     continue;
                 }
 
+                $remainingToFulfill = max(0.0, (float) $item->qty_ordered - (float) $item->qty_fulfilled);
+
+                if ($qty > $remainingToFulfill + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    throw new \InvalidArgumentException("Cannot fulfill {$qty} units for sale order item [{$item->id}]; only {$remainingToFulfill} remain open.");
+                }
+
                 $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                     ->where('product_id', $item->product_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $wac = (float) $wp->wac_bdt;
+                $wac = (float) $wp->wac_amount;
                 $qtyBefore = (float) $wp->qty_on_hand;
-                $qtyAfter = max(0.0, $qtyBefore - $qty);
+                $reservedBefore = (float) $wp->qty_reserved;
+
+                if ($qtyBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                    throw new InsufficientStockException("Insufficient on-hand stock for sale order item [{$item->id}]: available {$qtyBefore}, requested {$qty}.");
+                }
+
+                if ($reservedBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                    throw new InsufficientStockException("Insufficient reserved stock for sale order item [{$item->id}]: reserved {$reservedBefore}, requested {$qty}.");
+                }
+
+                $qtyAfter = $qtyBefore - $qty;
 
                 $wp->update([
                     'qty_on_hand'  => $qtyAfter,
-                    'qty_reserved' => max(0.0, (float) $wp->qty_reserved - $qty),
+                    'qty_reserved' => $reservedBefore - $qty,
                 ]);
 
-                $item->update(['qty_fulfilled' => (float) $item->qty_fulfilled + $qty, 'unit_cost_bdt' => $wac]);
+                $item->update(['qty_fulfilled' => (float) $item->qty_fulfilled + $qty, 'unit_cost_amount' => $wac]);
                 $totalCogs += round($qty * $wac, 4);
 
                 if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance')) {
@@ -628,10 +738,14 @@ class Inventory
                 $this->writeMovement($so->warehouse_id, $item->product_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyAfter, $wac, $wac, SaleOrder::class, $so->id);
             }
 
-            $so->update(['status' => $fullyFulfilled ? SaleOrderStatus::FULFILLED : SaleOrderStatus::PARTIAL, 'cogs_bdt' => (float) $so->cogs_bdt + $totalCogs]);
+            $so->update(['status' => $fullyFulfilled ? SaleOrderStatus::FULFILLED : SaleOrderStatus::PARTIAL, 'cogs_amount' => (float) $so->cogs_amount + $totalCogs]);
 
             return $so->refresh();
         });
+
+        $this->erp()->postSaleFulfillment($so, $totalCogs);
+
+        return $so;
     }
 
     public function cancelSaleOrder(int $soId): SaleOrder
@@ -640,14 +754,21 @@ class Inventory
         $this->assertTransition($so->status, SaleOrderStatus::CANCELLED, "sale order #{$soId}");
 
         return DB::transaction(function () use ($so): SaleOrder {
-            if ($so->status === SaleOrderStatus::PROCESSING) {
+            if (in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true)) {
                 foreach ($so->items as $item) {
                     $reserved = (float) $item->qty_ordered - (float) $item->qty_fulfilled;
 
                     if ($reserved > 0) {
-                        WarehouseProduct::where('warehouse_id', $so->warehouse_id)
+                        $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                             ->where('product_id', $item->product_id)
-                            ->decrement('qty_reserved', $reserved);
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($wp) {
+                            $wp->update([
+                                'qty_reserved' => max(0.0, (float) $wp->qty_reserved - $reserved),
+                            ]);
+                        }
                     }
                 }
             }
@@ -673,16 +794,16 @@ class Inventory
         }
 
         return DB::transaction(function () use ($data): Transfer {
-            $rate = (float) ($data['shipping_rate_per_kg_bdt'] ?? config('inventory.default_shipping_rate_per_kg_bdt', 0));
+            $rate = (float) ($data['shipping_rate_per_kg'] ?? config('inventory.default_shipping_rate_per_kg', 0));
 
             $transfer = Transfer::create([
                 'transfer_number'          => $this->nextNumber('TRF', Transfer::class, 'transfer_number'),
                 'from_warehouse_id'        => $data['from_warehouse_id'],
                 'to_warehouse_id'          => $data['to_warehouse_id'],
                 'status'                   => TransferStatus::DRAFT,
-                'shipping_rate_per_kg_bdt' => $rate,
+                'shipping_rate_per_kg' => $rate,
                 'total_weight_kg'          => 0,
-                'shipping_cost_bdt'        => 0,
+                'shipping_cost_amount'        => 0,
                 'notes'                    => $data['notes'] ?? null,
                 'created_by'               => $data['created_by'] ?? null,
             ]);
@@ -692,6 +813,7 @@ class Inventory
             foreach ($data['items'] as $item) {
                 $product = Product::findOrFail($item['product_id']);
                 $qty = (float) $item['qty_sent'];
+                $this->ensurePositiveQuantity($qty, 'qty_sent');
                 $weightTotal = $product->weight_kg !== null ? round($qty * (float) $product->weight_kg, 4) : 0.0;
                 $totalWeightKg += $weightTotal;
                 $wp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id);
@@ -701,13 +823,13 @@ class Inventory
                     'product_id'             => $product->id,
                     'qty_sent'               => $qty,
                     'qty_received'           => 0,
-                    'unit_cost_source_bdt'   => (float) $wp->wac_bdt,
+                    'unit_cost_source_amount'   => (float) $wp->wac_amount,
                     'weight_kg_total'        => $weightTotal,
-                    'shipping_allocated_bdt' => 0,
-                    'unit_landed_cost_bdt'   => 0,
-                    'wac_source_before_bdt'  => (float) $wp->wac_bdt,
-                    'wac_dest_before_bdt'    => 0,
-                    'wac_dest_after_bdt'     => 0,
+                    'shipping_allocated_amount' => 0,
+                    'unit_landed_cost_amount'   => 0,
+                    'wac_source_before_amount'  => (float) $wp->wac_amount,
+                    'wac_dest_before_amount'    => 0,
+                    'wac_dest_after_amount'     => 0,
                 ]);
             }
 
@@ -718,12 +840,12 @@ class Inventory
                     ? round(((float) $tItem->weight_kg_total / $totalWeightKg) * $shippingCost, 4)
                     : 0.0;
                 $unitLanded = (float) $tItem->qty_sent > 0
-                    ? round(((float) $tItem->unit_cost_source_bdt * (float) $tItem->qty_sent + $allocated) / (float) $tItem->qty_sent, 4)
+                    ? round(((float) $tItem->unit_cost_source_amount * (float) $tItem->qty_sent + $allocated) / (float) $tItem->qty_sent, 4)
                     : 0.0;
-                $tItem->update(['shipping_allocated_bdt' => $allocated, 'unit_landed_cost_bdt' => $unitLanded]);
+                $tItem->update(['shipping_allocated_amount' => $allocated, 'unit_landed_cost_amount' => $unitLanded]);
             }
 
-            $transfer->update(['total_weight_kg' => $totalWeightKg, 'shipping_cost_bdt' => $shippingCost]);
+            $transfer->update(['total_weight_kg' => $totalWeightKg, 'shipping_cost_amount' => $shippingCost]);
 
             return $transfer->refresh();
         });
@@ -756,9 +878,9 @@ class Inventory
                     'qty_in_transit' => (float) $wp->qty_in_transit + (float) $item->qty_sent,
                 ]);
 
-                $item->update(['wac_source_before_bdt' => (float) $wp->wac_bdt]);
+                $item->update(['wac_source_before_amount' => (float) $wp->wac_amount]);
 
-                $this->writeMovement($transfer->from_warehouse_id, $item->product_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_bdt, (float) $wp->wac_bdt, Transfer::class, $transfer->id);
+                $this->writeMovement($transfer->from_warehouse_id, $item->product_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Transfer::class, $transfer->id);
             }
 
             $transfer->update(['status' => TransferStatus::IN_TRANSIT, 'shipped_at' => now()]);
@@ -783,38 +905,40 @@ class Inventory
             $fullyReceived = true;
 
             foreach ($transfer->items as $item) {
+                $remainingQty = max(0.0, (float) $item->qty_sent - (float) $item->qty_received);
                 $qtyReceived = isset($receivedQtys[$item->id])
                     ? (float) $receivedQtys[$item->id]
-                    : (float) $item->qty_sent;
+                    : $remainingQty;
 
                 if ($qtyReceived <= 0) {
                     continue;
                 }
 
-                $destWp = WarehouseProduct::where('warehouse_id', $transfer->to_warehouse_id)
-                    ->where('product_id', $item->product_id)
-                    ->lockForUpdate()
-                    ->first() ?? $this->getOrCreateWarehouseProduct($transfer->to_warehouse_id, $item->product_id);
+                if ($qtyReceived > $remainingQty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    throw new \InvalidArgumentException("Cannot receive {$qtyReceived} units for transfer item [{$item->id}]; only {$remainingQty} remain in transit.");
+                }
 
-                $destWacBefore = (float) $destWp->wac_bdt;
-                $newDestWac = $this->recalculateWac($destWp, $qtyReceived, (float) $item->unit_landed_cost_bdt);
+                $destWp = $this->lockWarehouseProduct($transfer->to_warehouse_id, $item->product_id);
+
+                $destWacBefore = (float) $destWp->wac_amount;
+                $newDestWac = $this->recalculateWac($destWp, $qtyReceived, (float) $item->unit_landed_cost_amount);
                 $destQtyBefore = (float) $destWp->qty_on_hand;
                 $destQtyAfter = $destQtyBefore + $qtyReceived;
 
-                $destWp->update(['qty_on_hand' => $destQtyAfter, 'wac_bdt' => $newDestWac]);
+                $destWp->update(['qty_on_hand' => $destQtyAfter, 'wac_amount' => $newDestWac]);
 
                 WarehouseProduct::where('warehouse_id', $transfer->from_warehouse_id)
                     ->where('product_id', $item->product_id)
                     ->decrement('qty_in_transit', $qtyReceived);
 
                 $totalReceived = (float) $item->qty_received + $qtyReceived;
-                $item->update(['qty_received' => $totalReceived, 'wac_dest_before_bdt' => $destWacBefore, 'wac_dest_after_bdt' => $newDestWac]);
+                $item->update(['qty_received' => $totalReceived, 'wac_dest_before_amount' => $destWacBefore, 'wac_dest_after_amount' => $newDestWac]);
 
                 if ($totalReceived < (float) $item->qty_sent - (float) config('inventory.qty_tolerance')) {
                     $fullyReceived = false;
                 }
 
-                $this->writeMovement($transfer->to_warehouse_id, $item->product_id, MovementType::TRANSFER_IN, $qtyReceived, $destQtyBefore, $destQtyAfter, (float) $item->unit_landed_cost_bdt, $newDestWac, Transfer::class, $transfer->id);
+                $this->writeMovement($transfer->to_warehouse_id, $item->product_id, MovementType::TRANSFER_IN, $qtyReceived, $destQtyBefore, $destQtyAfter, (float) $item->unit_landed_cost_amount, $newDestWac, Transfer::class, $transfer->id);
             }
 
             $newStatus = $fullyReceived ? TransferStatus::RECEIVED : TransferStatus::PARTIAL;
@@ -856,7 +980,7 @@ class Inventory
                     'qty_system'    => $qtySystem,
                     'qty_actual'    => $qtyActual,
                     'qty_delta'     => round($qtyActual - $qtySystem, 4),
-                    'unit_cost_bdt' => (float) $wp->wac_bdt,
+                    'unit_cost_amount' => (float) $wp->wac_amount,
                     'notes'         => $item['notes'] ?? null,
                 ]);
             }
@@ -873,7 +997,7 @@ class Inventory
             throw new InvalidTransitionException("Adjustment #{$adjustmentId} is already {$adjustment->status->value}.");
         }
 
-        return DB::transaction(function () use ($adjustment): Adjustment {
+        $adjustment = DB::transaction(function () use ($adjustment): Adjustment {
             foreach ($adjustment->items as $item) {
                 if (abs((float) $item->qty_delta) < (float) config('inventory.qty_tolerance')) {
                     continue;
@@ -890,13 +1014,17 @@ class Inventory
 
                 $type = (float) $item->qty_delta > 0 ? MovementType::ADJUSTMENT_IN : MovementType::ADJUSTMENT_OUT;
 
-                $this->writeMovement($adjustment->warehouse_id, $item->product_id, $type, abs((float) $item->qty_delta), $qtyBefore, $qtyAfter, (float) $item->unit_cost_bdt, (float) $wp->fresh()->wac_bdt, Adjustment::class, $adjustment->id);
+                $this->writeMovement($adjustment->warehouse_id, $item->product_id, $type, abs((float) $item->qty_delta), $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, Adjustment::class, $adjustment->id);
             }
 
             $adjustment->update(['status' => StockReceiptStatus::POSTED]);
 
             return $adjustment->refresh();
         });
+
+        $this->erp()->postAdjustment($adjustment);
+
+        return $adjustment;
     }
 
     // -------------------------------------------------------------------------
@@ -916,8 +1044,8 @@ class Inventory
                 'qty_on_hand'     => (float) $wp->qty_on_hand,
                 'qty_reserved'    => (float) $wp->qty_reserved,
                 'qty_available'   => $wp->qtyAvailable(),
-                'wac_bdt'         => (float) $wp->wac_bdt,
-                'total_value_bdt' => $wp->totalValue(),
+                'wac_amount'         => (float) $wp->wac_amount,
+                'total_value_amount' => $wp->totalValue(),
             ]);
     }
 

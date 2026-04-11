@@ -26,14 +26,14 @@ class WarehouseProduct extends Model
     protected $fillable = [
         'warehouse_id', 'product_id',
         'qty_on_hand', 'qty_reserved', 'qty_in_transit',
-        'wac_bdt', 'reorder_point', 'reorder_qty', 'bin_location',
+        'wac_amount', 'reorder_point', 'reorder_qty', 'bin_location',
     ];
 
     protected $casts = [
         'qty_on_hand'    => 'decimal:4',
         'qty_reserved'   => 'decimal:4',
         'qty_in_transit' => 'decimal:4',
-        'wac_bdt'        => 'decimal:4',
+        'wac_amount'        => 'decimal:4',
         'reorder_point'  => 'decimal:4',
         'reorder_qty'    => 'decimal:4',
     ];
@@ -55,7 +55,7 @@ class WarehouseProduct extends Model
 
     public function totalValue(): float
     {
-        return round((float) $this->qty_on_hand * (float) $this->wac_bdt, (int) config('inventory.wac_precision', 4));
+        return round((float) $this->qty_on_hand * (float) $this->wac_amount, (int) config('inventory.wac_precision', 4));
     }
 
     public function isLowStock(): bool

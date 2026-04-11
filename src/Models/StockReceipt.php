@@ -26,7 +26,7 @@ class StockReceipt extends Model
 
     protected $fillable = [
         'grn_number', 'purchase_order_id', 'warehouse_id',
-        'received_at', 'notes', 'status', 'created_by',
+        'received_at', 'notes', 'status', 'created_by', 'accounting_journal_entry_id',
     ];
 
     protected $casts = [

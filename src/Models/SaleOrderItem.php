@@ -26,8 +26,8 @@ class SaleOrderItem extends Model
     protected $fillable = [
         'sale_order_id', 'product_id', 'price_tier_id',
         'qty_ordered', 'qty_fulfilled',
-        'unit_price_local', 'unit_price_bdt', 'unit_cost_bdt',
-        'discount_pct', 'line_total_local', 'line_total_bdt',
+        'unit_price_local', 'unit_price_amount', 'unit_cost_amount',
+        'discount_pct', 'line_total_local', 'line_total_amount',
         'notes',
     ];
 
@@ -35,11 +35,11 @@ class SaleOrderItem extends Model
         'qty_ordered'      => 'decimal:4',
         'qty_fulfilled'    => 'decimal:4',
         'unit_price_local' => 'decimal:4',
-        'unit_price_bdt'   => 'decimal:4',
-        'unit_cost_bdt'    => 'decimal:4',
+        'unit_price_amount'   => 'decimal:4',
+        'unit_cost_amount'    => 'decimal:4',
         'discount_pct'     => 'decimal:2',
         'line_total_local' => 'decimal:4',
-        'line_total_bdt'   => 'decimal:4',
+        'line_total_amount'   => 'decimal:4',
     ];
 
     public function saleOrder(): BelongsTo
@@ -57,8 +57,13 @@ class SaleOrderItem extends Model
         return $this->belongsTo(PriceTier::class);
     }
 
+    public function lineCogsAmount(): float
+    {
+        return round((float) $this->qty_fulfilled * (float) $this->unit_cost_amount, 4);
+    }
+
     public function lineCogsBdt(): float
     {
-        return round((float) $this->qty_fulfilled * (float) $this->unit_cost_bdt, 4);
+        return $this->lineCogsAmount();
     }
 }

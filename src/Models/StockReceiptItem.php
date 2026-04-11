@@ -26,17 +26,17 @@ class StockReceiptItem extends Model
     protected $fillable = [
         'stock_receipt_id', 'purchase_order_item_id', 'product_id',
         'qty_received',
-        'unit_cost_local', 'unit_cost_bdt', 'exchange_rate_bdt',
-        'wac_before_bdt', 'wac_after_bdt', 'notes',
+        'unit_cost_local', 'unit_cost_amount', 'exchange_rate',
+        'wac_before_amount', 'wac_after_amount', 'notes',
     ];
 
     protected $casts = [
         'qty_received'      => 'decimal:4',
         'unit_cost_local'   => 'decimal:4',
-        'unit_cost_bdt'     => 'decimal:4',
-        'exchange_rate_bdt' => 'decimal:8',
-        'wac_before_bdt'    => 'decimal:4',
-        'wac_after_bdt'     => 'decimal:4',
+        'unit_cost_amount'     => 'decimal:4',
+        'exchange_rate' => 'decimal:8',
+        'wac_before_amount'    => 'decimal:4',
+        'wac_after_amount'     => 'decimal:4',
     ];
 
     public function stockReceipt(): BelongsTo

@@ -26,7 +26,7 @@ class Adjustment extends Model
 
     protected $fillable = [
         'adjustment_number', 'warehouse_id', 'reason',
-        'notes', 'status', 'adjusted_at', 'created_by',
+        'notes', 'status', 'adjusted_at', 'created_by', 'accounting_journal_entry_id',
     ];
 
     protected $casts = [

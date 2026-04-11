@@ -4,6 +4,10 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
+use Centrex\Inventory\Models\{Customer, Supplier};
+use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
+use Centrex\Inventory\Support\{CartCheckoutService, ErpIntegration};
+use Livewire\Livewire;
 use Illuminate\Support\ServiceProvider;
 
 class InventoryServiceProvider extends ServiceProvider
@@ -11,6 +15,19 @@ class InventoryServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'inventory');
+
+        if ((bool) config('inventory.web_enabled', true)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+        }
+
+        if ((bool) config('inventory.api_enabled', true)) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
+        }
+
+        $this->registerLivewireComponents();
+        Customer::observe(CustomerObserver::class);
+        Supplier::observe(SupplierObserver::class);
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -28,5 +45,25 @@ class InventoryServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
         $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
+        $this->app->singleton(CartCheckoutService::class, fn ($app) => new CartCheckoutService(
+            $app->make(Inventory::class),
+            $app->make(ErpIntegration::class),
+        ));
+    }
+
+    private function registerLivewireComponents(): void
+    {
+        if (! class_exists(Livewire::class)) {
+            return;
+        }
+
+        Livewire::component('inventory-entity-index', \Centrex\Inventory\Http\Livewire\Entities\EntityIndexPage::class);
+        Livewire::component('inventory-entity-form', \Centrex\Inventory\Http\Livewire\Entities\EntityFormPage::class);
+        Livewire::component('inventory-sale-order-form', \Centrex\Inventory\Http\Livewire\Transactions\SaleOrderFormPage::class);
+        Livewire::component('inventory-purchase-order-form', \Centrex\Inventory\Http\Livewire\Transactions\PurchaseOrderFormPage::class);
+        Livewire::component('inventory-transfer-form', \Centrex\Inventory\Http\Livewire\Transactions\TransferFormPage::class);
+        Livewire::component('inventory-adjustment-form', \Centrex\Inventory\Http\Livewire\Transactions\AdjustmentFormPage::class);
+        Livewire::component('inventory-pos-terminal', \Centrex\Inventory\Http\Livewire\Transactions\PosTerminalPage::class);
     }
 }

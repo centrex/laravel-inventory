@@ -28,15 +28,15 @@ class Transfer extends Model
     protected $fillable = [
         'transfer_number', 'from_warehouse_id', 'to_warehouse_id',
         'status', 'total_weight_kg',
-        'shipping_rate_per_kg_bdt', 'shipping_cost_bdt',
+        'shipping_rate_per_kg', 'shipping_cost_amount',
         'notes', 'shipped_at', 'received_at', 'created_by',
     ];
 
     protected $casts = [
         'status'                   => TransferStatus::class,
         'total_weight_kg'          => 'decimal:4',
-        'shipping_rate_per_kg_bdt' => 'decimal:4',
-        'shipping_cost_bdt'        => 'decimal:4',
+        'shipping_rate_per_kg' => 'decimal:4',
+        'shipping_cost_amount'        => 'decimal:4',
         'shipped_at'               => 'datetime',
         'received_at'              => 'datetime',
     ];

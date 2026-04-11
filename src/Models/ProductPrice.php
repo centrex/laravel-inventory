@@ -25,12 +25,12 @@ class ProductPrice extends Model
 
     protected $fillable = [
         'product_id', 'price_tier_id', 'warehouse_id',
-        'price_bdt', 'price_local', 'currency',
+        'price_amount', 'price_local', 'currency',
         'effective_from', 'effective_to', 'is_active',
     ];
 
     protected $casts = [
-        'price_bdt'      => 'decimal:4',
+        'price_amount'      => 'decimal:4',
         'price_local'    => 'decimal:4',
         'effective_from' => 'date',
         'effective_to'   => 'date',

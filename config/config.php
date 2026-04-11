@@ -35,6 +35,7 @@ return [
     */
     'web_middleware' => ['web', 'auth'],
     'web_prefix'     => 'inventory',
+    'web_enabled'    => env('INVENTORY_WEB_ENABLED', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -43,6 +44,7 @@ return [
     */
     'api_middleware' => ['api', 'auth:sanctum'],
     'api_prefix'     => 'api/inventory',
+    'api_enabled'    => env('INVENTORY_API_ENABLED', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -81,7 +83,7 @@ return [
     |--------------------------------------------------------------------------
     | Default rate per kg in BDT for inter-warehouse transfers.
     */
-    'default_shipping_rate_per_kg_bdt' => env('INVENTORY_DEFAULT_SHIPPING_RATE_KG', 0),
+    'default_shipping_rate_per_kg' => env('INVENTORY_DEFAULT_SHIPPING_RATE_KG', 0),
 
     /*
     |--------------------------------------------------------------------------
@@ -97,6 +99,25 @@ return [
     */
     'admin_roles'          => env('INVENTORY_ADMIN_ROLES', 'inventory-manager,admin'),
     'admin_role_attribute' => env('INVENTORY_ADMIN_ROLE_ATTRIBUTE', null),
+    'user_foreign_keys'    => env('INVENTORY_USER_FOREIGN_KEYS', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | ERP Integration
+    |--------------------------------------------------------------------------
+    */
+    'erp' => [
+        'accounting' => [
+            'enabled' => env('INVENTORY_ACCOUNTING_ENABLED', true),
+            'accounts' => [
+                'inventory_asset'      => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
+                'cost_of_goods_sold'   => env('INVENTORY_ACCOUNTING_COGS', '5000'),
+                'goods_received_clear' => env('INVENTORY_ACCOUNTING_GRNI', '2000'),
+                'inventory_gain'       => env('INVENTORY_ACCOUNTING_GAIN', '4900'),
+                'inventory_loss'       => env('INVENTORY_ACCOUNTING_LOSS', '5000'),
+            ],
+        ],
+    ],
 
     /*
     |--------------------------------------------------------------------------

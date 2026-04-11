@@ -26,14 +26,14 @@ class AdjustmentItem extends Model
     protected $fillable = [
         'adjustment_id', 'product_id',
         'qty_system', 'qty_actual', 'qty_delta',
-        'unit_cost_bdt', 'notes',
+        'unit_cost_amount', 'notes',
     ];
 
     protected $casts = [
         'qty_system'    => 'decimal:4',
         'qty_actual'    => 'decimal:4',
         'qty_delta'     => 'decimal:4',
-        'unit_cost_bdt' => 'decimal:4',
+        'unit_cost_amount' => 'decimal:4',
     ];
 
     public function adjustment(): BelongsTo

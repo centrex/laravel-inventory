@@ -27,7 +27,7 @@ class Customer extends Model
     protected $fillable = [
         'code', 'name', 'email', 'phone', 'currency',
         'price_tier_id', 'is_active',
-        'modelable_type', 'modelable_id', 'meta',
+        'modelable_type', 'modelable_id', 'accounting_customer_id', 'meta',
     ];
 
     protected $casts = [

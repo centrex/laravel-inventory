@@ -26,8 +26,8 @@ class PurchaseOrderItem extends Model
     protected $fillable = [
         'purchase_order_id', 'product_id',
         'qty_ordered', 'qty_received',
-        'unit_price_local', 'unit_price_bdt',
-        'line_total_local', 'line_total_bdt',
+        'unit_price_local', 'unit_price_amount',
+        'line_total_local', 'line_total_amount',
         'notes',
     ];
 
@@ -35,9 +35,9 @@ class PurchaseOrderItem extends Model
         'qty_ordered'      => 'decimal:4',
         'qty_received'     => 'decimal:4',
         'unit_price_local' => 'decimal:4',
-        'unit_price_bdt'   => 'decimal:4',
+        'unit_price_amount'   => 'decimal:4',
         'line_total_local' => 'decimal:4',
-        'line_total_bdt'   => 'decimal:4',
+        'line_total_amount'   => 'decimal:4',
     ];
 
     public function purchaseOrder(): BelongsTo
