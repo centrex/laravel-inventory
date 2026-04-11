@@ -30,7 +30,7 @@ class ProductPrice extends Model
     ];
 
     protected $casts = [
-        'price_amount'      => 'decimal:4',
+        'price_amount'   => 'decimal:4',
         'price_local'    => 'decimal:4',
         'effective_from' => 'date',
         'effective_to'   => 'date',

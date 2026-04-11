@@ -36,13 +36,13 @@ class StockMovement extends Model
     ];
 
     protected $casts = [
-        'movement_type' => MovementType::class,
-        'qty'           => 'decimal:4',
-        'qty_before'    => 'decimal:4',
-        'qty_after'     => 'decimal:4',
+        'movement_type'    => MovementType::class,
+        'qty'              => 'decimal:4',
+        'qty_before'       => 'decimal:4',
+        'qty_after'        => 'decimal:4',
         'unit_cost_amount' => 'decimal:4',
         'wac_amount'       => 'decimal:4',
-        'moved_at'      => 'datetime',
+        'moved_at'         => 'datetime',
     ];
 
     public function warehouse(): BelongsTo

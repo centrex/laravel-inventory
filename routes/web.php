@@ -3,13 +3,8 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\DashboardController;
-use Centrex\Inventory\Http\Livewire\Entities\EntityFormPage;
-use Centrex\Inventory\Http\Livewire\Entities\EntityIndexPage;
-use Centrex\Inventory\Http\Livewire\Transactions\AdjustmentFormPage;
-use Centrex\Inventory\Http\Livewire\Transactions\PosTerminalPage;
-use Centrex\Inventory\Http\Livewire\Transactions\PurchaseOrderFormPage;
-use Centrex\Inventory\Http\Livewire\Transactions\SaleOrderFormPage;
-use Centrex\Inventory\Http\Livewire\Transactions\TransferFormPage;
+use Centrex\Inventory\Http\Livewire\Entities\{EntityFormPage, EntityIndexPage};
+use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, PosTerminalPage, PurchaseOrderFormPage, SaleOrderFormPage, TransferFormPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 

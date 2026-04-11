@@ -32,12 +32,12 @@ class PurchaseOrderItem extends Model
     ];
 
     protected $casts = [
-        'qty_ordered'      => 'decimal:4',
-        'qty_received'     => 'decimal:4',
-        'unit_price_local' => 'decimal:4',
-        'unit_price_amount'   => 'decimal:4',
-        'line_total_local' => 'decimal:4',
-        'line_total_amount'   => 'decimal:4',
+        'qty_ordered'       => 'decimal:4',
+        'qty_received'      => 'decimal:4',
+        'unit_price_local'  => 'decimal:4',
+        'unit_price_amount' => 'decimal:4',
+        'line_total_local'  => 'decimal:4',
+        'line_total_amount' => 'decimal:4',
     ];
 
     public function purchaseOrder(): BelongsTo

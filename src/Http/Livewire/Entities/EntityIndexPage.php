@@ -7,8 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Entities;
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
-use Livewire\Component;
-use Livewire\WithPagination;
+use Livewire\{Component, WithPagination};
 
 #[Layout('inventory::layouts.app')]
 class EntityIndexPage extends Component

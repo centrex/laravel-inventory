@@ -14,9 +14,13 @@ use Livewire\Component;
 class TransferFormPage extends Component
 {
     public ?int $from_warehouse_id = null;
+
     public ?int $to_warehouse_id = null;
+
     public float $shipping_rate_per_kg = 0;
+
     public string $notes = '';
+
     public array $items = [];
 
     public function mount(): void
@@ -38,13 +42,13 @@ class TransferFormPage extends Component
     public function save(): \Illuminate\Http\RedirectResponse
     {
         $validated = $this->validate([
-            'from_warehouse_id'         => ['required', 'integer'],
-            'to_warehouse_id'           => ['required', 'integer', 'different:from_warehouse_id'],
-            'shipping_rate_per_kg'  => ['nullable', 'numeric', 'min:0'],
-            'notes'                     => ['nullable', 'string'],
-            'items'                     => ['required', 'array', 'min:1'],
-            'items.*.product_id'        => ['required', 'integer'],
-            'items.*.qty_sent'          => ['required', 'numeric', 'gt:0'],
+            'from_warehouse_id'    => ['required', 'integer'],
+            'to_warehouse_id'      => ['required', 'integer', 'different:from_warehouse_id'],
+            'shipping_rate_per_kg' => ['nullable', 'numeric', 'min:0'],
+            'notes'                => ['nullable', 'string'],
+            'items'                => ['required', 'array', 'min:1'],
+            'items.*.product_id'   => ['required', 'integer'],
+            'items.*.qty_sent'     => ['required', 'numeric', 'gt:0'],
         ]);
 
         $transfer = app(Inventory::class)->createTransfer($validated);

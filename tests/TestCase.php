@@ -4,10 +4,10 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Tests;
 
-use Centrex\TallUi\TallUiServiceProvider;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Centrex\Inventory\InventoryServiceProvider;
+use Centrex\TallUi\TallUiServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Orchestra\Testbench\Attributes\WithWorkbench;
 use Orchestra\Testbench\TestCase as Orchestra;
 

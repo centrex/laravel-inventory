@@ -33,7 +33,7 @@ class WarehouseProduct extends Model
         'qty_on_hand'    => 'decimal:4',
         'qty_reserved'   => 'decimal:4',
         'qty_in_transit' => 'decimal:4',
-        'wac_amount'        => 'decimal:4',
+        'wac_amount'     => 'decimal:4',
         'reorder_point'  => 'decimal:4',
         'reorder_qty'    => 'decimal:4',
     ];

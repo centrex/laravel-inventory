@@ -5,10 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Models\Customer;
-use Centrex\Inventory\Models\PriceTier;
-use Centrex\Inventory\Models\Product;
-use Centrex\Inventory\Models\Warehouse;
+use Centrex\Inventory\Models\{Customer, PriceTier, Product, Warehouse};
 use Centrex\Inventory\Support\CartCheckoutService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -18,13 +15,21 @@ use Livewire\Component;
 class PosTerminalPage extends Component
 {
     public ?int $warehouse_id = null;
+
     public ?int $customer_id = null;
+
     public string $price_tier_code = 'retail';
+
     public string $currency = 'BDT';
+
     public ?int $product_id = null;
+
     public int $qty = 1;
+
     public ?float $unit_price_local = null;
+
     public string $notes = '';
+
     public ?string $errorMessage = null;
 
     public function mount(): void
@@ -50,9 +55,9 @@ class PosTerminalPage extends Component
     public function addProduct(): void
     {
         $validated = $this->validate([
-            'product_id'        => ['required', 'integer'],
-            'qty'               => ['required', 'integer', 'min:1'],
-            'unit_price_local'  => ['required', 'numeric', 'min:0'],
+            'product_id'       => ['required', 'integer'],
+            'qty'              => ['required', 'integer', 'min:1'],
+            'unit_price_local' => ['required', 'numeric', 'min:0'],
         ]);
 
         if (!class_exists(\Centrex\Cart\Cart::class)) {
@@ -92,10 +97,10 @@ class PosTerminalPage extends Component
     public function checkout(): \Illuminate\Http\RedirectResponse
     {
         $validated = $this->validate([
-            'warehouse_id'     => ['required', 'integer'],
-            'customer_id'      => ['nullable', 'integer'],
-            'price_tier_code'  => ['required', 'string'],
-            'currency'         => ['required', 'string', 'size:3'],
+            'warehouse_id'    => ['required', 'integer'],
+            'customer_id'     => ['nullable', 'integer'],
+            'price_tier_code' => ['required', 'string'],
+            'currency'        => ['required', 'string', 'size:3'],
         ]);
 
         $saleOrder = app(CartCheckoutService::class)->checkout([

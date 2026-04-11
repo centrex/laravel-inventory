@@ -30,9 +30,9 @@ class AdjustmentItem extends Model
     ];
 
     protected $casts = [
-        'qty_system'    => 'decimal:4',
-        'qty_actual'    => 'decimal:4',
-        'qty_delta'     => 'decimal:4',
+        'qty_system'       => 'decimal:4',
+        'qty_actual'       => 'decimal:4',
+        'qty_delta'        => 'decimal:4',
         'unit_cost_amount' => 'decimal:4',
     ];
 

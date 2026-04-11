@@ -33,12 +33,12 @@ class Transfer extends Model
     ];
 
     protected $casts = [
-        'status'                   => TransferStatus::class,
-        'total_weight_kg'          => 'decimal:4',
+        'status'               => TransferStatus::class,
+        'total_weight_kg'      => 'decimal:4',
         'shipping_rate_per_kg' => 'decimal:4',
-        'shipping_cost_amount'        => 'decimal:4',
-        'shipped_at'               => 'datetime',
-        'received_at'              => 'datetime',
+        'shipping_cost_amount' => 'decimal:4',
+        'shipped_at'           => 'datetime',
+        'received_at'          => 'datetime',
     ];
 
     public function fromWarehouse(): BelongsTo

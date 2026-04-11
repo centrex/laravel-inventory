@@ -14,14 +14,23 @@ use Livewire\Component;
 class PurchaseOrderFormPage extends Component
 {
     public ?int $warehouse_id = null;
+
     public ?int $supplier_id = null;
+
     public string $currency = 'BDT';
+
     public ?float $exchange_rate = null;
+
     public float $tax_local = 0;
+
     public float $shipping_local = 0;
+
     public float $other_charges_amount = 0;
+
     public ?string $expected_at = null;
+
     public string $notes = '';
+
     public array $items = [];
 
     public function mount(): void
@@ -43,20 +52,20 @@ class PurchaseOrderFormPage extends Component
     public function save(): \Illuminate\Http\RedirectResponse
     {
         $validated = $this->validate([
-            'warehouse_id'               => ['required', 'integer'],
-            'supplier_id'                => ['required', 'integer'],
-            'currency'                   => ['required', 'string', 'size:3'],
-            'exchange_rate'          => ['nullable', 'numeric', 'gt:0'],
-            'tax_local'                  => ['nullable', 'numeric'],
-            'shipping_local'             => ['nullable', 'numeric'],
-            'other_charges_amount'          => ['nullable', 'numeric'],
-            'expected_at'                => ['nullable', 'date'],
-            'notes'                      => ['nullable', 'string'],
-            'items'                      => ['required', 'array', 'min:1'],
-            'items.*.product_id'         => ['required', 'integer'],
-            'items.*.qty_ordered'        => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_price_local'   => ['required', 'numeric', 'min:0'],
-            'items.*.notes'              => ['nullable', 'string'],
+            'warehouse_id'             => ['required', 'integer'],
+            'supplier_id'              => ['required', 'integer'],
+            'currency'                 => ['required', 'string', 'size:3'],
+            'exchange_rate'            => ['nullable', 'numeric', 'gt:0'],
+            'tax_local'                => ['nullable', 'numeric'],
+            'shipping_local'           => ['nullable', 'numeric'],
+            'other_charges_amount'     => ['nullable', 'numeric'],
+            'expected_at'              => ['nullable', 'date'],
+            'notes'                    => ['nullable', 'string'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.product_id'       => ['required', 'integer'],
+            'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
+            'items.*.unit_price_local' => ['required', 'numeric', 'min:0'],
+            'items.*.notes'            => ['nullable', 'string'],
         ]);
 
         $purchaseOrder = app(Inventory::class)->createPurchaseOrder($validated);
@@ -77,10 +86,10 @@ class PurchaseOrderFormPage extends Component
     private function blankItem(): array
     {
         return [
-            'product_id'        => null,
-            'qty_ordered'       => 1,
-            'unit_price_local'  => 0,
-            'notes'             => '',
+            'product_id'       => null,
+            'qty_ordered'      => 1,
+            'unit_price_local' => 0,
+            'notes'            => '',
         ];
     }
 }

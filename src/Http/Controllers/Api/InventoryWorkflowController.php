@@ -7,8 +7,7 @@ namespace Centrex\Inventory\Http\Controllers\Api;
 use Centrex\Inventory\Enums\PriceTierCode;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Support\CartCheckoutService;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
 
 class InventoryWorkflowController extends Controller
@@ -16,14 +15,13 @@ class InventoryWorkflowController extends Controller
     public function __construct(
         private readonly Inventory $inventory,
         private readonly CartCheckoutService $cartCheckoutService,
-    ) {
-    }
+    ) {}
 
     public function setExchangeRate(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'currency' => ['required', 'string', 'size:3'],
-            'rate' => ['required', 'numeric', 'gt:0'],
+            'rate'     => ['required', 'numeric', 'gt:0'],
             'date'     => ['nullable', 'date'],
             'source'   => ['nullable', 'string', 'max:30'],
         ]);
@@ -55,8 +53,8 @@ class InventoryWorkflowController extends Controller
     {
         $validated = $request->validate([
             'amount_base' => ['required', 'numeric'],
-            'currency'   => ['required', 'string', 'size:3'],
-            'date'       => ['nullable', 'date'],
+            'currency'    => ['required', 'string', 'size:3'],
+            'date'        => ['nullable', 'date'],
         ]);
 
         return response()->json([
@@ -67,15 +65,15 @@ class InventoryWorkflowController extends Controller
     public function setPrice(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'product_id'              => ['required', 'integer'],
-            'tier_code'               => ['required', 'string'],
-            'price_amount'               => ['required', 'numeric', 'min:0'],
-            'warehouse_id'            => ['nullable', 'integer'],
-            'price_local'             => ['nullable', 'numeric', 'min:0'],
-            'currency'                => ['nullable', 'string', 'size:3'],
-            'effective_from'          => ['nullable', 'date'],
-            'effective_to'            => ['nullable', 'date', 'after_or_equal:effective_from'],
-            'is_active'               => ['nullable', 'boolean'],
+            'product_id'     => ['required', 'integer'],
+            'tier_code'      => ['required', 'string'],
+            'price_amount'   => ['required', 'numeric', 'min:0'],
+            'warehouse_id'   => ['nullable', 'integer'],
+            'price_local'    => ['nullable', 'numeric', 'min:0'],
+            'currency'       => ['nullable', 'string', 'size:3'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_to'   => ['nullable', 'date', 'after_or_equal:effective_from'],
+            'is_active'      => ['nullable', 'boolean'],
         ]);
 
         $price = $this->inventory->setPrice(
@@ -169,22 +167,22 @@ class InventoryWorkflowController extends Controller
     public function createPurchaseOrder(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'warehouse_id'       => ['required', 'integer'],
-            'supplier_id'        => ['required', 'integer'],
-            'currency'           => ['required', 'string', 'size:3'],
-            'exchange_rate'  => ['nullable', 'numeric', 'gt:0'],
-            'tax_local'          => ['nullable', 'numeric'],
-            'shipping_local'     => ['nullable', 'numeric'],
-            'other_charges_amount'  => ['nullable', 'numeric'],
-            'ordered_at'         => ['nullable', 'date'],
-            'expected_at'        => ['nullable', 'date'],
-            'notes'              => ['nullable', 'string'],
-            'created_by'         => ['nullable', 'integer'],
-            'items'              => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer'],
-            'items.*.qty_ordered' => ['required', 'numeric', 'gt:0'],
+            'warehouse_id'             => ['required', 'integer'],
+            'supplier_id'              => ['required', 'integer'],
+            'currency'                 => ['required', 'string', 'size:3'],
+            'exchange_rate'            => ['nullable', 'numeric', 'gt:0'],
+            'tax_local'                => ['nullable', 'numeric'],
+            'shipping_local'           => ['nullable', 'numeric'],
+            'other_charges_amount'     => ['nullable', 'numeric'],
+            'ordered_at'               => ['nullable', 'date'],
+            'expected_at'              => ['nullable', 'date'],
+            'notes'                    => ['nullable', 'string'],
+            'created_by'               => ['nullable', 'integer'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.product_id'       => ['required', 'integer'],
+            'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
             'items.*.unit_price_local' => ['required', 'numeric', 'min:0'],
-            'items.*.notes' => ['nullable', 'string'],
+            'items.*.notes'            => ['nullable', 'string'],
         ]);
 
         return response()->json($this->inventory->createPurchaseOrder($validated), 201);
@@ -203,13 +201,13 @@ class InventoryWorkflowController extends Controller
     public function createStockReceipt(Request $request, int $purchaseOrderId): JsonResponse
     {
         $validated = $request->validate([
-            'received_at'                        => ['nullable', 'date'],
-            'notes'                              => ['nullable', 'string'],
-            'created_by'                         => ['nullable', 'integer'],
-            'items'                              => ['required', 'array', 'min:1'],
-            'items.*.purchase_order_item_id'     => ['required', 'integer'],
-            'items.*.qty_received'               => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_cost_local'            => ['nullable', 'numeric', 'min:0'],
+            'received_at'                    => ['nullable', 'date'],
+            'notes'                          => ['nullable', 'string'],
+            'created_by'                     => ['nullable', 'integer'],
+            'items'                          => ['required', 'array', 'min:1'],
+            'items.*.purchase_order_item_id' => ['required', 'integer'],
+            'items.*.qty_received'           => ['required', 'numeric', 'gt:0'],
+            'items.*.unit_cost_local'        => ['nullable', 'numeric', 'min:0'],
         ]);
 
         return response()->json(
@@ -231,23 +229,23 @@ class InventoryWorkflowController extends Controller
     public function createSaleOrder(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'warehouse_id'        => ['required', 'integer'],
-            'customer_id'         => ['nullable', 'integer'],
-            'price_tier_code'     => ['nullable', 'string'],
-            'currency'            => ['required', 'string', 'size:3'],
-            'exchange_rate'   => ['nullable', 'numeric', 'gt:0'],
-            'tax_local'           => ['nullable', 'numeric'],
-            'discount_local'      => ['nullable', 'numeric'],
-            'ordered_at'          => ['nullable', 'date'],
-            'notes'               => ['nullable', 'string'],
-            'created_by'          => ['nullable', 'integer'],
-            'items'               => ['required', 'array', 'min:1'],
-            'items.*.product_id'  => ['required', 'integer'],
-            'items.*.qty_ordered' => ['required', 'numeric', 'gt:0'],
-            'items.*.price_tier_code' => ['nullable', 'string'],
+            'warehouse_id'             => ['required', 'integer'],
+            'customer_id'              => ['nullable', 'integer'],
+            'price_tier_code'          => ['nullable', 'string'],
+            'currency'                 => ['required', 'string', 'size:3'],
+            'exchange_rate'            => ['nullable', 'numeric', 'gt:0'],
+            'tax_local'                => ['nullable', 'numeric'],
+            'discount_local'           => ['nullable', 'numeric'],
+            'ordered_at'               => ['nullable', 'date'],
+            'notes'                    => ['nullable', 'string'],
+            'created_by'               => ['nullable', 'integer'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.product_id'       => ['required', 'integer'],
+            'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
+            'items.*.price_tier_code'  => ['nullable', 'string'],
             'items.*.unit_price_local' => ['nullable', 'numeric', 'min:0'],
-            'items.*.discount_pct' => ['nullable', 'numeric', 'min:0'],
-            'items.*.notes' => ['nullable', 'string'],
+            'items.*.discount_pct'     => ['nullable', 'numeric', 'min:0'],
+            'items.*.notes'            => ['nullable', 'string'],
         ]);
 
         $validated['price_tier_code'] ??= PriceTierCode::RETAIL->value;
@@ -293,14 +291,14 @@ class InventoryWorkflowController extends Controller
     public function createTransfer(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'from_warehouse_id'       => ['required', 'integer'],
-            'to_warehouse_id'         => ['required', 'integer', 'different:from_warehouse_id'],
+            'from_warehouse_id'    => ['required', 'integer'],
+            'to_warehouse_id'      => ['required', 'integer', 'different:from_warehouse_id'],
             'shipping_rate_per_kg' => ['nullable', 'numeric', 'min:0'],
-            'notes'                   => ['nullable', 'string'],
-            'created_by'              => ['nullable', 'integer'],
-            'items'                   => ['required', 'array', 'min:1'],
-            'items.*.product_id'      => ['required', 'integer'],
-            'items.*.qty_sent'        => ['required', 'numeric', 'gt:0'],
+            'notes'                => ['nullable', 'string'],
+            'created_by'           => ['nullable', 'integer'],
+            'items'                => ['required', 'array', 'min:1'],
+            'items.*.product_id'   => ['required', 'integer'],
+            'items.*.qty_sent'     => ['required', 'numeric', 'gt:0'],
         ]);
 
         return response()->json($this->inventory->createTransfer($validated), 201);
@@ -346,22 +344,22 @@ class InventoryWorkflowController extends Controller
     private function checkoutFromCart(Request $request, string $channel): mixed
     {
         $validated = $request->validate([
-            'cart_instance'    => ['nullable', 'string', 'max:100'],
-            'warehouse_id'     => ['required', 'integer'],
-            'customer_id'      => ['nullable', 'integer'],
-            'price_tier_code'  => ['nullable', 'string'],
-            'currency'         => ['nullable', 'string', 'size:3'],
-            'exchange_rate'    => ['nullable', 'numeric', 'gt:0'],
-            'tax_local'        => ['nullable', 'numeric'],
-            'discount_local'   => ['nullable', 'numeric'],
-            'notes'            => ['nullable', 'string'],
-            'created_by'       => ['nullable', 'integer'],
-            'confirm'          => ['nullable', 'boolean'],
-            'reserve'          => ['nullable', 'boolean'],
-            'fulfill'          => ['nullable', 'boolean'],
-            'clear_cart'       => ['nullable', 'boolean'],
-            'source'           => ['nullable', 'string', 'max:100'],
-            'context'          => ['nullable', 'array'],
+            'cart_instance'   => ['nullable', 'string', 'max:100'],
+            'warehouse_id'    => ['required', 'integer'],
+            'customer_id'     => ['nullable', 'integer'],
+            'price_tier_code' => ['nullable', 'string'],
+            'currency'        => ['nullable', 'string', 'size:3'],
+            'exchange_rate'   => ['nullable', 'numeric', 'gt:0'],
+            'tax_local'       => ['nullable', 'numeric'],
+            'discount_local'  => ['nullable', 'numeric'],
+            'notes'           => ['nullable', 'string'],
+            'created_by'      => ['nullable', 'integer'],
+            'confirm'         => ['nullable', 'boolean'],
+            'reserve'         => ['nullable', 'boolean'],
+            'fulfill'         => ['nullable', 'boolean'],
+            'clear_cart'      => ['nullable', 'boolean'],
+            'source'          => ['nullable', 'string', 'max:100'],
+            'context'         => ['nullable', 'array'],
         ]);
 
         return $this->cartCheckoutService->checkout($validated, $channel);

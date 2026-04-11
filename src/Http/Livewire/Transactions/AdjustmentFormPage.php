@@ -15,9 +15,13 @@ use Livewire\Component;
 class AdjustmentFormPage extends Component
 {
     public ?int $warehouse_id = null;
+
     public string $reason = 'cycle_count';
+
     public ?string $adjusted_at = null;
+
     public string $notes = '';
+
     public array $items = [];
 
     public function mount(): void
@@ -41,14 +45,14 @@ class AdjustmentFormPage extends Component
     public function save(): \Illuminate\Http\RedirectResponse
     {
         $validated = $this->validate([
-            'warehouse_id'              => ['required', 'integer'],
-            'reason'                    => ['required', 'string'],
-            'adjusted_at'               => ['nullable', 'date'],
-            'notes'                     => ['nullable', 'string'],
-            'items'                     => ['required', 'array', 'min:1'],
-            'items.*.product_id'        => ['required', 'integer'],
-            'items.*.qty_actual'        => ['required', 'numeric'],
-            'items.*.notes'             => ['nullable', 'string'],
+            'warehouse_id'       => ['required', 'integer'],
+            'reason'             => ['required', 'string'],
+            'adjusted_at'        => ['nullable', 'date'],
+            'notes'              => ['nullable', 'string'],
+            'items'              => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer'],
+            'items.*.qty_actual' => ['required', 'numeric'],
+            'items.*.notes'      => ['nullable', 'string'],
         ]);
 
         $adjustment = app(Inventory::class)->createAdjustment($validated);

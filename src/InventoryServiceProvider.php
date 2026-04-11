@@ -7,8 +7,8 @@ namespace Centrex\Inventory;
 use Centrex\Inventory\Models\{Customer, Supplier};
 use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
 use Centrex\Inventory\Support\{CartCheckoutService, ErpIntegration};
-use Livewire\Livewire;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class InventoryServiceProvider extends ServiceProvider
 {
@@ -54,16 +54,16 @@ class InventoryServiceProvider extends ServiceProvider
 
     private function registerLivewireComponents(): void
     {
-        if (! class_exists(Livewire::class)) {
+        if (!class_exists(Livewire::class)) {
             return;
         }
 
-        Livewire::component('inventory-entity-index', \Centrex\Inventory\Http\Livewire\Entities\EntityIndexPage::class);
-        Livewire::component('inventory-entity-form', \Centrex\Inventory\Http\Livewire\Entities\EntityFormPage::class);
-        Livewire::component('inventory-sale-order-form', \Centrex\Inventory\Http\Livewire\Transactions\SaleOrderFormPage::class);
-        Livewire::component('inventory-purchase-order-form', \Centrex\Inventory\Http\Livewire\Transactions\PurchaseOrderFormPage::class);
-        Livewire::component('inventory-transfer-form', \Centrex\Inventory\Http\Livewire\Transactions\TransferFormPage::class);
-        Livewire::component('inventory-adjustment-form', \Centrex\Inventory\Http\Livewire\Transactions\AdjustmentFormPage::class);
-        Livewire::component('inventory-pos-terminal', \Centrex\Inventory\Http\Livewire\Transactions\PosTerminalPage::class);
+        Livewire::component('inventory-entity-index', Http\Livewire\Entities\EntityIndexPage::class);
+        Livewire::component('inventory-entity-form', Http\Livewire\Entities\EntityFormPage::class);
+        Livewire::component('inventory-sale-order-form', Http\Livewire\Transactions\SaleOrderFormPage::class);
+        Livewire::component('inventory-purchase-order-form', Http\Livewire\Transactions\PurchaseOrderFormPage::class);
+        Livewire::component('inventory-transfer-form', Http\Livewire\Transactions\TransferFormPage::class);
+        Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
+        Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
     }
 }

@@ -33,10 +33,10 @@ class StockReceiptItem extends Model
     protected $casts = [
         'qty_received'      => 'decimal:4',
         'unit_cost_local'   => 'decimal:4',
-        'unit_cost_amount'     => 'decimal:4',
-        'exchange_rate' => 'decimal:8',
-        'wac_before_amount'    => 'decimal:4',
-        'wac_after_amount'     => 'decimal:4',
+        'unit_cost_amount'  => 'decimal:4',
+        'exchange_rate'     => 'decimal:8',
+        'wac_before_amount' => 'decimal:4',
+        'wac_after_amount'  => 'decimal:4',
     ];
 
     public function stockReceipt(): BelongsTo

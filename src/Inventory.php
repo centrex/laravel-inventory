@@ -164,12 +164,12 @@ class Inventory
                 }
 
                 return [
-                    'tier_code'   => $tier->code,
-                    'tier_name'   => $tier->name,
-                    'price_amount'   => $price?->price_amount,
-                    'price_local' => $price?->price_local,
-                    'currency'    => $price?->currency,
-                    'source'      => $price ? ($price->warehouse_id ? 'warehouse' : 'global') : null,
+                    'tier_code'    => $tier->code,
+                    'tier_name'    => $tier->name,
+                    'price_amount' => $price?->price_amount,
+                    'price_local'  => $price?->price_local,
+                    'currency'     => $price?->currency,
+                    'source'       => $price ? ($price->warehouse_id ? 'warehouse' : 'global') : null,
                 ];
             });
     }
@@ -233,20 +233,20 @@ class Inventory
     private function writeMovement(int $warehouseId, int $productId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null): StockMovement
     {
         return StockMovement::create([
-            'warehouse_id'   => $warehouseId,
-            'product_id'     => $productId,
-            'movement_type'  => $type,
-            'direction'      => $type->direction(),
-            'qty'            => $qty,
-            'qty_before'     => $qtyBefore,
-            'qty_after'      => $qtyAfter,
-            'unit_cost_amount'  => $unitCostAmount,
-            'wac_amount'        => $wacAmount,
-            'reference_type' => $refType,
-            'reference_id'   => $refId,
-            'notes'          => $notes,
-            'moved_at'       => now(),
-            'created_by'     => $createdBy,
+            'warehouse_id'     => $warehouseId,
+            'product_id'       => $productId,
+            'movement_type'    => $type,
+            'direction'        => $type->direction(),
+            'qty'              => $qty,
+            'qty_before'       => $qtyBefore,
+            'qty_after'        => $qtyAfter,
+            'unit_cost_amount' => $unitCostAmount,
+            'wac_amount'       => $wacAmount,
+            'reference_type'   => $refType,
+            'reference_id'     => $refId,
+            'notes'            => $notes,
+            'moved_at'         => now(),
+            'created_by'       => $createdBy,
         ]);
     }
 
@@ -279,14 +279,14 @@ class Inventory
         }
 
         DB::connection($model->getConnectionName())->table($model->getTable())->insertOrIgnore([
-            'warehouse_id'    => $warehouseId,
-            'product_id'      => $productId,
-            'qty_on_hand'     => 0,
-            'qty_reserved'    => 0,
-            'qty_in_transit'  => 0,
-            'wac_amount'         => 0,
-            'created_at'      => now(),
-            'updated_at'      => now(),
+            'warehouse_id'   => $warehouseId,
+            'product_id'     => $productId,
+            'qty_on_hand'    => 0,
+            'qty_reserved'   => 0,
+            'qty_in_transit' => 0,
+            'wac_amount'     => 0,
+            'created_at'     => now(),
+            'updated_at'     => now(),
         ]);
 
         return WarehouseProduct::where('warehouse_id', $warehouseId)
@@ -320,24 +320,24 @@ class Inventory
             $shippingLocal = (float) ($data['shipping_local'] ?? 0);
 
             $po = PurchaseOrder::create([
-                'po_number'         => $this->nextNumber('PO', PurchaseOrder::class, 'po_number'),
-                'warehouse_id'      => $data['warehouse_id'],
-                'supplier_id'       => $data['supplier_id'],
-                'currency'          => strtoupper($data['currency']),
-                'exchange_rate' => $rate,
-                'status'            => PurchaseOrderStatus::DRAFT,
-                'ordered_at'        => $data['ordered_at'] ?? null,
-                'expected_at'       => $data['expected_at'] ?? null,
-                'notes'             => $data['notes'] ?? null,
-                'created_by'        => $data['created_by'] ?? null,
-                'tax_local'         => $taxLocal,
+                'po_number'            => $this->nextNumber('PO', PurchaseOrder::class, 'po_number'),
+                'warehouse_id'         => $data['warehouse_id'],
+                'supplier_id'          => $data['supplier_id'],
+                'currency'             => strtoupper($data['currency']),
+                'exchange_rate'        => $rate,
+                'status'               => PurchaseOrderStatus::DRAFT,
+                'ordered_at'           => $data['ordered_at'] ?? null,
+                'expected_at'          => $data['expected_at'] ?? null,
+                'notes'                => $data['notes'] ?? null,
+                'created_by'           => $data['created_by'] ?? null,
+                'tax_local'            => $taxLocal,
                 'tax_amount'           => round($taxLocal * $rate, 4),
-                'shipping_local'    => $shippingLocal,
+                'shipping_local'       => $shippingLocal,
                 'shipping_amount'      => round($shippingLocal * $rate, 4),
                 'other_charges_amount' => (float) ($data['other_charges_amount'] ?? 0),
-                'subtotal_local'    => 0,
+                'subtotal_local'       => 0,
                 'subtotal_amount'      => 0,
-                'total_local'       => 0,
+                'total_local'          => 0,
                 'total_amount'         => 0,
             ]);
 
@@ -357,9 +357,9 @@ class Inventory
                     'qty_ordered'       => $qty,
                     'qty_received'      => 0,
                     'unit_price_local'  => $unitPriceLocal,
-                    'unit_price_amount'    => $unitPriceBdt,
+                    'unit_price_amount' => $unitPriceBdt,
                     'line_total_local'  => $lineTotalLocal,
-                    'line_total_amount'    => $lineTotalBdt,
+                    'line_total_amount' => $lineTotalBdt,
                     'notes'             => $item['notes'] ?? null,
                 ]);
             }
@@ -445,10 +445,10 @@ class Inventory
                     'product_id'             => $poItem->product_id,
                     'qty_received'           => $qty,
                     'unit_cost_local'        => $unitCostLocal,
-                    'unit_cost_amount'          => $unitCostBdt,
-                    'exchange_rate'      => $rate,
-                    'wac_before_amount'         => 0,
-                    'wac_after_amount'          => 0,
+                    'unit_cost_amount'       => $unitCostBdt,
+                    'exchange_rate'          => $rate,
+                    'wac_before_amount'      => 0,
+                    'wac_after_amount'       => 0,
                 ]);
             }
 
@@ -558,25 +558,25 @@ class Inventory
             $discountLocal = (float) ($data['discount_local'] ?? 0);
 
             $so = SaleOrder::create([
-                'so_number'         => $this->nextNumber('SO', SaleOrder::class, 'so_number'),
-                'warehouse_id'      => $data['warehouse_id'],
-                'customer_id'       => $data['customer_id'] ?? null,
-                'price_tier_id'     => $tier->id,
-                'currency'          => strtoupper($data['currency']),
-                'exchange_rate' => $rate,
-                'status'            => SaleOrderStatus::DRAFT,
-                'ordered_at'        => $data['ordered_at'] ?? now(),
-                'notes'             => $data['notes'] ?? null,
-                'created_by'        => $data['created_by'] ?? null,
-                'tax_local'         => $taxLocal,
-                'tax_amount'           => round($taxLocal * $rate, 4),
-                'discount_local'    => $discountLocal,
-                'discount_amount'      => round($discountLocal * $rate, 4),
-                'subtotal_local'    => 0,
-                'subtotal_amount'      => 0,
-                'total_local'       => 0,
-                'total_amount'         => 0,
-                'cogs_amount'          => 0,
+                'so_number'       => $this->nextNumber('SO', SaleOrder::class, 'so_number'),
+                'warehouse_id'    => $data['warehouse_id'],
+                'customer_id'     => $data['customer_id'] ?? null,
+                'price_tier_id'   => $tier->id,
+                'currency'        => strtoupper($data['currency']),
+                'exchange_rate'   => $rate,
+                'status'          => SaleOrderStatus::DRAFT,
+                'ordered_at'      => $data['ordered_at'] ?? now(),
+                'notes'           => $data['notes'] ?? null,
+                'created_by'      => $data['created_by'] ?? null,
+                'tax_local'       => $taxLocal,
+                'tax_amount'      => round($taxLocal * $rate, 4),
+                'discount_local'  => $discountLocal,
+                'discount_amount' => round($discountLocal * $rate, 4),
+                'subtotal_local'  => 0,
+                'subtotal_amount' => 0,
+                'total_local'     => 0,
+                'total_amount'    => 0,
+                'cogs_amount'     => 0,
             ]);
 
             $subtotalLocal = 0.0;
@@ -598,18 +598,18 @@ class Inventory
                 $subtotalLocal += $lineTotalLocal;
 
                 SaleOrderItem::create([
-                    'sale_order_id'    => $so->id,
-                    'product_id'       => $item['product_id'],
-                    'price_tier_id'    => $itemTier->id,
-                    'qty_ordered'      => $qty,
-                    'qty_fulfilled'    => 0,
-                    'unit_price_local' => $unitPriceLocal,
-                    'unit_price_amount'   => $unitPriceBdt,
-                    'unit_cost_amount'    => 0,
-                    'discount_pct'     => $discountPct,
-                    'line_total_local' => $lineTotalLocal,
-                    'line_total_amount'   => $lineTotalBdt,
-                    'notes'            => $item['notes'] ?? null,
+                    'sale_order_id'     => $so->id,
+                    'product_id'        => $item['product_id'],
+                    'price_tier_id'     => $itemTier->id,
+                    'qty_ordered'       => $qty,
+                    'qty_fulfilled'     => 0,
+                    'unit_price_local'  => $unitPriceLocal,
+                    'unit_price_amount' => $unitPriceBdt,
+                    'unit_cost_amount'  => 0,
+                    'discount_pct'      => $discountPct,
+                    'line_total_local'  => $lineTotalLocal,
+                    'line_total_amount' => $lineTotalBdt,
+                    'notes'             => $item['notes'] ?? null,
                 ]);
             }
 
@@ -797,15 +797,15 @@ class Inventory
             $rate = (float) ($data['shipping_rate_per_kg'] ?? config('inventory.default_shipping_rate_per_kg', 0));
 
             $transfer = Transfer::create([
-                'transfer_number'          => $this->nextNumber('TRF', Transfer::class, 'transfer_number'),
-                'from_warehouse_id'        => $data['from_warehouse_id'],
-                'to_warehouse_id'          => $data['to_warehouse_id'],
-                'status'                   => TransferStatus::DRAFT,
+                'transfer_number'      => $this->nextNumber('TRF', Transfer::class, 'transfer_number'),
+                'from_warehouse_id'    => $data['from_warehouse_id'],
+                'to_warehouse_id'      => $data['to_warehouse_id'],
+                'status'               => TransferStatus::DRAFT,
                 'shipping_rate_per_kg' => $rate,
-                'total_weight_kg'          => 0,
-                'shipping_cost_amount'        => 0,
-                'notes'                    => $data['notes'] ?? null,
-                'created_by'               => $data['created_by'] ?? null,
+                'total_weight_kg'      => 0,
+                'shipping_cost_amount' => 0,
+                'notes'                => $data['notes'] ?? null,
+                'created_by'           => $data['created_by'] ?? null,
             ]);
 
             $totalWeightKg = 0.0;
@@ -819,12 +819,12 @@ class Inventory
                 $wp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id);
 
                 TransferItem::create([
-                    'transfer_id'            => $transfer->id,
-                    'product_id'             => $product->id,
-                    'qty_sent'               => $qty,
-                    'qty_received'           => 0,
+                    'transfer_id'               => $transfer->id,
+                    'product_id'                => $product->id,
+                    'qty_sent'                  => $qty,
+                    'qty_received'              => 0,
                     'unit_cost_source_amount'   => (float) $wp->wac_amount,
-                    'weight_kg_total'        => $weightTotal,
+                    'weight_kg_total'           => $weightTotal,
                     'shipping_allocated_amount' => 0,
                     'unit_landed_cost_amount'   => 0,
                     'wac_source_before_amount'  => (float) $wp->wac_amount,
@@ -975,13 +975,13 @@ class Inventory
                 $qtyActual = (float) $item['qty_actual'];
 
                 AdjustmentItem::create([
-                    'adjustment_id' => $adjustment->id,
-                    'product_id'    => $item['product_id'],
-                    'qty_system'    => $qtySystem,
-                    'qty_actual'    => $qtyActual,
-                    'qty_delta'     => round($qtyActual - $qtySystem, 4),
+                    'adjustment_id'    => $adjustment->id,
+                    'product_id'       => $item['product_id'],
+                    'qty_system'       => $qtySystem,
+                    'qty_actual'       => $qtyActual,
+                    'qty_delta'        => round($qtyActual - $qtySystem, 4),
                     'unit_cost_amount' => (float) $wp->wac_amount,
-                    'notes'         => $item['notes'] ?? null,
+                    'notes'            => $item['notes'] ?? null,
                 ]);
             }
 
@@ -1038,12 +1038,12 @@ class Inventory
             ->where('qty_on_hand', '>', 0)
             ->get()
             ->map(fn (WarehouseProduct $wp) => [
-                'warehouse'       => $wp->warehouse->name,
-                'sku'             => $wp->product->sku,
-                'product'         => $wp->product->name,
-                'qty_on_hand'     => (float) $wp->qty_on_hand,
-                'qty_reserved'    => (float) $wp->qty_reserved,
-                'qty_available'   => $wp->qtyAvailable(),
+                'warehouse'          => $wp->warehouse->name,
+                'sku'                => $wp->product->sku,
+                'product'            => $wp->product->name,
+                'qty_on_hand'        => (float) $wp->qty_on_hand,
+                'qty_reserved'       => (float) $wp->qty_reserved,
+                'qty_available'      => $wp->qtyAvailable(),
                 'wac_amount'         => (float) $wp->wac_amount,
                 'total_value_amount' => $wp->totalValue(),
             ]);

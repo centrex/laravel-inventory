@@ -75,12 +75,12 @@ it('prevents fulfilling more than the remaining sale order quantity', function (
     ]);
 
     WarehouseProduct::create([
-        'warehouse_id' => $warehouse->id,
-        'product_id'   => $product->id,
-        'qty_on_hand'  => 10,
-        'qty_reserved' => 0,
+        'warehouse_id'   => $warehouse->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 10,
+        'qty_reserved'   => 0,
         'qty_in_transit' => 0,
-        'wac_amount'      => 1000,
+        'wac_amount'     => 1000,
     ]);
 
     $saleOrder = $inventory->createSaleOrder([
@@ -88,8 +88,8 @@ it('prevents fulfilling more than the remaining sale order quantity', function (
         'currency'        => 'BDT',
         'price_tier_code' => PriceTier::where('code', 'retail')->value('code'),
         'items'           => [[
-            'product_id'  => $product->id,
-            'qty_ordered' => 5,
+            'product_id'       => $product->id,
+            'qty_ordered'      => 5,
             'unit_price_local' => 1500,
         ]],
     ]);
@@ -130,7 +130,7 @@ it('prevents over receiving transferred stock on repeated calls', function (): v
         'qty_on_hand'    => 20,
         'qty_reserved'   => 0,
         'qty_in_transit' => 0,
-        'wac_amount'        => 100,
+        'wac_amount'     => 100,
     ]);
 
     $transfer = $inventory->createTransfer([
@@ -153,7 +153,7 @@ it('prevents over receiving transferred stock on repeated calls', function (): v
 it('exposes inventory api routes', function (): void {
     $response = $this->postJson('/api/inventory/exchange-rates/set', [
         'currency' => 'USD',
-        'rate' => 110,
+        'rate'     => 110,
         'date'     => '2026-04-11',
     ]);
 
@@ -217,10 +217,10 @@ it('syncs purchase receipts into accounting when the erp bridge is available', f
 
     expect($postedReceipt->accounting_journal_entry_id)->not->toBeNull();
     expect(
-        $entryClass::where('source_type', \Centrex\Inventory\Models\StockReceipt::class)
+        $entryClass::where('source_type', Centrex\Inventory\Models\StockReceipt::class)
             ->where('source_id', $postedReceipt->id)
             ->where('source_action', 'stock_receipt')
-            ->exists()
+            ->exists(),
     )->toBeTrue();
 });
 
@@ -245,12 +245,12 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
         'country_code' => 'BD',
         'currency'     => 'BDT',
     ]);
-    $customer = \Centrex\Inventory\Models\Customer::create([
-        'code'         => 'CUS-ERP-1',
-        'name'         => 'ERP Customer',
-        'currency'     => 'BDT',
-        'price_tier_id'=> PriceTier::where('code', 'retail')->value('id'),
-        'is_active'    => true,
+    $customer = Centrex\Inventory\Models\Customer::create([
+        'code'          => 'CUS-ERP-1',
+        'name'          => 'ERP Customer',
+        'currency'      => 'BDT',
+        'price_tier_id' => PriceTier::where('code', 'retail')->value('id'),
+        'is_active'     => true,
     ]);
     $product = Product::create([
         'sku'          => 'SKU-ERP-2',
@@ -288,10 +288,10 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
     $inventory->fulfillSaleOrder($saleOrder->id);
 
     expect(
-        $entryClass::where('source_type', \Centrex\Inventory\Models\SaleOrder::class)
+        $entryClass::where('source_type', Centrex\Inventory\Models\SaleOrder::class)
             ->where('source_id', $saleOrder->id)
             ->where('source_action', 'sale_fulfillment')
-            ->exists()
+            ->exists(),
     )->toBeTrue();
 });
 
@@ -314,15 +314,15 @@ it('creates ecommerce sale orders from cart instances', function (): void {
         'is_stockable' => true,
     ]);
 
-    app(\Centrex\Cart\Cart::class)->instance('ecommerce')->add($product->id, $product->name, 2, 350);
+    app(Centrex\Cart\Cart::class)->instance('ecommerce')->add($product->id, $product->name, 2, 350);
 
     $response = $this->postJson('/api/inventory/channels/ecommerce/checkout', [
-        'warehouse_id'   => $warehouse->id,
-        'currency'       => 'BDT',
-        'cart_instance'  => 'ecommerce',
-        'confirm'        => true,
-        'reserve'        => false,
-        'fulfill'        => false,
+        'warehouse_id'  => $warehouse->id,
+        'currency'      => 'BDT',
+        'cart_instance' => 'ecommerce',
+        'confirm'       => true,
+        'reserve'       => false,
+        'fulfill'       => false,
     ]);
 
     $response->assertCreated()

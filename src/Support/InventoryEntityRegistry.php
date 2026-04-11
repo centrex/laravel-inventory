@@ -6,8 +6,7 @@ namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Models\{Customer, ExchangeRate, PriceTier, Product, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
+use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
 
 class InventoryEntityRegistry
@@ -176,7 +175,7 @@ class InventoryEntityRegistry
     {
         $definition = self::entities()[$entity] ?? null;
 
-        if (! $definition) {
+        if (!$definition) {
             throw new \InvalidArgumentException("Unknown inventory entity [{$entity}].");
         }
 

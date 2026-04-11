@@ -25,7 +25,7 @@ class ExchangeRate extends Model
     protected $fillable = ['currency', 'rate', 'source', 'valid_at'];
 
     protected $casts = [
-        'rate' => 'decimal:8',
+        'rate'     => 'decimal:8',
         'valid_at' => 'date',
     ];
 

@@ -36,18 +36,18 @@ class SaleOrder extends Model
     ];
 
     protected $casts = [
-        'status'            => SaleOrderStatus::class,
-        'exchange_rate' => 'decimal:8',
-        'subtotal_local'    => 'decimal:4',
-        'subtotal_amount'      => 'decimal:4',
-        'tax_local'         => 'decimal:4',
-        'tax_amount'           => 'decimal:4',
-        'discount_local'    => 'decimal:4',
-        'discount_amount'      => 'decimal:4',
-        'total_local'       => 'decimal:4',
-        'total_amount'         => 'decimal:4',
-        'cogs_amount'          => 'decimal:4',
-        'ordered_at'        => 'datetime',
+        'status'          => SaleOrderStatus::class,
+        'exchange_rate'   => 'decimal:8',
+        'subtotal_local'  => 'decimal:4',
+        'subtotal_amount' => 'decimal:4',
+        'tax_local'       => 'decimal:4',
+        'tax_amount'      => 'decimal:4',
+        'discount_local'  => 'decimal:4',
+        'discount_amount' => 'decimal:4',
+        'total_local'     => 'decimal:4',
+        'total_amount'    => 'decimal:4',
+        'cogs_amount'     => 'decimal:4',
+        'ordered_at'      => 'datetime',
     ];
 
     public function warehouse(): BelongsTo

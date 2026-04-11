@@ -6,11 +6,10 @@ namespace Centrex\Inventory\Http\Controllers\Api;
 
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class EntityCrudController extends Controller
 {

@@ -37,19 +37,19 @@ class PurchaseOrder extends Model
     ];
 
     protected $casts = [
-        'status'            => PurchaseOrderStatus::class,
-        'exchange_rate' => 'decimal:8',
-        'subtotal_local'    => 'decimal:4',
+        'status'               => PurchaseOrderStatus::class,
+        'exchange_rate'        => 'decimal:8',
+        'subtotal_local'       => 'decimal:4',
         'subtotal_amount'      => 'decimal:4',
-        'tax_local'         => 'decimal:4',
+        'tax_local'            => 'decimal:4',
         'tax_amount'           => 'decimal:4',
-        'shipping_local'    => 'decimal:4',
+        'shipping_local'       => 'decimal:4',
         'shipping_amount'      => 'decimal:4',
         'other_charges_amount' => 'decimal:4',
-        'total_local'       => 'decimal:4',
+        'total_local'          => 'decimal:4',
         'total_amount'         => 'decimal:4',
-        'ordered_at'        => 'datetime',
-        'expected_at'       => 'date',
+        'ordered_at'           => 'datetime',
+        'expected_at'          => 'date',
     ];
 
     public function warehouse(): BelongsTo

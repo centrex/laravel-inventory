@@ -4,13 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Models\Adjustment;
-use Centrex\Inventory\Models\Customer as InventoryCustomer;
-use Centrex\Inventory\Models\Product;
-use Centrex\Inventory\Models\PurchaseOrder;
-use Centrex\Inventory\Models\SaleOrder;
-use Centrex\Inventory\Models\StockReceipt;
-use Centrex\Inventory\Models\Supplier as InventorySupplier;
+use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, SaleOrder, StockReceipt, Supplier as InventorySupplier};
 use Illuminate\Support\Facades\DB;
 
 class ErpIntegration
@@ -123,18 +117,18 @@ class ErpIntegration
         $lockedStatuses = ['issued', 'settled', 'partially_settled', 'overdue'];
 
         $invoiceData = [
-            'customer_id'              => $customerId,
-            'invoice_date'             => $invoiceDate,
-            'due_date'                 => $dueDate,
-            'subtotal'                 => round((float) $saleOrder->subtotal_amount, 2),
-            'tax_amount'               => round((float) $saleOrder->tax_amount, 2),
-            'discount_amount'          => round((float) $saleOrder->discount_amount, 2),
-            'total'                    => round((float) $saleOrder->total_amount, 2),
-            'currency'                 => $saleOrder->currency,
-            'exchange_rate'            => (float) $saleOrder->exchange_rate,
-            'status'                   => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
-            'notes'                    => $saleOrder->notes,
-            'inventory_sale_order_id'  => $saleOrder->id,
+            'customer_id'             => $customerId,
+            'invoice_date'            => $invoiceDate,
+            'due_date'                => $dueDate,
+            'subtotal'                => round((float) $saleOrder->subtotal_amount, 2),
+            'tax_amount'              => round((float) $saleOrder->tax_amount, 2),
+            'discount_amount'         => round((float) $saleOrder->discount_amount, 2),
+            'total'                   => round((float) $saleOrder->total_amount, 2),
+            'currency'                => $saleOrder->currency,
+            'exchange_rate'           => (float) $saleOrder->exchange_rate,
+            'status'                  => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
+            'notes'                   => $saleOrder->notes,
+            'inventory_sale_order_id' => $saleOrder->id,
         ];
 
         if ($invoice && in_array((string) $status, $lockedStatuses, true)) {
@@ -199,17 +193,17 @@ class ErpIntegration
         $lockedStatuses = ['issued', 'settled', 'partially_settled', 'overdue'];
 
         $billData = [
-            'vendor_id'                    => $vendorId,
-            'bill_date'                    => $billDate,
-            'due_date'                     => $dueDate,
-            'subtotal'                     => round((float) $purchaseOrder->subtotal_amount, 2),
-            'tax_amount'                   => round((float) $purchaseOrder->tax_amount, 2),
-            'total'                        => round((float) $purchaseOrder->total_amount, 2),
-            'currency'                     => $purchaseOrder->currency,
-            'exchange_rate'                => (float) $purchaseOrder->exchange_rate,
-            'status'                       => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
-            'notes'                        => $purchaseOrder->notes,
-            'inventory_purchase_order_id'  => $purchaseOrder->id,
+            'vendor_id'                   => $vendorId,
+            'bill_date'                   => $billDate,
+            'due_date'                    => $dueDate,
+            'subtotal'                    => round((float) $purchaseOrder->subtotal_amount, 2),
+            'tax_amount'                  => round((float) $purchaseOrder->tax_amount, 2),
+            'total'                       => round((float) $purchaseOrder->total_amount, 2),
+            'currency'                    => $purchaseOrder->currency,
+            'exchange_rate'               => (float) $purchaseOrder->exchange_rate,
+            'status'                      => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
+            'notes'                       => $purchaseOrder->notes,
+            'inventory_purchase_order_id' => $purchaseOrder->id,
         ];
 
         if ($bill && in_array((string) $status, $lockedStatuses, true)) {

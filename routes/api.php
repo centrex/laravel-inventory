@@ -2,8 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Controllers\Api\EntityCrudController;
-use Centrex\Inventory\Http\Controllers\Api\InventoryWorkflowController;
+use Centrex\Inventory\Http\Controllers\Api\{EntityCrudController, InventoryWorkflowController};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 

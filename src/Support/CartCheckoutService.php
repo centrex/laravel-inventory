@@ -13,8 +13,7 @@ class CartCheckoutService
     public function __construct(
         private readonly Inventory $inventory,
         private readonly ErpIntegration $erpIntegration,
-    ) {
-    }
+    ) {}
 
     public function checkout(array $payload, string $channel): SaleOrder
     {
