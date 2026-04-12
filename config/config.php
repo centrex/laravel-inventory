@@ -133,6 +133,7 @@ return [
         'stock_movements' => 25,
         'adjustments'     => 15,
         'expenses'        => 15,
+        'payroll_entries' => 15,
     ],
 
     /*

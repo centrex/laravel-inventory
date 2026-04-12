@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Controllers\Api;
 
 use Centrex\Inventory\Http\Requests\StoreExpenseRequest;
-use Centrex\Inventory\Http\Resources\{ExpenseResource};
+use Centrex\Inventory\Http\Resources\ExpenseResource;
 use Centrex\Inventory\Models\{Expense, ExpenseItem};
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
@@ -95,8 +95,10 @@ class ExpenseController extends Controller
         try {
             if (class_exists(\Centrex\Accounting\Facades\Accounting::class)) {
                 \Centrex\Accounting\Facades\Accounting::postExpense($expense);
-            } else {
-                $expense->update(['status' => 'approved']);
+            }
+
+            if ($expense->fresh()->status === 'draft') {
+                $expense->update(['status' => $expense->payment_method === 'credit' ? 'approved' : 'paid']);
             }
 
             return response()->json(['data' => new ExpenseResource($expense->fresh('items'))]);

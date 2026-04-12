@@ -7,10 +7,12 @@
     icon="o-building-storefront"
 >
     <x-slot:actions>
+        <x-tallui-button label="Employees" icon="o-identification" :link="route('inventory.entities.employees.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Purchase" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="Sale" icon="o-shopping-cart" :link="route('inventory.sale-orders.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.create')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Payroll" icon="o-users" :link="route('inventory.payroll.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Adjustment" icon="o-scale" :link="route('inventory.adjustments.create')" class="btn-primary btn-sm" />
     </x-slot:actions>
 </x-tallui-page-header>
@@ -25,8 +27,8 @@
     />
     <x-tallui-stat
         title="Transaction Workflows"
-        value="5"
-        desc="PO · SO · POS · Transfer · Adjustment"
+        value="8"
+        desc="Employees · PO · SO · POS · Transfer · Adjustment · Expense · Payroll"
         icon="o-bolt"
     />
     <x-tallui-stat
@@ -39,7 +41,12 @@
 </div>
 
 {{-- Quick actions --}}
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+    <a href="{{ route('inventory.entities.employees.index') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-identification class="w-7 h-7 text-primary" />
+        <span class="text-sm font-medium">Employees</span>
+    </a>
     <a href="{{ route('inventory.purchase-orders.create') }}"
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-arrow-down-tray class="w-7 h-7 text-primary" />
@@ -64,6 +71,11 @@
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-scale class="w-7 h-7 text-warning" />
         <span class="text-sm font-medium">Adjustment</span>
+    </a>
+    <a href="{{ route('inventory.payroll.index') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-users class="w-7 h-7 text-accent" />
+        <span class="text-sm font-medium">Payroll</span>
     </a>
 </div>
 

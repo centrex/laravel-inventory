@@ -93,10 +93,13 @@ class ExpensesPage extends Component
         $this->validate([
             'account_id'          => 'nullable|integer',
             'expense_date'        => 'required|date',
+            'due_date'            => 'nullable|date|after_or_equal:expense_date',
+            'payment_method'      => 'required|string|in:cash,check,bank_transfer,card,credit',
             'items'               => 'required|array|min:1',
             'items.*.description' => 'required|string',
             'items.*.quantity'    => 'required|numeric|min:0.01',
             'items.*.unit_price'  => 'required|numeric|min:0',
+            'items.*.tax_rate'    => 'nullable|numeric|min:0|max:100',
         ]);
 
         DB::transaction(function (): void {
@@ -143,7 +146,11 @@ class ExpensesPage extends Component
 
         $this->dispatch('notify', type: 'success', message: 'Expense recorded successfully!');
         $this->showModal = false;
-        $this->reset(['expenseId', 'account_id', 'items']);
+        $this->reset(['expenseId', 'account_id', 'items', 'notes', 'reference', 'vendor_name']);
+        $this->payment_method = 'cash';
+        $this->expense_date = now()->format('Y-m-d');
+        $this->due_date = now()->addDays(30)->format('Y-m-d');
+        $this->addItem();
     }
 
     public function postExpense(int $id): void
@@ -156,7 +163,9 @@ class ExpensesPage extends Component
                 \Centrex\Accounting\Facades\Accounting::postExpense($expense);
             }
 
-            $expense->update(['status' => 'approved']);
+            if ($expense->fresh()->status === 'draft') {
+                $expense->update(['status' => $expense->payment_method === 'credit' ? 'approved' : 'paid']);
+            }
             $this->dispatch('notify', type: 'success', message: "Expense {$expense->expense_number} posted.");
         } catch (\Throwable $e) {
             $this->dispatch('notify', type: 'error', message: $e->getMessage());
@@ -251,6 +260,8 @@ class ExpensesPage extends Component
                 ->orderBy('code')
                 ->get();
         }
+
+        $expenses->load('items');
 
         $layout = view()->exists('layouts.app')
             ? 'layouts.app'

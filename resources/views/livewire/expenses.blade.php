@@ -146,7 +146,7 @@
                     <option value="bank_transfer">Bank Transfer</option>
                     <option value="check">Check</option>
                     <option value="card">Card</option>
-                    <option value="other">Other</option>
+                    <option value="credit">Credit</option>
                 </x-tallui-select>
             </x-tallui-form-group>
         </div>

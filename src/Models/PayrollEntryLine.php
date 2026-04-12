@@ -24,7 +24,7 @@ class PayrollEntryLine extends Model
     }
 
     protected $fillable = [
-        'payroll_entry_id', 'payroll_account_id', 'amount', 'description', 'reference',
+        'payroll_entry_id', 'employee_id', 'payroll_account_id', 'amount', 'description', 'reference',
     ];
 
     protected $casts = [
@@ -34,6 +34,11 @@ class PayrollEntryLine extends Model
     public function payrollEntry(): BelongsTo
     {
         return $this->belongsTo(PayrollEntry::class);
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class);
     }
 
     public function payrollAccount(): BelongsTo

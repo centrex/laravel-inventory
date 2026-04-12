@@ -68,5 +68,6 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
         Livewire::component('inventory-expenses', Http\Livewire\Expenses\ExpensesPage::class);
+        Livewire::component('inventory-payroll-entries', Http\Livewire\Payroll\PayrollEntriesPage::class);
     }
 }
