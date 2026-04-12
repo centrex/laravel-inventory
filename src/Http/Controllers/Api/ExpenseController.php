@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Controllers\Api;
 
 use Centrex\Inventory\Http\Requests\StoreExpenseRequest;
-use Centrex\Inventory\Http\Resources\{ExpenseItemResource, ExpenseResource};
+use Centrex\Inventory\Http\Resources\{ExpenseResource};
 use Centrex\Inventory\Models\{Expense, ExpenseItem};
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
@@ -36,14 +36,14 @@ class ExpenseController extends Controller
         $data = $request->validated();
 
         $expense = DB::transaction(function () use ($data): Expense {
-            $currency  = $data['currency'] ?? config('inventory.base_currency', 'BDT');
-            $subtotal  = 0;
+            $currency = $data['currency'] ?? config('inventory.base_currency', 'BDT');
+            $subtotal = 0;
             $taxAmount = 0;
 
             foreach ($data['items'] as $item) {
-                $amount    = $item['quantity'] * $item['unit_price'];
-                $itemTax   = $amount * (($item['tax_rate'] ?? 0) / 100);
-                $subtotal  += $amount;
+                $amount = $item['quantity'] * $item['unit_price'];
+                $itemTax = $amount * (($item['tax_rate'] ?? 0) / 100);
+                $subtotal += $amount;
                 $taxAmount += $itemTax;
             }
 
@@ -64,7 +64,7 @@ class ExpenseController extends Controller
 
             foreach ($data['items'] as $item) {
                 $amount = $item['quantity'] * $item['unit_price'];
-                $tax    = $amount * (($item['tax_rate'] ?? 0) / 100);
+                $tax = $amount * (($item['tax_rate'] ?? 0) / 100);
 
                 ExpenseItem::create([
                     'expense_id'  => $expense->id,

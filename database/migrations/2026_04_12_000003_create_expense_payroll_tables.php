@@ -10,7 +10,7 @@ return new class() extends Migration
 {
     public function up(): void
     {
-        $prefix     = config('inventory.table_prefix', 'inv_');
+        $prefix = config('inventory.table_prefix', 'inv_');
         $connection = config('inventory.drivers.database.connection', config('database.default'));
 
         // Employees
@@ -133,7 +133,7 @@ return new class() extends Migration
 
     public function down(): void
     {
-        $prefix     = config('inventory.table_prefix', 'inv_');
+        $prefix = config('inventory.table_prefix', 'inv_');
         $connection = config('inventory.drivers.database.connection', config('database.default'));
 
         Schema::connection($connection)->dropIfExists($prefix . 'expense_items');

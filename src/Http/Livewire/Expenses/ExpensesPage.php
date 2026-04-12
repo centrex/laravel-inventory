@@ -59,7 +59,7 @@ class ExpensesPage extends Component
     public function mount(): void
     {
         $this->expense_date = now()->format('Y-m-d');
-        $this->due_date     = now()->addDays(30)->format('Y-m-d');
+        $this->due_date = now()->addDays(30)->format('Y-m-d');
         $this->addItem();
     }
 
@@ -83,7 +83,7 @@ class ExpensesPage extends Component
     {
         $this->reset(['expenseId', 'account_id', 'notes', 'reference', 'vendor_name', 'items']);
         $this->expense_date = now()->format('Y-m-d');
-        $this->due_date     = now()->addDays(30)->format('Y-m-d');
+        $this->due_date = now()->addDays(30)->format('Y-m-d');
         $this->addItem();
         $this->showModal = true;
     }
@@ -100,13 +100,13 @@ class ExpensesPage extends Component
         ]);
 
         DB::transaction(function (): void {
-            $subtotal  = 0;
+            $subtotal = 0;
             $taxAmount = 0;
 
             foreach ($this->items as $item) {
-                $amount    = $item['quantity'] * $item['unit_price'];
-                $itemTax   = $amount * (($item['tax_rate'] ?? 0) / 100);
-                $subtotal  += $amount;
+                $amount = $item['quantity'] * $item['unit_price'];
+                $itemTax = $amount * (($item['tax_rate'] ?? 0) / 100);
+                $subtotal += $amount;
                 $taxAmount += $itemTax;
             }
 
@@ -127,7 +127,7 @@ class ExpensesPage extends Component
 
             foreach ($this->items as $item) {
                 $amount = $item['quantity'] * $item['unit_price'];
-                $tax    = $amount * (($item['tax_rate'] ?? 0) / 100);
+                $tax = $amount * (($item['tax_rate'] ?? 0) / 100);
 
                 ExpenseItem::create([
                     'expense_id'  => $expense->id,
@@ -165,14 +165,14 @@ class ExpensesPage extends Component
 
     public function openPayModal(int $id): void
     {
-        $expense              = Expense::findOrFail($id);
+        $expense = Expense::findOrFail($id);
         $this->payingExpenseId = $id;
-        $this->pay_date       = now()->format('Y-m-d');
-        $this->pay_amount     = number_format($expense->balance, 2, '.', '');
-        $this->pay_method     = 'cash';
-        $this->pay_reference  = '';
-        $this->pay_notes      = '';
-        $this->showPayModal   = true;
+        $this->pay_date = now()->format('Y-m-d');
+        $this->pay_amount = number_format($expense->balance, 2, '.', '');
+        $this->pay_method = 'cash';
+        $this->pay_reference = '';
+        $this->pay_notes = '';
+        $this->showPayModal = true;
     }
 
     public function recordPayment(): void
