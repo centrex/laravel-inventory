@@ -7,6 +7,7 @@ namespace Centrex\Inventory;
 use Centrex\Inventory\Models\{Customer, Expense, ExpenseItem, Supplier};
 use Centrex\Inventory\Observers\{CustomerObserver, ExpenseItemObserver, ExpenseObserver, SupplierObserver};
 use Centrex\Inventory\Support\{CartCheckoutService, ErpIntegration};
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -16,6 +17,7 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'inventory');
+        $this->registerViteDirective();
 
         if ((bool) config('inventory.web_enabled', true)) {
             $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
@@ -40,6 +42,16 @@ class InventoryServiceProvider extends ServiceProvider
                 __DIR__ . '/../database/migrations/' => database_path('migrations'),
             ], 'inventory-migrations');
         }
+    }
+
+    private function registerViteDirective(): void
+    {
+        Blade::directive('inventoryVite', fn (): string => sprintf(
+            '<?php echo \\Centrex\\TallUi\\Support\\PackageVite::render(%s, %s, %s); ?>',
+            var_export(dirname(__DIR__), true),
+            var_export('inventory.hot', true),
+            var_export(['resources/js/app.js'], true),
+        ));
     }
 
     public function register(): void
