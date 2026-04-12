@@ -1,50 +1,114 @@
-<div class="grid">
-    <x-tallui-page-header :title="$definition['label']" :subtitle="'Browse and manage ' . strtolower($definition['label']) . '.'" icon="o-table-cells">
-        <x-slot:actions>
-            <div style="min-width: 260px;">
-                <x-tallui-input name="search" label="" placeholder="Search {{ strtolower($definition['label']) }}" wire:model.live.debounce.300ms="search" />
-            </div>
-            <x-tallui-button :label="'Create ' . $definition['singular']" icon="o-plus" :link="route("inventory.entities.{$entity}.create")" class="btn-primary btn-sm" />
-        </x-slot:actions>
-    </x-tallui-page-header>
+<div>
+<x-tallui-notification />
 
-    <x-tallui-card :title="$definition['label']" subtitle="Listing" icon="o-list-bullet" :shadow="true">
-        <div class="table-shell">
-            <table>
-                <thead>
-                    <tr>
+<x-tallui-page-header
+    :title="$definition['label']"
+    :subtitle="'Browse and manage ' . strtolower($definition['label']) . '.'"
+    icon="o-table-cells"
+>
+    <x-slot:breadcrumbs>
+        <x-tallui-breadcrumb :links="[
+            ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
+            ['label' => $definition['label']],
+        ]" />
+    </x-slot:breadcrumbs>
+    <x-slot:actions>
+        <div class="w-64">
+            <x-tallui-input
+                placeholder="Search {{ strtolower($definition['label']) }}…"
+                wire:model.live.debounce.300ms="search"
+                class="input-sm"
+            />
+        </div>
+        <x-tallui-button
+            :label="'New ' . $definition['singular']"
+            icon="o-plus"
+            :link="route('inventory.entities.' . $entity . '.create')"
+            class="btn-primary btn-sm"
+        />
+    </x-slot:actions>
+</x-tallui-page-header>
+
+<x-tallui-card padding="none" :shadow="true">
+    <div class="overflow-x-auto">
+        <table class="table table-sm w-full">
+            <thead>
+                <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    @foreach ($columns as $column)
+                        <th class="pl-4 first:pl-5">
+                            {{ str($column)->replace('_', ' ')->title() }}
+                        </th>
+                    @endforeach
+                    <th class="pr-5 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-base-200">
+                @forelse ($records as $record)
+                    <tr class="hover:bg-base-50">
                         @foreach ($columns as $column)
-                            <th>{{ str($column)->replace('_', ' ')->title() }}</th>
+                            <td class="pl-4 first:pl-5 text-sm">
+                                @php $val = $record->{$column}; @endphp
+                                @if (is_bool($val))
+                                    <x-tallui-badge :type="$val ? 'success' : 'neutral'">
+                                        {{ $val ? 'Yes' : 'No' }}
+                                    </x-tallui-badge>
+                                @elseif (is_array($val))
+                                    <span class="font-mono text-xs text-base-content/60">{{ json_encode($val) }}</span>
+                                @elseif (strlen((string) $val) > 60)
+                                    <span title="{{ $val }}">{{ substr($val, 0, 57) }}…</span>
+                                @else
+                                    {{ $val ?? '—' }}
+                                @endif
+                            </td>
                         @endforeach
-                        <th>Actions</th>
+                        <td class="pr-5">
+                            <div class="flex justify-end gap-1">
+                                <x-tallui-button
+                                    icon="o-pencil-square"
+                                    :link="route('inventory.entities.' . $entity . '.edit', ['recordId' => $record->getKey()])"
+                                    class="btn-ghost btn-xs"
+                                    :responsive="true"
+                                    label="Edit"
+                                />
+                                <x-tallui-button
+                                    icon="o-trash"
+                                    class="btn-ghost btn-xs text-error"
+                                    type="button"
+                                    wire:click="delete({{ $record->getKey() }})"
+                                    wire:confirm="Delete this {{ strtolower($definition['singular']) }}?"
+                                    :responsive="true"
+                                    label="Delete"
+                                />
+                            </div>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @forelse ($records as $record)
-                        <tr>
-                            @foreach ($columns as $column)
-                                <td>{{ is_array($record->{$column}) ? json_encode($record->{$column}) : $record->{$column} }}</td>
-                            @endforeach
-                            <td>
-                                <div class="actions">
-                                    <x-tallui-button label="Edit" icon="o-pencil-square" :link="route("inventory.entities.{$entity}.edit", ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
-                                    <x-tallui-button label="Delete" icon="o-trash" class="btn-error btn-sm" type="button" wire:click="delete({{ $record->getKey() }})" />
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="{{ count($columns) + 1 }}" class="muted">
-                                <x-tallui-badge color="outline">No records found</x-tallui-badge>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                @empty
+                    <tr>
+                        <td colspan="{{ count($columns) + 1 }}" class="py-8">
+                            <x-tallui-empty-state
+                                :title="'No ' . strtolower($definition['label']) . ' yet'"
+                                :description="'Create your first ' . strtolower($definition['singular']) . ' to get started.'"
+                                icon="o-folder-open"
+                                size="sm"
+                            >
+                                <x-tallui-button
+                                    :label="'New ' . $definition['singular']"
+                                    icon="o-plus"
+                                    :link="route('inventory.entities.' . $entity . '.create')"
+                                    class="btn-primary btn-sm"
+                                />
+                            </x-tallui-empty-state>
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 
-        <div style="margin-top: 16px;">
-            <x-tallui-pagination :paginator="$records" />
+    @if ($records->hasPages())
+        <div class="px-5 py-3 border-t border-base-200">
+            {{ $records->links() }}
         </div>
-    </x-tallui-card>
+    @endif
+</x-tallui-card>
 </div>

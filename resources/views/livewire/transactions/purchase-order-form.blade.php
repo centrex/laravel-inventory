@@ -1,77 +1,172 @@
-<div class="grid">
-    <x-tallui-page-header title="Create Purchase Order" subtitle="Draft inbound purchases with multi-line item entry." icon="o-arrow-down-tray">
-        <x-slot:actions>
-            <x-tallui-badge color="outline">Purchasing</x-tallui-badge>
-        </x-slot:actions>
-    </x-tallui-page-header>
+<div>
+<x-tallui-notification />
 
-    <x-tallui-card title="Purchase Order" subtitle="Header and line details" icon="o-document-arrow-down" :shadow="true">
-        <form wire:submit="save" class="stack">
-            <div class="form-grid">
-                <div>
-                    <x-tallui-select name="warehouse_id" label="Warehouse" wire:model="warehouse_id">
-                        <option value="">Select warehouse</option>
-                        @foreach ($warehouses as $warehouse)
-                            <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                        @endforeach
-                    </x-tallui-select>
-                    @error('warehouse_id') <div class="danger">{{ $message }}</div> @enderror
-                </div>
-                <div>
-                    <x-tallui-select name="supplier_id" label="Supplier" wire:model="supplier_id">
-                        <option value="">Select supplier</option>
-                        @foreach ($suppliers as $supplier)
-                            <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                        @endforeach
-                    </x-tallui-select>
-                    @error('supplier_id') <div class="danger">{{ $message }}</div> @enderror
-                </div>
-                <div><x-tallui-input name="currency" label="Currency" wire:model="currency" />@error('currency') <div class="danger">{{ $message }}</div> @enderror</div>
-                <div><x-tallui-input name="exchange_rate" label="Exchange Rate BDT" type="number" wire:model="exchange_rate" step="0.0001" />@error('exchange_rate') <div class="danger">{{ $message }}</div> @enderror</div>
-                <div><x-tallui-input name="tax_local" label="Tax Local" type="number" wire:model="tax_local" step="0.0001" /></div>
-                <div><x-tallui-input name="shipping_local" label="Shipping Local" type="number" wire:model="shipping_local" step="0.0001" /></div>
-                <div><x-tallui-input name="other_charges_amount" label="Other Charges BDT" type="number" wire:model="other_charges_amount" step="0.0001" /></div>
-                <div><x-tallui-input name="expected_at" label="Expected At" type="date" wire:model="expected_at" /></div>
-                <div class="span-2"><x-tallui-textarea name="notes" label="Notes" wire:model="notes" /></div>
+<x-tallui-page-header
+    title="New Purchase Order"
+    subtitle="Draft inbound purchases with multi-line item entry."
+    icon="o-arrow-down-tray"
+>
+    <x-slot:breadcrumbs>
+        <x-tallui-breadcrumb :links="[
+            ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
+            ['label' => 'New Purchase Order'],
+        ]" />
+    </x-slot:breadcrumbs>
+    <x-slot:actions>
+        <x-tallui-badge type="info">Purchasing</x-tallui-badge>
+    </x-slot:actions>
+</x-tallui-page-header>
+
+<form wire:submit="save" class="space-y-4">
+
+    {{-- Header --}}
+    <x-tallui-card title="Order Details" subtitle="Supplier, warehouse, and cost settings." icon="o-document-arrow-down" :shadow="true">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <x-tallui-form-group label="Warehouse *" :error="$errors->first('warehouse_id')">
+                <x-tallui-select name="warehouse_id" wire:model="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
+                    <option value="">Select warehouse…</option>
+                    @foreach ($warehouses as $warehouse)
+                        <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                    @endforeach
+                </x-tallui-select>
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Supplier *" :error="$errors->first('supplier_id')">
+                <x-tallui-select name="supplier_id" wire:model="supplier_id" class="{{ $errors->has('supplier_id') ? 'select-error' : '' }}">
+                    <option value="">Select supplier…</option>
+                    @foreach ($suppliers as $supplier)
+                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                    @endforeach
+                </x-tallui-select>
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Expected Date">
+                <x-tallui-input name="expected_at" type="date" wire:model="expected_at" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Currency" :error="$errors->first('currency')">
+                <x-tallui-input name="currency" wire:model="currency" placeholder="BDT" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Exchange Rate (BDT)" :error="$errors->first('exchange_rate')">
+                <x-tallui-input name="exchange_rate" type="number" step="0.0001" wire:model="exchange_rate" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Tax (Local)">
+                <x-tallui-input name="tax_local" type="number" step="0.0001" wire:model="tax_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Shipping (Local)">
+                <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Other Charges (BDT)">
+                <x-tallui-input name="other_charges_amount" type="number" step="0.0001" wire:model="other_charges_amount" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <div class="md:col-span-2 lg:col-span-3">
+                <x-tallui-form-group label="Notes">
+                    <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Internal notes, delivery instructions…" />
+                </x-tallui-form-group>
             </div>
-
-            <h2 class="section-title">Items</h2>
-            <div class="stack">
-                <div class="table-shell">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Product</th>
-                                <th>Qty</th>
-                                <th>Unit Price Local</th>
-                                <th>Notes</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($items as $index => $item)
-                                <tr wire:key="po-item-{{ $index }}">
-                                    <td>
-                                        <x-tallui-select name="items.{{ $index }}.product_id" label="" wire:model="items.{{ $index }}.product_id">
-                                            <option value="">Select product</option>
-                                            @foreach ($products as $product)
-                                                <option value="{{ $product->id }}">{{ $product->name }}</option>
-                                            @endforeach
-                                        </x-tallui-select>
-                                    </td>
-                                    <td><x-tallui-input name="items.{{ $index }}.qty_ordered" label="" type="number" step="0.0001" wire:model="items.{{ $index }}.qty_ordered" /></td>
-                                    <td><x-tallui-input name="items.{{ $index }}.unit_price_local" label="" type="number" step="0.0001" wire:model="items.{{ $index }}.unit_price_local" /></td>
-                                    <td><x-tallui-input name="items.{{ $index }}.notes" label="" wire:model="items.{{ $index }}.notes" /></td>
-                                    <td><x-tallui-button label="Remove" class="btn-ghost btn-sm" type="button" wire:click="removeItem({{ $index }})" /></td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <div class="actions"><x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" /></div>
-            </div>
-
-            <div class="actions"><x-tallui-button label="Create Purchase Order" icon="o-check" class="btn-primary" type="submit" /></div>
-        </form>
+        </div>
     </x-tallui-card>
+
+    {{-- Line Items --}}
+    <x-tallui-card padding="none" :shadow="true">
+        <x-slot:actions>
+            <x-tallui-button
+                label="Add Line"
+                icon="o-plus"
+                class="btn-ghost btn-sm"
+                type="button"
+                wire:click="addItem"
+            />
+        </x-slot:actions>
+
+        <div class="overflow-x-auto">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                        <th class="pl-5 w-64">Product</th>
+                        <th class="w-28">Qty Ordered</th>
+                        <th class="w-36">Unit Price (Local)</th>
+                        <th>Notes</th>
+                        <th class="pr-5 w-20"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-base-200">
+                    @forelse ($items as $index => $item)
+                        <tr wire:key="po-item-{{ $index }}" class="hover:bg-base-50">
+                            <td class="pl-5 py-2">
+                                <x-tallui-select
+                                    name="items.{{ $index }}.product_id"
+                                    wire:model="items.{{ $index }}.product_id"
+                                    class="select-sm w-full"
+                                >
+                                    <option value="">Select product…</option>
+                                    @foreach ($products as $product)
+                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
+                                    @endforeach
+                                </x-tallui-select>
+                            </td>
+                            <td class="py-2">
+                                <x-tallui-input
+                                    name="items.{{ $index }}.qty_ordered"
+                                    type="number" step="0.0001" min="0"
+                                    wire:model="items.{{ $index }}.qty_ordered"
+                                    class="input-sm text-right w-full"
+                                />
+                            </td>
+                            <td class="py-2">
+                                <x-tallui-input
+                                    name="items.{{ $index }}.unit_price_local"
+                                    type="number" step="0.0001" min="0"
+                                    wire:model="items.{{ $index }}.unit_price_local"
+                                    class="input-sm text-right w-full"
+                                />
+                            </td>
+                            <td class="py-2">
+                                <x-tallui-input
+                                    name="items.{{ $index }}.notes"
+                                    wire:model="items.{{ $index }}.notes"
+                                    class="input-sm w-full"
+                                    placeholder="Optional…"
+                                />
+                            </td>
+                            <td class="pr-5 py-2 text-right">
+                                <x-tallui-button
+                                    icon="o-trash"
+                                    class="btn-ghost btn-xs text-error"
+                                    type="button"
+                                    wire:click="removeItem({{ $index }})"
+                                />
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="py-6 text-center">
+                                <x-tallui-empty-state
+                                    title="No items yet"
+                                    description="Add at least one product line."
+                                    icon="o-cube"
+                                    size="sm"
+                                >
+                                    <x-tallui-button label="Add Line" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addItem" />
+                                </x-tallui-empty-state>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-tallui-card>
+
+    {{-- Footer actions --}}
+    <div class="flex justify-end gap-2">
+        <x-tallui-button label="Cancel" :link="route('inventory.dashboard')" class="btn-ghost" />
+        <x-tallui-button label="Create Purchase Order" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+    </div>
+
+</form>
 </div>

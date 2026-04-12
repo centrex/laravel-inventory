@@ -4,8 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
-use Centrex\Inventory\Models\{Customer, Supplier};
-use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
+use Centrex\Inventory\Models\{Customer, Expense, ExpenseItem, Supplier};
+use Centrex\Inventory\Observers\{CustomerObserver, ExpenseItemObserver, ExpenseObserver, SupplierObserver};
 use Centrex\Inventory\Support\{CartCheckoutService, ErpIntegration};
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -28,6 +28,8 @@ class InventoryServiceProvider extends ServiceProvider
         $this->registerLivewireComponents();
         Customer::observe(CustomerObserver::class);
         Supplier::observe(SupplierObserver::class);
+        Expense::observe(ExpenseObserver::class);
+        ExpenseItem::observe(ExpenseItemObserver::class);
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -65,5 +67,6 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-transfer-form', Http\Livewire\Transactions\TransferFormPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
+        Livewire::component('inventory-expenses', Http\Livewire\Expenses\ExpensesPage::class);
     }
 }
