@@ -25,7 +25,7 @@ class Product extends Model
     }
 
     protected $fillable = [
-        'category_id', 'sku', 'name', 'description',
+        'category_id', 'brand_id', 'sku', 'name', 'description',
         'unit', 'weight_kg', 'barcode', 'is_active', 'is_stockable', 'meta',
     ];
 
@@ -39,6 +39,11 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(ProductCategory::class, 'category_id');
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(ProductBrand::class, 'brand_id');
     }
 
     public function warehouseProducts(): HasMany

@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Models\{Customer, Employee, ExchangeRate, PayrollAccount, PriceTier, Product, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, Employee, ExchangeRate, PayrollAccount, PriceTier, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -46,14 +46,29 @@ class InventoryEntityRegistry
                     self::field('is_active', 'checkbox', ['boolean'], true),
                 ],
             ],
+            'product-brands' => [
+                'label'         => 'Product Brands',
+                'singular'      => 'Product Brand',
+                'model'         => ProductBrand::class,
+                'search'        => ['name', 'slug'],
+                'index_columns' => ['name', 'slug', 'sort_order', 'is_active'],
+                'form_fields'   => [
+                    self::field('name', 'text', ['required', 'string', 'max:200']),
+                    self::field('slug', 'text', ['required', 'string', 'max:200']),
+                    self::field('description', 'textarea', ['nullable', 'string']),
+                    self::field('sort_order', 'number', ['nullable', 'integer', 'min:0'], 0),
+                    self::field('is_active', 'checkbox', ['boolean'], true),
+                ],
+            ],
             'products' => [
                 'label'         => 'Products',
                 'singular'      => 'Product',
                 'model'         => Product::class,
                 'search'        => ['sku', 'name', 'barcode'],
-                'index_columns' => ['sku', 'name', 'category_id', 'unit', 'weight_kg', 'is_active', 'is_stockable'],
+                'index_columns' => ['sku', 'name', 'category_id', 'brand_id', 'unit', 'weight_kg', 'is_active', 'is_stockable'],
                 'form_fields'   => [
                     self::field('category_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductCategory())->getTable() . ',id'], null, ProductCategory::class, 'name'),
+                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),
                     self::field('sku', 'text', ['required', 'string', 'max:100']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('description', 'textarea', ['nullable', 'string']),
