@@ -52,5 +52,4 @@ Route::middleware(config('inventory.api_middleware', ['api', 'auth:sanctum']))
 
         Route::post('/adjustments', [InventoryWorkflowController::class, 'createAdjustment'])->name('adjustments.store');
         Route::post('/adjustments/{adjustmentId}/post', [InventoryWorkflowController::class, 'postAdjustment'])->name('adjustments.post');
-
     });

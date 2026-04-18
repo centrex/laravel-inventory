@@ -4,7 +4,6 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\DashboardController;
 use Centrex\Inventory\Http\Livewire\Entities\{EntityFormPage, EntityIndexPage};
-use Centrex\Inventory\Http\Livewire\Payroll\PayrollEntriesPage;
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, PosTerminalPage, PurchaseOrderFormPage, SaleOrderFormPage, TransferFormPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
