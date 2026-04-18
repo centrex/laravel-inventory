@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Controllers\Api\{EntityCrudController, ExpenseController, InventoryWorkflowController, PayrollEntryController};
+use Centrex\Inventory\Http\Controllers\Api\{EntityCrudController, InventoryWorkflowController};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -53,18 +53,4 @@ Route::middleware(config('inventory.api_middleware', ['api', 'auth:sanctum']))
         Route::post('/adjustments', [InventoryWorkflowController::class, 'createAdjustment'])->name('adjustments.store');
         Route::post('/adjustments/{adjustmentId}/post', [InventoryWorkflowController::class, 'postAdjustment'])->name('adjustments.post');
 
-        // Expenses
-        Route::get('/expenses', [ExpenseController::class, 'index'])->name('expenses.index');
-        Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
-        Route::get('/expenses/{expense}', [ExpenseController::class, 'show'])->name('expenses.show');
-        Route::post('/expenses/{expense}/post', [ExpenseController::class, 'post'])->name('expenses.post');
-        Route::post('/expenses/{expense}/payments', [ExpenseController::class, 'recordPayment'])->name('expenses.payments');
-        Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
-
-        // Payroll
-        Route::get('/payroll-entries', [PayrollEntryController::class, 'index'])->name('payroll.index');
-        Route::post('/payroll-entries', [PayrollEntryController::class, 'store'])->name('payroll.store');
-        Route::get('/payroll-entries/{payrollEntry}', [PayrollEntryController::class, 'show'])->name('payroll.show');
-        Route::post('/payroll-entries/{payrollEntry}/approve', [PayrollEntryController::class, 'approve'])->name('payroll.approve');
-        Route::delete('/payroll-entries/{payrollEntry}', [PayrollEntryController::class, 'destroy'])->name('payroll.destroy');
     });

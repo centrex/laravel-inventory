@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\PriceTierCode;
 use Centrex\Inventory\Models\{Customer, PriceTier, Product, Warehouse};
-use Centrex\Inventory\Support\CartCheckoutService;
+
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -103,7 +103,13 @@ class PosTerminalPage extends Component
             'currency'        => ['required', 'string', 'size:3'],
         ]);
 
-        $saleOrder = app(CartCheckoutService::class)->checkout([
+        if (!class_exists(\Centrex\Cart\Services\CartCheckoutService::class)) {
+            session()->flash('inventory.error', 'centrex/laravel-cart is required for POS checkout.');
+
+            return;
+        }
+
+        $saleOrder = app(\Centrex\Cart\Services\CartCheckoutService::class)->checkout([
             'warehouse_id'    => (int) $validated['warehouse_id'],
             'customer_id'     => $validated['customer_id'] ?? null,
             'price_tier_code' => $validated['price_tier_code'],

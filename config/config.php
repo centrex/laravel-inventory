@@ -108,7 +108,7 @@ return [
     */
     'erp' => [
         'accounting' => [
-            'enabled' => env('INVENTORY_ACCOUNTING_ENABLED', true),
+            'enabled' => env('INVENTORY_ACCOUNTING_ENABLED', false),
             'accounts' => [
                 'inventory_asset'      => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
                 'cost_of_goods_sold'   => env('INVENTORY_ACCOUNTING_COGS', '5000'),
@@ -132,8 +132,6 @@ return [
         'transfers'       => 15,
         'stock_movements' => 25,
         'adjustments'     => 15,
-        'expenses'        => 15,
-        'payroll_entries' => 15,
     ],
 
     /*

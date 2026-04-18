@@ -4,21 +4,23 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Api;
 
-use Centrex\Inventory\Enums\PriceTierCode;
+use Centrex\Inventory\Http\Resources\{AdjustmentResource, PurchaseOrderResource, SaleOrderResource, StockReceiptResource, TransferResource};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Support\CartCheckoutService;
+use Centrex\Inventory\Models\SaleOrder;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Gate;
 
 class InventoryWorkflowController extends Controller
 {
     public function __construct(
         private readonly Inventory $inventory,
-        private readonly CartCheckoutService $cartCheckoutService,
     ) {}
 
     public function setExchangeRate(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.exchange-rates.manage');
+
         $validated = $request->validate([
             'currency' => ['required', 'string', 'size:3'],
             'rate'     => ['required', 'numeric', 'gt:0'],
@@ -38,6 +40,8 @@ class InventoryWorkflowController extends Controller
 
     public function convertToBdt(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.exchange-rates.view');
+
         $validated = $request->validate([
             'amount'   => ['required', 'numeric'],
             'currency' => ['required', 'string', 'size:3'],
@@ -51,6 +55,8 @@ class InventoryWorkflowController extends Controller
 
     public function convertFromBdt(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.exchange-rates.view');
+
         $validated = $request->validate([
             'amount_base' => ['required', 'numeric'],
             'currency'    => ['required', 'string', 'size:3'],
@@ -64,6 +70,8 @@ class InventoryWorkflowController extends Controller
 
     public function setPrice(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.pricing.manage');
+
         $validated = $request->validate([
             'product_id'     => ['required', 'integer'],
             'tier_code'      => ['required', 'string'],
@@ -89,6 +97,8 @@ class InventoryWorkflowController extends Controller
 
     public function resolvePrice(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.pricing.view');
+
         $validated = $request->validate([
             'product_id'   => ['required', 'integer'],
             'tier_code'    => ['required', 'string'],
@@ -108,6 +118,8 @@ class InventoryWorkflowController extends Controller
 
     public function priceSheet(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.pricing.view');
+
         $validated = $request->validate([
             'product_id'   => ['required', 'integer'],
             'warehouse_id' => ['required', 'integer'],
@@ -125,6 +137,8 @@ class InventoryWorkflowController extends Controller
 
     public function stockLevels(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.reports.view');
+
         $validated = $request->validate([
             'warehouse_id' => ['required', 'integer'],
         ]);
@@ -136,6 +150,8 @@ class InventoryWorkflowController extends Controller
 
     public function stockValuation(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.reports.view');
+
         $validated = $request->validate([
             'warehouse_id' => ['nullable', 'integer'],
         ]);
@@ -147,6 +163,8 @@ class InventoryWorkflowController extends Controller
 
     public function movementHistory(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.reports.view');
+
         $validated = $request->validate([
             'product_id'   => ['required', 'integer'],
             'warehouse_id' => ['required', 'integer'],
@@ -166,6 +184,8 @@ class InventoryWorkflowController extends Controller
 
     public function createPurchaseOrder(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.purchase-orders.create');
+
         $validated = $request->validate([
             'warehouse_id'             => ['required', 'integer'],
             'supplier_id'              => ['required', 'integer'],
@@ -185,21 +205,33 @@ class InventoryWorkflowController extends Controller
             'items.*.notes'            => ['nullable', 'string'],
         ]);
 
-        return response()->json($this->inventory->createPurchaseOrder($validated), 201);
+        $po = $this->inventory->createPurchaseOrder($validated);
+
+        return (new PurchaseOrderResource($po->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function submitPurchaseOrder(int $purchaseOrderId): JsonResponse
     {
-        return response()->json($this->inventory->submitPurchaseOrder($purchaseOrderId));
+        Gate::authorize('inventory.purchase-orders.submit');
+
+        $po = $this->inventory->submitPurchaseOrder($purchaseOrderId);
+
+        return (new PurchaseOrderResource($po->load('items.product')))->response();
     }
 
     public function confirmPurchaseOrder(int $purchaseOrderId): JsonResponse
     {
-        return response()->json($this->inventory->confirmPurchaseOrder($purchaseOrderId));
+        Gate::authorize('inventory.purchase-orders.confirm');
+
+        $po = $this->inventory->confirmPurchaseOrder($purchaseOrderId);
+
+        return (new PurchaseOrderResource($po->load('items.product')))->response();
     }
 
     public function createStockReceipt(Request $request, int $purchaseOrderId): JsonResponse
     {
+        Gate::authorize('inventory.stock-receipts.create');
+
         $validated = $request->validate([
             'received_at'                    => ['nullable', 'date'],
             'notes'                          => ['nullable', 'string'],
@@ -210,24 +242,33 @@ class InventoryWorkflowController extends Controller
             'items.*.unit_cost_local'        => ['nullable', 'numeric', 'min:0'],
         ]);
 
-        return response()->json(
-            $this->inventory->createStockReceipt($purchaseOrderId, $validated['items'], $validated),
-            201,
-        );
+        $grn = $this->inventory->createStockReceipt($purchaseOrderId, $validated['items'], $validated);
+
+        return (new StockReceiptResource($grn->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function postStockReceipt(int $stockReceiptId): JsonResponse
     {
-        return response()->json($this->inventory->postStockReceipt($stockReceiptId));
+        Gate::authorize('inventory.stock-receipts.post');
+
+        $grn = $this->inventory->postStockReceipt($stockReceiptId);
+
+        return (new StockReceiptResource($grn->load('items.product')))->response();
     }
 
     public function voidStockReceipt(int $stockReceiptId): JsonResponse
     {
-        return response()->json($this->inventory->voidStockReceipt($stockReceiptId));
+        Gate::authorize('inventory.stock-receipts.void');
+
+        $grn = $this->inventory->voidStockReceipt($stockReceiptId);
+
+        return (new StockReceiptResource($grn->load('items.product')))->response();
     }
 
     public function createSaleOrder(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.sale-orders.create');
+
         $validated = $request->validate([
             'warehouse_id'             => ['required', 'integer'],
             'customer_id'              => ['nullable', 'integer'],
@@ -250,46 +291,74 @@ class InventoryWorkflowController extends Controller
 
         $validated['price_tier_code'] ??= PriceTierCode::RETAIL->value;
 
-        return response()->json($this->inventory->createSaleOrder($validated), 201);
+        $so = $this->inventory->createSaleOrder($validated);
+
+        return (new SaleOrderResource($so->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function confirmSaleOrder(int $saleOrderId): JsonResponse
     {
-        return response()->json($this->inventory->confirmSaleOrder($saleOrderId));
+        Gate::authorize('inventory.sale-orders.confirm');
+
+        $so = $this->inventory->confirmSaleOrder($saleOrderId);
+
+        return (new SaleOrderResource($so->load('items.product')))->response();
     }
 
     public function reserveSaleOrder(int $saleOrderId): JsonResponse
     {
-        return response()->json($this->inventory->reserveStock($saleOrderId));
+        Gate::authorize('inventory.sale-orders.reserve');
+
+        $so = $this->inventory->reserveStock($saleOrderId);
+
+        return (new SaleOrderResource($so->load('items.product')))->response();
     }
 
     public function fulfillSaleOrder(Request $request, int $saleOrderId): JsonResponse
     {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
         $validated = $request->validate([
             'fulfilled_qtys'   => ['nullable', 'array'],
             'fulfilled_qtys.*' => ['numeric', 'gt:0'],
         ]);
 
-        return response()->json($this->inventory->fulfillSaleOrder($saleOrderId, $validated['fulfilled_qtys'] ?? []));
+        $so = $this->inventory->fulfillSaleOrder($saleOrderId, $validated['fulfilled_qtys'] ?? []);
+
+        return (new SaleOrderResource($so->load('items.product')))->response();
     }
 
     public function cancelSaleOrder(int $saleOrderId): JsonResponse
     {
-        return response()->json($this->inventory->cancelSaleOrder($saleOrderId));
+        Gate::authorize('inventory.sale-orders.cancel');
+
+        $so = $this->inventory->cancelSaleOrder($saleOrderId);
+
+        return (new SaleOrderResource($so->load('items.product')))->response();
     }
 
     public function ecommerceCheckout(Request $request): JsonResponse
     {
-        return response()->json($this->checkoutFromCart($request, 'ecommerce'), 201);
+        Gate::authorize('inventory.channels.checkout');
+
+        $so = $this->checkoutFromCart($request, 'ecommerce');
+
+        return (new SaleOrderResource($so->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function posCheckout(Request $request): JsonResponse
     {
-        return response()->json($this->checkoutFromCart($request, 'pos'), 201);
+        Gate::authorize('inventory.channels.checkout');
+
+        $so = $this->checkoutFromCart($request, 'pos');
+
+        return (new SaleOrderResource($so->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function createTransfer(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.transfers.create');
+
         $validated = $request->validate([
             'from_warehouse_id'    => ['required', 'integer'],
             'to_warehouse_id'      => ['required', 'integer', 'different:from_warehouse_id'],
@@ -301,26 +370,38 @@ class InventoryWorkflowController extends Controller
             'items.*.qty_sent'     => ['required', 'numeric', 'gt:0'],
         ]);
 
-        return response()->json($this->inventory->createTransfer($validated), 201);
+        $transfer = $this->inventory->createTransfer($validated);
+
+        return (new TransferResource($transfer->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function dispatchTransfer(int $transferId): JsonResponse
     {
-        return response()->json($this->inventory->dispatchTransfer($transferId));
+        Gate::authorize('inventory.transfers.dispatch');
+
+        $transfer = $this->inventory->dispatchTransfer($transferId);
+
+        return (new TransferResource($transfer->load('items.product')))->response();
     }
 
     public function receiveTransfer(Request $request, int $transferId): JsonResponse
     {
+        Gate::authorize('inventory.transfers.receive');
+
         $validated = $request->validate([
             'received_qtys'   => ['nullable', 'array'],
             'received_qtys.*' => ['numeric', 'gt:0'],
         ]);
 
-        return response()->json($this->inventory->receiveTransfer($transferId, $validated['received_qtys'] ?? []));
+        $transfer = $this->inventory->receiveTransfer($transferId, $validated['received_qtys'] ?? []);
+
+        return (new TransferResource($transfer->load('items.product')))->response();
     }
 
     public function createAdjustment(Request $request): JsonResponse
     {
+        Gate::authorize('inventory.adjustments.create');
+
         $validated = $request->validate([
             'warehouse_id'       => ['required', 'integer'],
             'reason'             => ['required', 'string'],
@@ -333,16 +414,26 @@ class InventoryWorkflowController extends Controller
             'items.*.notes'      => ['nullable', 'string'],
         ]);
 
-        return response()->json($this->inventory->createAdjustment($validated), 201);
+        $adjustment = $this->inventory->createAdjustment($validated);
+
+        return (new AdjustmentResource($adjustment->load('items.product')))->response()->setStatusCode(201);
     }
 
     public function postAdjustment(int $adjustmentId): JsonResponse
     {
-        return response()->json($this->inventory->postAdjustment($adjustmentId));
+        Gate::authorize('inventory.adjustments.post');
+
+        $adjustment = $this->inventory->postAdjustment($adjustmentId);
+
+        return (new AdjustmentResource($adjustment->load('items.product')))->response();
     }
 
-    private function checkoutFromCart(Request $request, string $channel): mixed
+    private function checkoutFromCart(Request $request, string $channel): SaleOrder
     {
+        if (!class_exists(\Centrex\Cart\Services\CartCheckoutService::class)) {
+            throw new \RuntimeException('centrex/laravel-cart is required for channel checkout flows.');
+        }
+
         $validated = $request->validate([
             'cart_instance'   => ['nullable', 'string', 'max:100'],
             'warehouse_id'    => ['required', 'integer'],
@@ -362,6 +453,6 @@ class InventoryWorkflowController extends Controller
             'context'         => ['nullable', 'array'],
         ]);
 
-        return $this->cartCheckoutService->checkout($validated, $channel);
+        return app(\Centrex\Cart\Services\CartCheckoutService::class)->checkout($validated, $channel);
     }
 }

@@ -8,13 +8,15 @@ use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\{Gate, Validator};
 use Illuminate\Support\Str;
 
 class EntityCrudController extends Controller
 {
     public function index(Request $request, string $entity): JsonResponse
     {
+        Gate::authorize('inventory.master-data.view');
+
         $model = InventoryEntityRegistry::makeModel($entity);
         $query = $model->newQuery();
 
@@ -36,6 +38,8 @@ class EntityCrudController extends Controller
 
     public function show(string $entity, int $recordId): JsonResponse
     {
+        Gate::authorize('inventory.master-data.view');
+
         $record = $this->findRecord($entity, $recordId);
 
         return response()->json($record);
@@ -43,6 +47,8 @@ class EntityCrudController extends Controller
 
     public function store(Request $request, string $entity): JsonResponse
     {
+        Gate::authorize('inventory.master-data.manage');
+
         $model = InventoryEntityRegistry::makeModel($entity);
         $payload = InventoryEntityRegistry::fillablePayload($entity, $request->all());
         $validator = Validator::make($payload, InventoryEntityRegistry::validationRules($entity, null, $payload));
@@ -56,6 +62,8 @@ class EntityCrudController extends Controller
 
     public function update(Request $request, string $entity, int $recordId): JsonResponse
     {
+        Gate::authorize('inventory.master-data.manage');
+
         $record = $this->findRecord($entity, $recordId);
         $payload = InventoryEntityRegistry::fillablePayload($entity, $request->all());
         $validator = Validator::make($payload, InventoryEntityRegistry::validationRules($entity, $record, $payload));
@@ -68,6 +76,8 @@ class EntityCrudController extends Controller
 
     public function destroy(string $entity, int $recordId): JsonResponse
     {
+        Gate::authorize('inventory.master-data.manage');
+
         $record = $this->findRecord($entity, $recordId);
         $record->delete();
 

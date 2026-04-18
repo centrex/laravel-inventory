@@ -4,10 +4,10 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
-use Centrex\Inventory\Models\{Customer, Expense, ExpenseItem, Supplier};
-use Centrex\Inventory\Observers\{CustomerObserver, ExpenseItemObserver, ExpenseObserver, SupplierObserver};
-use Centrex\Inventory\Support\{CartCheckoutService, ErpIntegration};
-use Illuminate\Support\Facades\Blade;
+use Centrex\Inventory\Models\{Customer, Supplier};
+use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
+use Centrex\Inventory\Support\ErpIntegration;
+use Illuminate\Support\Facades\{Blade, Gate};
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -28,10 +28,12 @@ class InventoryServiceProvider extends ServiceProvider
         }
 
         $this->registerLivewireComponents();
-        Customer::observe(CustomerObserver::class);
-        Supplier::observe(SupplierObserver::class);
-        Expense::observe(ExpenseObserver::class);
-        ExpenseItem::observe(ExpenseItemObserver::class);
+        $this->registerGates();
+
+        if ((bool) config('inventory.erp.accounting.enabled', false)) {
+            Customer::observe(CustomerObserver::class);
+            Supplier::observe(SupplierObserver::class);
+        }
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
@@ -41,6 +43,87 @@ class InventoryServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../database/migrations/' => database_path('migrations'),
             ], 'inventory-migrations');
+        }
+    }
+
+    /**
+     * Register default authorization gates for inventory actions.
+     *
+     * Each gate falls back to the `inventory-admin` super-gate, so host apps
+     * can grant blanket access by defining that single gate, or override
+     * individual abilities for fine-grained control.
+     *
+     * Default behaviour: denies everyone (safe default).
+     * Override in AppServiceProvider after calling parent::boot().
+     */
+    protected function registerGates(): void
+    {
+        $abilities = [
+            // Master data (warehouses, products, suppliers, customers, etc.)
+            'inventory.master-data.view',
+            'inventory.master-data.manage',
+
+            // Exchange rates
+            'inventory.exchange-rates.view',
+            'inventory.exchange-rates.manage',
+
+            // Pricing
+            'inventory.pricing.view',
+            'inventory.pricing.manage',
+
+            // Reports
+            'inventory.reports.view',
+
+            // Purchase orders
+            'inventory.purchase-orders.view',
+            'inventory.purchase-orders.create',
+            'inventory.purchase-orders.submit',
+            'inventory.purchase-orders.confirm',
+
+            // Stock receipts (GRN)
+            'inventory.stock-receipts.create',
+            'inventory.stock-receipts.post',
+            'inventory.stock-receipts.void',
+
+            // Sale orders
+            'inventory.sale-orders.view',
+            'inventory.sale-orders.create',
+            'inventory.sale-orders.confirm',
+            'inventory.sale-orders.reserve',
+            'inventory.sale-orders.fulfill',
+            'inventory.sale-orders.cancel',
+
+            // Channels (POS / ecommerce checkout)
+            'inventory.channels.checkout',
+
+            // Transfers
+            'inventory.transfers.view',
+            'inventory.transfers.create',
+            'inventory.transfers.dispatch',
+            'inventory.transfers.receive',
+
+            // Adjustments
+            'inventory.adjustments.view',
+            'inventory.adjustments.create',
+            'inventory.adjustments.post',
+        ];
+
+        foreach ($abilities as $ability) {
+            if (!Gate::has($ability)) {
+                Gate::define($ability, static function ($user): bool {
+                    if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
+                        return true;
+                    }
+
+                    $roleAttribute = config('inventory.admin_role_attribute');
+
+                    if ($roleAttribute && method_exists($user, 'hasRole')) {
+                        return $user->hasRole(config('inventory.admin_roles', []));
+                    }
+
+                    return false;
+                });
+            }
         }
     }
 
@@ -60,10 +143,6 @@ class InventoryServiceProvider extends ServiceProvider
 
         $this->app->singleton('inventory', fn () => new Inventory());
         $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
-        $this->app->singleton(CartCheckoutService::class, fn ($app) => new CartCheckoutService(
-            $app->make(Inventory::class),
-            $app->make(ErpIntegration::class),
-        ));
     }
 
     private function registerLivewireComponents(): void
@@ -79,7 +158,5 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-transfer-form', Http\Livewire\Transactions\TransferFormPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
-        Livewire::component('inventory-expenses', Http\Livewire\Expenses\ExpensesPage::class);
-        Livewire::component('inventory-payroll-entries', Http\Livewire\Payroll\PayrollEntriesPage::class);
     }
 }

@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Models\{Customer, Employee, ExchangeRate, PayrollAccount, PriceTier, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, ExchangeRate, PriceTier, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -114,51 +114,6 @@ class InventoryEntityRegistry
                     self::field('price_tier_id', 'select', ['nullable', 'integer', 'exists:' . (new PriceTier())->getTable() . ',id'], null, PriceTier::class, 'name'),
                     self::field('is_active', 'checkbox', ['boolean'], true),
                     self::field('meta', 'json', ['nullable', 'array'], []),
-                ],
-            ],
-            'employees' => [
-                'label'         => 'Employees',
-                'singular'      => 'Employee',
-                'model'         => Employee::class,
-                'search'        => ['code', 'name', 'email', 'phone'],
-                'index_columns' => ['code', 'name', 'department', 'designation', 'employment_type', 'monthly_salary', 'currency', 'is_active'],
-                'form_fields'   => [
-                    self::field('code', 'text', ['required', 'string', 'max:30']),
-                    self::field('name', 'text', ['required', 'string', 'max:300']),
-                    self::field('email', 'email', ['nullable', 'email', 'max:200']),
-                    self::field('phone', 'text', ['nullable', 'string', 'max:50']),
-                    self::field('address', 'textarea', ['nullable', 'string']),
-                    self::field('city', 'text', ['nullable', 'string', 'max:100']),
-                    self::field('country', 'text', ['nullable', 'string', 'max:100']),
-                    self::field('department', 'text', ['nullable', 'string', 'max:100']),
-                    self::field('designation', 'text', ['nullable', 'string', 'max:100']),
-                    self::field('employment_type', 'text', ['required', 'string', 'max:50'], 'full_time'),
-                    self::field('joining_date', 'date', ['nullable', 'date']),
-                    self::field('monthly_salary', 'number', ['nullable', 'numeric', 'min:0'], 0),
-                    self::field('bank_account_name', 'text', ['nullable', 'string', 'max:200']),
-                    self::field('bank_account_number', 'text', ['nullable', 'string', 'max:100']),
-                    self::field('emergency_contact_name', 'text', ['nullable', 'string', 'max:200']),
-                    self::field('emergency_contact_phone', 'text', ['nullable', 'string', 'max:50']),
-                    self::field('tax_id', 'text', ['nullable', 'string', 'max:50']),
-                    self::field('currency', 'text', ['required', 'string', 'size:3'], 'BDT'),
-                    self::field('credit_limit', 'number', ['nullable', 'numeric', 'min:0'], 0),
-                    self::field('payment_terms', 'number', ['nullable', 'integer', 'min:0'], 30),
-                    self::field('is_active', 'checkbox', ['boolean'], true),
-                ],
-            ],
-            'payroll-accounts' => [
-                'label'         => 'Payroll Accounts',
-                'singular'      => 'Payroll Account',
-                'model'         => PayrollAccount::class,
-                'search'        => ['code', 'name', 'description'],
-                'index_columns' => ['code', 'name', 'currency', 'is_active'],
-                'form_fields'   => [
-                    self::field('code', 'text', ['required', 'string', 'max:30']),
-                    self::field('name', 'text', ['required', 'string', 'max:200']),
-                    self::field('description', 'textarea', ['nullable', 'string']),
-                    self::field('currency', 'text', ['required', 'string', 'size:3'], 'BDT'),
-                    self::field('particulars', 'textarea', ['nullable', 'string']),
-                    self::field('is_active', 'checkbox', ['boolean'], true),
                 ],
             ],
             'price-tiers' => [

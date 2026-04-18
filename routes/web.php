@@ -4,7 +4,6 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\DashboardController;
 use Centrex\Inventory\Http\Livewire\Entities\{EntityFormPage, EntityIndexPage};
-use Centrex\Inventory\Http\Livewire\Expenses\ExpensesPage;
 use Centrex\Inventory\Http\Livewire\Payroll\PayrollEntriesPage;
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, PosTerminalPage, PurchaseOrderFormPage, SaleOrderFormPage, TransferFormPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
@@ -27,6 +26,4 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/pos', PosTerminalPage::class)->name('pos.index');
         Route::get('/transfers/create', TransferFormPage::class)->name('transfers.create');
         Route::get('/adjustments/create', AdjustmentFormPage::class)->name('adjustments.create');
-        Route::get('/expenses', ExpensesPage::class)->name('expenses.index');
-        Route::get('/payroll', PayrollEntriesPage::class)->name('payroll.index');
     });
