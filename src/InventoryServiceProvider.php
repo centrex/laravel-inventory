@@ -88,6 +88,7 @@ class InventoryServiceProvider extends ServiceProvider
             // Sale orders
             'inventory.sale-orders.view',
             'inventory.sale-orders.create',
+            'inventory.sale-orders.approve-credit',
             'inventory.sale-orders.confirm',
             'inventory.sale-orders.reserve',
             'inventory.sale-orders.fulfill',
@@ -153,7 +154,11 @@ class InventoryServiceProvider extends ServiceProvider
 
         Livewire::component('inventory-entity-index', Http\Livewire\Entities\EntityIndexPage::class);
         Livewire::component('inventory-entity-form', Http\Livewire\Entities\EntityFormPage::class);
+        Livewire::component('inventory-sale-order-index', Http\Livewire\Transactions\SaleOrderIndexPage::class);
+        Livewire::component('inventory-sale-order-show', Http\Livewire\Transactions\SaleOrderShowPage::class);
         Livewire::component('inventory-sale-order-form', Http\Livewire\Transactions\SaleOrderFormPage::class);
+        Livewire::component('inventory-purchase-order-index', Http\Livewire\Transactions\PurchaseOrderIndexPage::class);
+        Livewire::component('inventory-purchase-order-show', Http\Livewire\Transactions\PurchaseOrderShowPage::class);
         Livewire::component('inventory-purchase-order-form', Http\Livewire\Transactions\PurchaseOrderFormPage::class);
         Livewire::component('inventory-transfer-form', Http\Livewire\Transactions\TransferFormPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);

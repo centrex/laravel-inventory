@@ -5,12 +5,15 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Concerns\HasPrimaryImage;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use Spatie\MediaLibrary\HasMedia;
 
-class ProductCategory extends Model
+class ProductCategory extends Model implements HasMedia
 {
     use AddTablePrefix;
+    use HasPrimaryImage;
     use SoftDeletes;
 
     protected function getTableSuffix(): string
@@ -31,6 +34,10 @@ class ProductCategory extends Model
     protected $casts = [
         'is_active'  => 'boolean',
         'sort_order' => 'integer',
+    ];
+
+    protected $appends = [
+        'primary_image_url',
     ];
 
     public function parent(): BelongsTo

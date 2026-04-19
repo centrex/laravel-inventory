@@ -2,18 +2,25 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    title="New Sale Order"
-    subtitle="Capture outbound sales with tier-based or manual pricing."
+    :title="$isEditing ? 'Edit Sale Order' : 'New Sale Order'"
+    :subtitle="$isEditing ? 'Review line items, update draft details, and print or export invoice documents.' : 'Capture outbound sales with tier-based or manual pricing.'"
     icon="o-shopping-cart"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'New Sale Order'],
+            ['label' => 'Sale Orders', 'href' => route('inventory.sale-orders.index')],
+            ['label' => $isEditing ? 'Edit Sale Order' : 'New Sale Order'],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
         <x-tallui-badge type="success">Sales</x-tallui-badge>
+        @if ($isEditing && $record && Route::has('erp.documents.sales.print'))
+            <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
+        @endif
+        @if ($isEditing && $record && Route::has('erp.documents.sales.pdf'))
+            <x-tallui-button label="PDF" icon="o-arrow-down-tray" :link="route('erp.documents.sales.pdf', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
+        @endif
     </x-slot:actions>
 </x-tallui-page-header>
 
@@ -70,12 +77,69 @@
                 </x-tallui-form-group>
             </div>
         </div>
+
+        @if ($selectedCustomer && $customerCreditSnapshot)
+            <div class="mt-5 rounded-2xl border border-base-200 bg-base-50 p-4">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <div class="text-sm font-semibold text-base-content">Customer Credit Snapshot</div>
+                        <div class="mt-1 text-xs text-base-content/60">
+                            Current open exposure and available room before this order is posted.
+                        </div>
+                    </div>
+                    <x-tallui-button
+                        label="Open Customer History"
+                        icon="o-clock"
+                        :link="route('inventory.entities.customers.edit', ['recordId' => $selectedCustomer->id]) . '#history'"
+                        class="btn-ghost btn-sm"
+                    />
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div class="rounded-xl border border-base-200 bg-base-100 p-3">
+                        <div class="text-xs uppercase text-base-content/50">Credit Limit</div>
+                        <div class="mt-1 text-lg font-semibold">{{ number_format((float) $customerCreditSnapshot['credit_limit_amount'], 2) }} BDT</div>
+                    </div>
+                    <div class="rounded-xl border border-base-200 bg-base-100 p-3">
+                        <div class="text-xs uppercase text-base-content/50">Open Exposure</div>
+                        <div class="mt-1 text-lg font-semibold">{{ number_format((float) $customerCreditSnapshot['outstanding_exposure'], 2) }} BDT</div>
+                    </div>
+                    <div class="rounded-xl border border-base-200 bg-base-100 p-3">
+                        <div class="text-xs uppercase text-base-content/50">Available Credit</div>
+                        <div class="mt-1 text-lg font-semibold {{ (float) $customerCreditSnapshot['available_credit_amount'] < 0 ? 'text-error' : '' }}">
+                            {{ number_format((float) $customerCreditSnapshot['available_credit_amount'], 2) }} BDT
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div class="flex items-start gap-3 rounded-xl border border-base-200 bg-base-100 p-3">
+                        <x-tallui-checkbox
+                            name="credit_override"
+                            label="Allow higher-authority credit override"
+                            wire:model="credit_override"
+                        />
+                    </div>
+
+                    <x-tallui-form-group label="Override Reason / Approval Note" :error="$errors->first('credit_override_notes')">
+                        <x-tallui-textarea
+                            name="credit_override_notes"
+                            wire:model="credit_override_notes"
+                            rows="2"
+                            placeholder="Required when the order will go over the customer credit limit."
+                        />
+                    </x-tallui-form-group>
+                </div>
+            </div>
+        @endif
     </x-tallui-card>
 
     {{-- Line Items --}}
     <x-tallui-card padding="none" :shadow="true">
         <x-slot:actions>
-            <x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" />
+            @if ($editable)
+                <x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" />
+            @endif
         </x-slot:actions>
 
         <div class="overflow-x-auto">
@@ -123,7 +187,9 @@
                                 <x-tallui-input name="items.{{ $index }}.notes" wire:model="items.{{ $index }}.notes" class="input-sm w-full" placeholder="Optional…" />
                             </td>
                             <td class="pr-5 py-2 text-right">
-                                <x-tallui-button icon="o-trash" class="btn-ghost btn-xs text-error" type="button" wire:click="removeItem({{ $index }})" />
+                                @if ($editable)
+                                    <x-tallui-button icon="o-trash" class="btn-ghost btn-xs text-error" type="button" wire:click="removeItem({{ $index }})" />
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -141,8 +207,10 @@
     </x-tallui-card>
 
     <div class="flex justify-end gap-2">
-        <x-tallui-button label="Cancel" :link="route('inventory.dashboard')" class="btn-ghost" />
-        <x-tallui-button label="Create Sale Order" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+        <x-tallui-button label="Back to Sales" :link="route('inventory.sale-orders.index')" class="btn-ghost" />
+        @if ($editable)
+            <x-tallui-button :label="$isEditing ? 'Update Sale Order' : 'Create Sale Order'" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+        @endif
     </div>
 
 </form>

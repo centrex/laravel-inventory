@@ -55,4 +55,9 @@ class Transfer extends Model
     {
         return $this->hasMany(TransferItem::class);
     }
+
+    public function boxes(): HasMany
+    {
+        return $this->hasMany(TransferBox::class);
+    }
 }

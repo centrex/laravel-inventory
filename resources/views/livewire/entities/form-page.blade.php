@@ -109,4 +109,68 @@
         </div>
     </form>
 </x-tallui-card>
+
+@if ($entity === 'customers' && $recordId)
+    <div id="history" class="mt-6 space-y-4">
+        <x-tallui-card
+            title="Customer Credit"
+            subtitle="Current credit exposure and remaining headroom."
+            icon="o-banknotes"
+            :shadow="true"
+        >
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Credit Limit</div>
+                    <div class="mt-1 text-lg font-semibold">{{ number_format((float) ($customerCreditSnapshot['credit_limit_amount'] ?? 0), 2) }} BDT</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Open Exposure</div>
+                    <div class="mt-1 text-lg font-semibold">{{ number_format((float) ($customerCreditSnapshot['outstanding_exposure'] ?? 0), 2) }} BDT</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Available Credit</div>
+                    <div class="mt-1 text-lg font-semibold {{ (($customerCreditSnapshot['available_credit_amount'] ?? 0) < 0) ? 'text-error' : '' }}">
+                        {{ number_format((float) ($customerCreditSnapshot['available_credit_amount'] ?? 0), 2) }} BDT
+                    </div>
+                </div>
+            </div>
+        </x-tallui-card>
+
+        <x-tallui-card
+            title="Customer History"
+            subtitle="Recent sale orders for quick review."
+            icon="o-clock"
+            :shadow="true"
+        >
+            <div class="overflow-x-auto">
+                <table class="table table-sm w-full">
+                    <thead>
+                        <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                            <th class="pl-4">Order</th>
+                            <th>Warehouse</th>
+                            <th>Ordered At</th>
+                            <th>Status</th>
+                            <th class="pr-4 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-base-200">
+                        @forelse ($customerHistory as $saleOrder)
+                            <tr>
+                                <td class="pl-4 py-2 text-sm font-medium">{{ $saleOrder->so_number }}</td>
+                                <td class="py-2 text-sm">{{ $saleOrder->warehouse?->name ?? '—' }}</td>
+                                <td class="py-2 text-sm">{{ $saleOrder->ordered_at?->format('Y-m-d H:i') ?? '—' }}</td>
+                                <td class="py-2 text-sm">{{ $saleOrder->status?->label() ?? '—' }}</td>
+                                <td class="pr-4 py-2 text-right text-sm">{{ number_format((float) $saleOrder->total_amount, 2) }} BDT</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="py-6 text-center text-sm text-base-content/60">No sale history yet.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </x-tallui-card>
+    </div>
+@endif
 </div>

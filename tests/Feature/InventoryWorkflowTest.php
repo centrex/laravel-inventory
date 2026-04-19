@@ -3,7 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{PriceTier, Product, PurchaseOrderItem, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, PriceTier, Product, PurchaseOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
 
 beforeEach(function (): void {
     app(Inventory::class)->seedPriceTiers();
@@ -102,6 +102,88 @@ it('prevents fulfilling more than the remaining sale order quantity', function (
     $inventory->fulfillSaleOrder($saleOrder->id, [$itemId => 6]);
 })->throws(InvalidArgumentException::class);
 
+it('blocks sale orders that exceed a customer credit limit without approval', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-CREDIT-1',
+        'name'         => 'Credit Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'                => 'CUS-CREDIT-1',
+        'name'                => 'Limited Customer',
+        'currency'            => 'BDT',
+        'credit_limit_amount' => 1000,
+        'price_tier_id'       => PriceTier::where('code', 'retail')->value('id'),
+        'is_active'           => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-CREDIT-1',
+        'name'         => 'Generator',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => PriceTier::where('code', 'retail')->value('code'),
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 600,
+        ]],
+    ]);
+})->throws(InvalidArgumentException::class);
+
+it('stores higher-authority credit override details on sale orders', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-CREDIT-2',
+        'name'         => 'Approved Credit Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'                => 'CUS-CREDIT-2',
+        'name'                => 'Approved Customer',
+        'currency'            => 'BDT',
+        'credit_limit_amount' => 1000,
+        'price_tier_id'       => PriceTier::where('code', 'retail')->value('id'),
+        'is_active'           => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-CREDIT-2',
+        'name'         => 'Industrial Fan',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    $saleOrder = $inventory->createSaleOrder([
+        'warehouse_id'           => $warehouse->id,
+        'customer_id'            => $customer->id,
+        'currency'               => 'BDT',
+        'price_tier_code'        => PriceTier::where('code', 'retail')->value('code'),
+        'created_by'             => 88,
+        'credit_override'        => true,
+        'credit_override_notes'  => 'Approved by finance manager.',
+        'items'                  => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 650,
+        ]],
+    ]);
+
+    expect((float) $saleOrder->credit_limit_amount)->toBe(1000.0);
+    expect((float) $saleOrder->credit_exposure_after_amount)->toBe(1300.0);
+    expect($saleOrder->credit_override_required)->toBeTrue();
+    expect($saleOrder->credit_override_approved_by)->toBe(88);
+    expect($saleOrder->credit_override_notes)->toBe('Approved by finance manager.');
+    expect($saleOrder->credit_override_approved_at)->not->toBeNull();
+});
+
 it('prevents over receiving transferred stock on repeated calls', function (): void {
     $inventory = app(Inventory::class);
     $source = Warehouse::create([
@@ -149,6 +231,84 @@ it('prevents over receiving transferred stock on repeated calls', function (): v
     $inventory->receiveTransfer($transfer->id, [$itemId => 4]);
     $inventory->receiveTransfer($transfer->id, [$itemId => 7]);
 })->throws(InvalidArgumentException::class);
+
+it('allocates transfer weight and landed cost from mixed-product boxes', function (): void {
+    $inventory = app(Inventory::class);
+    $source = Warehouse::create([
+        'code'         => 'W-BOX-1',
+        'name'         => 'Packed Source',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $destination = Warehouse::create([
+        'code'         => 'W-BOX-2',
+        'name'         => 'Packed Destination',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $lightProduct = Product::create([
+        'sku'          => 'SKU-BOX-1',
+        'name'         => 'Light Item',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+        'weight_kg'    => 1,
+    ]);
+    $heavyProduct = Product::create([
+        'sku'          => 'SKU-BOX-2',
+        'name'         => 'Heavy Item',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+        'weight_kg'    => 3,
+    ]);
+
+    WarehouseProduct::create([
+        'warehouse_id'   => $source->id,
+        'product_id'     => $lightProduct->id,
+        'qty_on_hand'    => 20,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 100,
+    ]);
+    WarehouseProduct::create([
+        'warehouse_id'   => $source->id,
+        'product_id'     => $heavyProduct->id,
+        'qty_on_hand'    => 20,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 60,
+    ]);
+
+    $transfer = $inventory->createTransfer([
+        'from_warehouse_id'    => $source->id,
+        'to_warehouse_id'      => $destination->id,
+        'shipping_rate_per_kg' => 5,
+        'boxes'                => [[
+            'box_code'           => 'BOX-ALPHA',
+            'measured_weight_kg' => 10,
+            'items'              => [
+                ['product_id' => $lightProduct->id, 'qty_sent' => 2],
+                ['product_id' => $heavyProduct->id, 'qty_sent' => 1],
+            ],
+        ]],
+    ]);
+
+    $transfer = $transfer->fresh(['items', 'boxes.items']);
+    $lightTransferItem = $transfer->items->firstWhere('product_id', $lightProduct->id);
+    $heavyTransferItem = $transfer->items->firstWhere('product_id', $heavyProduct->id);
+    $lightBoxItem = TransferBoxItem::query()->where('product_id', $lightProduct->id)->firstOrFail();
+    $heavyBoxItem = TransferBoxItem::query()->where('product_id', $heavyProduct->id)->firstOrFail();
+
+    expect((float) $transfer->total_weight_kg)->toBe(10.0);
+    expect((float) $transfer->shipping_cost_amount)->toBe(50.0);
+
+    expect((float) $lightBoxItem->allocated_weight_kg)->toBe(4.0);
+    expect((float) $heavyBoxItem->allocated_weight_kg)->toBe(6.0);
+
+    expect((float) $lightTransferItem->shipping_allocated_amount)->toBe(20.0);
+    expect((float) $heavyTransferItem->shipping_allocated_amount)->toBe(30.0);
+    expect((float) $lightTransferItem->unit_landed_cost_amount)->toBe(110.0);
+    expect((float) $heavyTransferItem->unit_landed_cost_amount)->toBe(90.0);
+});
 
 it('exposes inventory api routes', function (): void {
     $response = $this->postJson('/api/inventory/exchange-rates/set', [

@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
+use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -60,8 +61,14 @@ class EntityFormPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.entities.form-page', [
-            'definition' => InventoryEntityRegistry::definition($this->entity),
-            'options'    => InventoryEntityRegistry::formOptions($this->entity),
+            'definition'             => InventoryEntityRegistry::definition($this->entity),
+            'options'                => InventoryEntityRegistry::formOptions($this->entity),
+            'customerHistory'        => $this->entity === 'customers' && $this->recordId
+                ? app(Inventory::class)->customerHistory($this->recordId)
+                : collect(),
+            'customerCreditSnapshot' => $this->entity === 'customers' && $this->recordId
+                ? app(Inventory::class)->customerCreditSnapshot($this->recordId)
+                : null,
         ]);
     }
 

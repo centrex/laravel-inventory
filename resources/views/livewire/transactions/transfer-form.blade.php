@@ -52,50 +52,131 @@
         </div>
     </x-tallui-card>
 
-    {{-- Line Items --}}
+    {{-- Box Items --}}
     <x-tallui-card padding="none" :shadow="true">
         <x-slot:actions>
-            <x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" />
+            <x-tallui-button label="Add Box" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addBox" />
         </x-slot:actions>
 
-        <div class="overflow-x-auto">
-            <table class="table table-sm w-full">
-                <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
-                        <th class="pl-5">Product</th>
-                        <th class="w-32">Qty to Send</th>
-                        <th class="pr-5 w-16"></th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-base-200">
-                    @forelse ($items as $index => $item)
-                        <tr wire:key="trf-item-{{ $index }}" class="hover:bg-base-50">
-                            <td class="pl-5 py-2">
-                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model="items.{{ $index }}.product_id" class="select-sm w-full max-w-sm">
-                                    <option value="">Select product…</option>
-                                    @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
-                                    @endforeach
-                                </x-tallui-select>
-                            </td>
-                            <td class="py-2">
-                                <x-tallui-input name="items.{{ $index }}.qty_sent" type="number" step="0.0001" min="0" wire:model="items.{{ $index }}.qty_sent" class="input-sm text-right w-28" />
-                            </td>
-                            <td class="pr-5 py-2 text-right">
-                                <x-tallui-button icon="o-trash" class="btn-ghost btn-xs text-error" type="button" wire:click="removeItem({{ $index }})" />
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="3" class="py-6 text-center">
-                                <x-tallui-empty-state title="No items yet" description="Add the products to transfer." icon="o-cube" size="sm">
-                                    <x-tallui-button label="Add Line" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addItem" />
-                                </x-tallui-empty-state>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+        <div class="space-y-4 p-4">
+            @forelse ($boxes as $boxIndex => $box)
+                <div wire:key="trf-box-{{ $boxIndex }}" class="rounded-2xl border border-base-200 bg-base-50">
+                    <div class="grid grid-cols-1 gap-4 border-b border-base-200 p-4 md:grid-cols-3">
+                        <x-tallui-form-group label="Box Reference" :error="$errors->first('boxes.' . $boxIndex . '.box_code')">
+                            <x-tallui-input
+                                name="boxes.{{ $boxIndex }}.box_code"
+                                wire:model="boxes.{{ $boxIndex }}.box_code"
+                                placeholder="BOX-001"
+                            />
+                        </x-tallui-form-group>
+
+                        <x-tallui-form-group label="Measured Box Weight (KG) *" :error="$errors->first('boxes.' . $boxIndex . '.measured_weight_kg')">
+                            <x-tallui-input
+                                name="boxes.{{ $boxIndex }}.measured_weight_kg"
+                                type="number"
+                                step="0.0001"
+                                min="0"
+                                wire:model="boxes.{{ $boxIndex }}.measured_weight_kg"
+                            />
+                        </x-tallui-form-group>
+
+                        <div class="flex items-end justify-end">
+                            <x-tallui-button
+                                label="Remove Box"
+                                icon="o-trash"
+                                class="btn-ghost btn-sm text-error"
+                                type="button"
+                                wire:click="removeBox({{ $boxIndex }})"
+                            />
+                        </div>
+
+                        <div class="md:col-span-3">
+                            <x-tallui-form-group label="Box Notes" :error="$errors->first('boxes.' . $boxIndex . '.notes')">
+                                <x-tallui-input
+                                    name="boxes.{{ $boxIndex }}.notes"
+                                    wire:model="boxes.{{ $boxIndex }}.notes"
+                                    placeholder="Box condition, route note, seal number…"
+                                />
+                            </x-tallui-form-group>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm w-full">
+                            <thead>
+                                <tr class="bg-base-100 text-xs text-base-content/50 uppercase">
+                                    <th class="pl-5">Product</th>
+                                    <th class="w-32">Qty to Send</th>
+                                    <th>Notes</th>
+                                    <th class="pr-5 w-16"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-base-200">
+                                @foreach ($box['items'] as $itemIndex => $item)
+                                    <tr wire:key="trf-box-{{ $boxIndex }}-item-{{ $itemIndex }}">
+                                        <td class="pl-5 py-2">
+                                            <x-tallui-select
+                                                name="boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.product_id"
+                                                wire:model="boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.product_id"
+                                                class="select-sm w-full max-w-sm"
+                                            >
+                                                <option value="">Select product…</option>
+                                                @foreach ($products as $product)
+                                                    <option value="{{ $product->id }}">
+                                                        {{ $product->name }}@if($product->weight_kg !== null) · {{ number_format((float) $product->weight_kg, 4) }} kg/u @endif
+                                                    </option>
+                                                @endforeach
+                                            </x-tallui-select>
+                                        </td>
+                                        <td class="py-2">
+                                            <x-tallui-input
+                                                name="boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.qty_sent"
+                                                type="number"
+                                                step="0.0001"
+                                                min="0"
+                                                wire:model="boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.qty_sent"
+                                                class="input-sm text-right w-28"
+                                            />
+                                        </td>
+                                        <td class="py-2">
+                                            <x-tallui-input
+                                                name="boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.notes"
+                                                wire:model="boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.notes"
+                                                class="input-sm w-full"
+                                                placeholder="Optional…"
+                                            />
+                                        </td>
+                                        <td class="pr-5 py-2 text-right">
+                                            <x-tallui-button
+                                                icon="o-trash"
+                                                class="btn-ghost btn-xs text-error"
+                                                type="button"
+                                                wire:click="removeItem({{ $boxIndex }}, {{ $itemIndex }})"
+                                            />
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-end border-t border-base-200 p-4">
+                        <x-tallui-button
+                            label="Add Product"
+                            icon="o-plus"
+                            class="btn-ghost btn-sm"
+                            type="button"
+                            wire:click="addItem({{ $boxIndex }})"
+                        />
+                    </div>
+                </div>
+            @empty
+                <div class="py-6">
+                    <x-tallui-empty-state title="No boxes yet" description="Add the shipment boxes first, then enter the products inside each box." icon="o-cube" size="sm">
+                        <x-tallui-button label="Add Box" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addBox" />
+                    </x-tallui-empty-state>
+                </div>
+            @endforelse
         </div>
     </x-tallui-card>
 

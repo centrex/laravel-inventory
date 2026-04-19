@@ -26,6 +26,7 @@ class TransferResource extends JsonResource
             'created_by'           => $this->created_by,
             'created_at'           => $this->created_at?->toIso8601String(),
             'updated_at'           => $this->updated_at?->toIso8601String(),
+            'boxes'                => TransferBoxResource::collection($this->whenLoaded('boxes')),
             'items'                => TransferItemResource::collection($this->whenLoaded('items')),
         ];
     }

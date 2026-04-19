@@ -21,22 +21,33 @@ class TransferFormPage extends Component
 
     public string $notes = '';
 
-    public array $items = [];
+    public array $boxes = [];
 
     public function mount(): void
     {
-        $this->items = [$this->blankItem()];
+        $this->boxes = [$this->blankBox()];
     }
 
-    public function addItem(): void
+    public function addBox(): void
     {
-        $this->items[] = $this->blankItem();
+        $this->boxes[] = $this->blankBox();
     }
 
-    public function removeItem(int $index): void
+    public function removeBox(int $index): void
     {
-        unset($this->items[$index]);
-        $this->items = array_values($this->items);
+        unset($this->boxes[$index]);
+        $this->boxes = array_values($this->boxes);
+    }
+
+    public function addItem(int $boxIndex): void
+    {
+        $this->boxes[$boxIndex]['items'][] = $this->blankItem();
+    }
+
+    public function removeItem(int $boxIndex, int $itemIndex): void
+    {
+        unset($this->boxes[$boxIndex]['items'][$itemIndex]);
+        $this->boxes[$boxIndex]['items'] = array_values($this->boxes[$boxIndex]['items']);
     }
 
     public function save(): \Illuminate\Http\RedirectResponse
@@ -46,9 +57,14 @@ class TransferFormPage extends Component
             'to_warehouse_id'      => ['required', 'integer', 'different:from_warehouse_id'],
             'shipping_rate_per_kg' => ['nullable', 'numeric', 'min:0'],
             'notes'                => ['nullable', 'string'],
-            'items'                => ['required', 'array', 'min:1'],
-            'items.*.product_id'   => ['required', 'integer'],
-            'items.*.qty_sent'     => ['required', 'numeric', 'gt:0'],
+            'boxes'                       => ['required', 'array', 'min:1'],
+            'boxes.*.box_code'            => ['nullable', 'string', 'max:50'],
+            'boxes.*.measured_weight_kg'  => ['required', 'numeric', 'gt:0'],
+            'boxes.*.notes'               => ['nullable', 'string'],
+            'boxes.*.items'               => ['required', 'array', 'min:1'],
+            'boxes.*.items.*.product_id'  => ['required', 'integer'],
+            'boxes.*.items.*.qty_sent'    => ['required', 'numeric', 'gt:0'],
+            'boxes.*.items.*.notes'       => ['nullable', 'string'],
         ]);
 
         $transfer = app(Inventory::class)->createTransfer($validated);
@@ -65,11 +81,22 @@ class TransferFormPage extends Component
         ]);
     }
 
+    private function blankBox(): array
+    {
+        return [
+            'box_code'           => null,
+            'measured_weight_kg' => 0,
+            'notes'              => '',
+            'items'              => [$this->blankItem()],
+        ];
+    }
+
     private function blankItem(): array
     {
         return [
             'product_id' => null,
             'qty_sent'   => 1,
+            'notes'      => '',
         ];
     }
 }

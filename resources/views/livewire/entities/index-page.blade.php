@@ -63,6 +63,15 @@
                         @endforeach
                         <td class="pr-5">
                             <div class="flex justify-end gap-1">
+                                @if ($entity === 'customers')
+                                    <x-tallui-button
+                                        icon="o-clock"
+                                        :link="route('inventory.entities.customers.edit', ['recordId' => $record->getKey()]) . '#history'"
+                                        class="btn-ghost btn-xs"
+                                        :responsive="true"
+                                        label="History"
+                                    />
+                                @endif
                                 <x-tallui-button
                                     icon="o-pencil-square"
                                     :link="route('inventory.entities.' . $entity . '.edit', ['recordId' => $record->getKey()])"

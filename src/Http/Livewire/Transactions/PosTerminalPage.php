@@ -106,7 +106,7 @@ class PosTerminalPage extends Component
         if (!class_exists(\Centrex\Cart\Services\CartCheckoutService::class)) {
             session()->flash('inventory.error', 'centrex/laravel-cart is required for POS checkout.');
 
-            return;
+            return redirect()->back();
         }
 
         $saleOrder = app(\Centrex\Cart\Services\CartCheckoutService::class)->checkout([

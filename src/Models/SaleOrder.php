@@ -31,7 +31,10 @@ class SaleOrder extends Model
         'subtotal_local', 'subtotal_amount',
         'tax_local', 'tax_amount',
         'discount_local', 'discount_amount',
-        'total_local', 'total_amount',
+        'total_local', 'total_amount', 'credit_limit_amount',
+        'credit_exposure_before_amount', 'credit_exposure_after_amount',
+        'credit_override_required', 'credit_override_approved_by',
+        'credit_override_approved_at', 'credit_override_notes',
         'cogs_amount', 'status', 'ordered_at', 'notes', 'created_by', 'accounting_invoice_id',
     ];
 
@@ -46,6 +49,11 @@ class SaleOrder extends Model
         'discount_amount' => 'decimal:4',
         'total_local'     => 'decimal:4',
         'total_amount'    => 'decimal:4',
+        'credit_limit_amount' => 'decimal:4',
+        'credit_exposure_before_amount' => 'decimal:4',
+        'credit_exposure_after_amount' => 'decimal:4',
+        'credit_override_required' => 'boolean',
+        'credit_override_approved_at' => 'datetime',
         'cogs_amount'     => 'decimal:4',
         'ordered_at'      => 'datetime',
     ];

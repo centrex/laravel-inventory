@@ -4,10 +4,12 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Api;
 
+use Centrex\Inventory\Enums\PriceTierCode;
 use Centrex\Inventory\Http\Resources\{AdjustmentResource, PurchaseOrderResource, SaleOrderResource, StockReceiptResource, TransferResource};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\SaleOrder;
 use Illuminate\Http\{JsonResponse, Request};
+use Illuminate\Validation\ValidationException;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
 
@@ -280,6 +282,10 @@ class InventoryWorkflowController extends Controller
             'ordered_at'               => ['nullable', 'date'],
             'notes'                    => ['nullable', 'string'],
             'created_by'               => ['nullable', 'integer'],
+            'credit_override'          => ['nullable', 'boolean'],
+            'credit_override_required' => ['nullable', 'boolean'],
+            'credit_override_approved_by' => ['nullable', 'integer'],
+            'credit_override_notes'    => ['nullable', 'string'],
             'items'                    => ['required', 'array', 'min:1'],
             'items.*.product_id'       => ['required', 'integer'],
             'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
@@ -365,14 +371,29 @@ class InventoryWorkflowController extends Controller
             'shipping_rate_per_kg' => ['nullable', 'numeric', 'min:0'],
             'notes'                => ['nullable', 'string'],
             'created_by'           => ['nullable', 'integer'],
-            'items'                => ['required', 'array', 'min:1'],
-            'items.*.product_id'   => ['required', 'integer'],
-            'items.*.qty_sent'     => ['required', 'numeric', 'gt:0'],
+            'items'                => ['nullable', 'array', 'min:1'],
+            'items.*.product_id'   => ['required_with:items', 'integer'],
+            'items.*.qty_sent'     => ['required_with:items', 'numeric', 'gt:0'],
+            'items.*.notes'        => ['nullable', 'string'],
+            'boxes'                => ['nullable', 'array', 'min:1'],
+            'boxes.*.box_code'     => ['nullable', 'string', 'max:50'],
+            'boxes.*.measured_weight_kg' => ['required_with:boxes', 'numeric', 'gt:0'],
+            'boxes.*.notes'        => ['nullable', 'string'],
+            'boxes.*.items'        => ['required_with:boxes', 'array', 'min:1'],
+            'boxes.*.items.*.product_id' => ['required_with:boxes.*.items', 'integer'],
+            'boxes.*.items.*.qty_sent'   => ['required_with:boxes.*.items', 'numeric', 'gt:0'],
+            'boxes.*.items.*.notes'      => ['nullable', 'string'],
         ]);
+
+        if (empty($validated['items']) && empty($validated['boxes'])) {
+            throw ValidationException::withMessages([
+                'boxes' => ['At least one transfer box or item line is required.'],
+            ]);
+        }
 
         $transfer = $this->inventory->createTransfer($validated);
 
-        return (new TransferResource($transfer->load('items.product')))->response()->setStatusCode(201);
+        return (new TransferResource($transfer->load(['boxes.items.product', 'items.product'])))->response()->setStatusCode(201);
     }
 
     public function dispatchTransfer(int $transferId): JsonResponse
@@ -381,7 +402,7 @@ class InventoryWorkflowController extends Controller
 
         $transfer = $this->inventory->dispatchTransfer($transferId);
 
-        return (new TransferResource($transfer->load('items.product')))->response();
+        return (new TransferResource($transfer->load(['boxes.items.product', 'items.product'])))->response();
     }
 
     public function receiveTransfer(Request $request, int $transferId): JsonResponse
@@ -395,7 +416,7 @@ class InventoryWorkflowController extends Controller
 
         $transfer = $this->inventory->receiveTransfer($transferId, $validated['received_qtys'] ?? []);
 
-        return (new TransferResource($transfer->load('items.product')))->response();
+        return (new TransferResource($transfer->load(['boxes.items.product', 'items.product'])))->response();
     }
 
     public function createAdjustment(Request $request): JsonResponse
