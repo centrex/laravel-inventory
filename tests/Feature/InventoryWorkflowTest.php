@@ -162,14 +162,14 @@ it('stores higher-authority credit override details on sale orders', function ()
     ]);
 
     $saleOrder = $inventory->createSaleOrder([
-        'warehouse_id'           => $warehouse->id,
-        'customer_id'            => $customer->id,
-        'currency'               => 'BDT',
-        'price_tier_code'        => PriceTier::where('code', 'retail')->value('code'),
-        'created_by'             => 88,
-        'credit_override'        => true,
-        'credit_override_notes'  => 'Approved by finance manager.',
-        'items'                  => [[
+        'warehouse_id'          => $warehouse->id,
+        'customer_id'           => $customer->id,
+        'currency'              => 'BDT',
+        'price_tier_code'       => PriceTier::where('code', 'retail')->value('code'),
+        'created_by'            => 88,
+        'credit_override'       => true,
+        'credit_override_notes' => 'Approved by finance manager.',
+        'items'                 => [[
             'product_id'       => $product->id,
             'qty_ordered'      => 2,
             'unit_price_local' => 650,
@@ -405,7 +405,7 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
         'country_code' => 'BD',
         'currency'     => 'BDT',
     ]);
-    $customer = Centrex\Inventory\Models\Customer::create([
+    $customer = Customer::create([
         'code'          => 'CUS-ERP-1',
         'name'          => 'ERP Customer',
         'currency'      => 'BDT',

@@ -9,9 +9,9 @@ use Centrex\Inventory\Http\Resources\{AdjustmentResource, PurchaseOrderResource,
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\SaleOrder;
 use Illuminate\Http\{JsonResponse, Request};
-use Illuminate\Validation\ValidationException;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class InventoryWorkflowController extends Controller
 {
@@ -272,27 +272,27 @@ class InventoryWorkflowController extends Controller
         Gate::authorize('inventory.sale-orders.create');
 
         $validated = $request->validate([
-            'warehouse_id'             => ['required', 'integer'],
-            'customer_id'              => ['nullable', 'integer'],
-            'price_tier_code'          => ['nullable', 'string'],
-            'currency'                 => ['required', 'string', 'size:3'],
-            'exchange_rate'            => ['nullable', 'numeric', 'gt:0'],
-            'tax_local'                => ['nullable', 'numeric'],
-            'discount_local'           => ['nullable', 'numeric'],
-            'ordered_at'               => ['nullable', 'date'],
-            'notes'                    => ['nullable', 'string'],
-            'created_by'               => ['nullable', 'integer'],
-            'credit_override'          => ['nullable', 'boolean'],
-            'credit_override_required' => ['nullable', 'boolean'],
+            'warehouse_id'                => ['required', 'integer'],
+            'customer_id'                 => ['nullable', 'integer'],
+            'price_tier_code'             => ['nullable', 'string'],
+            'currency'                    => ['required', 'string', 'size:3'],
+            'exchange_rate'               => ['nullable', 'numeric', 'gt:0'],
+            'tax_local'                   => ['nullable', 'numeric'],
+            'discount_local'              => ['nullable', 'numeric'],
+            'ordered_at'                  => ['nullable', 'date'],
+            'notes'                       => ['nullable', 'string'],
+            'created_by'                  => ['nullable', 'integer'],
+            'credit_override'             => ['nullable', 'boolean'],
+            'credit_override_required'    => ['nullable', 'boolean'],
             'credit_override_approved_by' => ['nullable', 'integer'],
-            'credit_override_notes'    => ['nullable', 'string'],
-            'items'                    => ['required', 'array', 'min:1'],
-            'items.*.product_id'       => ['required', 'integer'],
-            'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
-            'items.*.price_tier_code'  => ['nullable', 'string'],
-            'items.*.unit_price_local' => ['nullable', 'numeric', 'min:0'],
-            'items.*.discount_pct'     => ['nullable', 'numeric', 'min:0'],
-            'items.*.notes'            => ['nullable', 'string'],
+            'credit_override_notes'       => ['nullable', 'string'],
+            'items'                       => ['required', 'array', 'min:1'],
+            'items.*.product_id'          => ['required', 'integer'],
+            'items.*.qty_ordered'         => ['required', 'numeric', 'gt:0'],
+            'items.*.price_tier_code'     => ['nullable', 'string'],
+            'items.*.unit_price_local'    => ['nullable', 'numeric', 'min:0'],
+            'items.*.discount_pct'        => ['nullable', 'numeric', 'min:0'],
+            'items.*.notes'               => ['nullable', 'string'],
         ]);
 
         $validated['price_tier_code'] ??= PriceTierCode::RETAIL->value;
@@ -366,20 +366,20 @@ class InventoryWorkflowController extends Controller
         Gate::authorize('inventory.transfers.create');
 
         $validated = $request->validate([
-            'from_warehouse_id'    => ['required', 'integer'],
-            'to_warehouse_id'      => ['required', 'integer', 'different:from_warehouse_id'],
-            'shipping_rate_per_kg' => ['nullable', 'numeric', 'min:0'],
-            'notes'                => ['nullable', 'string'],
-            'created_by'           => ['nullable', 'integer'],
-            'items'                => ['nullable', 'array', 'min:1'],
-            'items.*.product_id'   => ['required_with:items', 'integer'],
-            'items.*.qty_sent'     => ['required_with:items', 'numeric', 'gt:0'],
-            'items.*.notes'        => ['nullable', 'string'],
-            'boxes'                => ['nullable', 'array', 'min:1'],
-            'boxes.*.box_code'     => ['nullable', 'string', 'max:50'],
+            'from_warehouse_id'          => ['required', 'integer'],
+            'to_warehouse_id'            => ['required', 'integer', 'different:from_warehouse_id'],
+            'shipping_rate_per_kg'       => ['nullable', 'numeric', 'min:0'],
+            'notes'                      => ['nullable', 'string'],
+            'created_by'                 => ['nullable', 'integer'],
+            'items'                      => ['nullable', 'array', 'min:1'],
+            'items.*.product_id'         => ['required_with:items', 'integer'],
+            'items.*.qty_sent'           => ['required_with:items', 'numeric', 'gt:0'],
+            'items.*.notes'              => ['nullable', 'string'],
+            'boxes'                      => ['nullable', 'array', 'min:1'],
+            'boxes.*.box_code'           => ['nullable', 'string', 'max:50'],
             'boxes.*.measured_weight_kg' => ['required_with:boxes', 'numeric', 'gt:0'],
-            'boxes.*.notes'        => ['nullable', 'string'],
-            'boxes.*.items'        => ['required_with:boxes', 'array', 'min:1'],
+            'boxes.*.notes'              => ['nullable', 'string'],
+            'boxes.*.items'              => ['required_with:boxes', 'array', 'min:1'],
             'boxes.*.items.*.product_id' => ['required_with:boxes.*.items', 'integer'],
             'boxes.*.items.*.qty_sent'   => ['required_with:boxes.*.items', 'numeric', 'gt:0'],
             'boxes.*.items.*.notes'      => ['nullable', 'string'],

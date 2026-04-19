@@ -4,8 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Enums\PurchaseOrderStatus;
+use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -131,16 +131,16 @@ class PurchaseOrderFormPage extends Component
         $this->expected_at = $order->expected_at?->format('Y-m-d');
         $this->notes = (string) ($order->notes ?? '');
         $this->items = $order->items->map(fn ($item): array => [
-            'product_id' => $item->product_id,
-            'qty_ordered' => (float) $item->qty_ordered,
+            'product_id'       => $item->product_id,
+            'qty_ordered'      => (float) $item->qty_ordered,
             'unit_price_local' => (float) $item->unit_price_local,
-            'notes' => (string) ($item->notes ?? ''),
+            'notes'            => (string) ($item->notes ?? ''),
         ])->all();
     }
 
     private function canEdit(): bool
     {
-        if (! $this->recordId) {
+        if (!$this->recordId) {
             return true;
         }
 
@@ -165,14 +165,14 @@ class PurchaseOrderFormPage extends Component
             $subtotal += $lineTotal;
 
             $itemsPayload[] = [
-                'product_id' => (int) $item['product_id'],
-                'qty_ordered' => $qty,
-                'qty_received' => 0,
-                'unit_price_local' => $unitPrice,
+                'product_id'        => (int) $item['product_id'],
+                'qty_ordered'       => $qty,
+                'qty_received'      => 0,
+                'unit_price_local'  => $unitPrice,
                 'unit_price_amount' => $unitPrice,
-                'line_total_local' => $lineTotal,
+                'line_total_local'  => $lineTotal,
                 'line_total_amount' => $lineTotal,
-                'notes' => $item['notes'] ?? '',
+                'notes'             => $item['notes'] ?? '',
             ];
         }
 
@@ -186,21 +186,21 @@ class PurchaseOrderFormPage extends Component
 
         DB::transaction(function () use ($purchaseOrder, $validated, $subtotal, $total, $itemsPayload): void {
             $purchaseOrder->fill([
-                'warehouse_id' => $validated['warehouse_id'],
-                'supplier_id' => $validated['supplier_id'],
-                'currency' => $validated['currency'],
-                'exchange_rate' => $validated['exchange_rate'] ?? 1,
-                'subtotal_local' => round($subtotal, 4),
-                'subtotal_amount' => round($subtotal, 4),
-                'tax_local' => round((float) ($validated['tax_local'] ?? 0), 4),
-                'tax_amount' => round((float) ($validated['tax_local'] ?? 0), 4),
-                'shipping_local' => round((float) ($validated['shipping_local'] ?? 0), 4),
-                'shipping_amount' => round((float) ($validated['shipping_local'] ?? 0), 4),
+                'warehouse_id'         => $validated['warehouse_id'],
+                'supplier_id'          => $validated['supplier_id'],
+                'currency'             => $validated['currency'],
+                'exchange_rate'        => $validated['exchange_rate'] ?? 1,
+                'subtotal_local'       => round($subtotal, 4),
+                'subtotal_amount'      => round($subtotal, 4),
+                'tax_local'            => round((float) ($validated['tax_local'] ?? 0), 4),
+                'tax_amount'           => round((float) ($validated['tax_local'] ?? 0), 4),
+                'shipping_local'       => round((float) ($validated['shipping_local'] ?? 0), 4),
+                'shipping_amount'      => round((float) ($validated['shipping_local'] ?? 0), 4),
                 'other_charges_amount' => round((float) ($validated['other_charges_amount'] ?? 0), 4),
-                'total_local' => $total,
-                'total_amount' => $total,
-                'expected_at' => $validated['expected_at'] ?? null,
-                'notes' => $validated['notes'] ?? '',
+                'total_local'          => $total,
+                'total_amount'         => $total,
+                'expected_at'          => $validated['expected_at'] ?? null,
+                'notes'                => $validated['notes'] ?? '',
             ])->save();
 
             $purchaseOrder->items()->delete();

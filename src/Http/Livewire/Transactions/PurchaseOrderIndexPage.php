@@ -7,8 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Models\PurchaseOrder;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
-use Livewire\Component;
-use Livewire\WithPagination;
+use Livewire\{Component, WithPagination};
 
 #[Layout('layouts.app')]
 class PurchaseOrderIndexPage extends Component
@@ -51,13 +50,13 @@ class PurchaseOrderIndexPage extends Component
         }
 
         return view('inventory::livewire.transactions.purchase-order-index', [
-            'orders' => $query->paginate(15),
+            'orders'        => $query->paginate(15),
             'statusOptions' => [
-                'draft' => 'Draft',
+                'draft'     => 'Draft',
                 'submitted' => 'Submitted',
                 'confirmed' => 'Confirmed',
-                'partial' => 'Partially Received',
-                'received' => 'Received',
+                'partial'   => 'Partially Received',
+                'received'  => 'Received',
                 'cancelled' => 'Cancelled',
             ],
         ]);

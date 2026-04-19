@@ -598,32 +598,32 @@ class Inventory
             $credit = $this->resolveCreditOverride($customer, $totalBdt, $data);
 
             $so = SaleOrder::create([
-                'so_number'                    => $this->nextNumber('SO', SaleOrder::class, 'so_number'),
-                'warehouse_id'                 => $data['warehouse_id'],
-                'customer_id'                  => $data['customer_id'] ?? null,
-                'price_tier_id'                => $tier->id,
-                'currency'                     => strtoupper($data['currency']),
-                'exchange_rate'                => $rate,
-                'status'                       => SaleOrderStatus::DRAFT,
-                'ordered_at'                   => $data['ordered_at'] ?? now(),
-                'notes'                        => $data['notes'] ?? null,
-                'created_by'                   => $data['created_by'] ?? null,
-                'tax_local'                    => $taxLocal,
-                'tax_amount'                   => round($taxLocal * $rate, 4),
-                'discount_local'               => $discountLocal,
-                'discount_amount'              => round($discountLocal * $rate, 4),
-                'subtotal_local'               => $subtotalLocal,
-                'subtotal_amount'              => $subtotalBdt,
-                'total_local'                  => $totalLocal,
-                'total_amount'                 => $totalBdt,
-                'credit_limit_amount'          => $credit['credit_limit_amount'],
-                'credit_exposure_before_amount'=> $credit['credit_exposure_before_amount'],
-                'credit_exposure_after_amount' => $credit['credit_exposure_after_amount'],
-                'credit_override_required'     => $credit['credit_override_required'],
-                'credit_override_approved_by'  => $credit['credit_override_approved_by'],
-                'credit_override_approved_at'  => $credit['credit_override_approved_at'],
-                'credit_override_notes'        => $credit['credit_override_notes'],
-                'cogs_amount'                  => 0,
+                'so_number'                     => $this->nextNumber('SO', SaleOrder::class, 'so_number'),
+                'warehouse_id'                  => $data['warehouse_id'],
+                'customer_id'                   => $data['customer_id'] ?? null,
+                'price_tier_id'                 => $tier->id,
+                'currency'                      => strtoupper($data['currency']),
+                'exchange_rate'                 => $rate,
+                'status'                        => SaleOrderStatus::DRAFT,
+                'ordered_at'                    => $data['ordered_at'] ?? now(),
+                'notes'                         => $data['notes'] ?? null,
+                'created_by'                    => $data['created_by'] ?? null,
+                'tax_local'                     => $taxLocal,
+                'tax_amount'                    => round($taxLocal * $rate, 4),
+                'discount_local'                => $discountLocal,
+                'discount_amount'               => round($discountLocal * $rate, 4),
+                'subtotal_local'                => $subtotalLocal,
+                'subtotal_amount'               => $subtotalBdt,
+                'total_local'                   => $totalLocal,
+                'total_amount'                  => $totalBdt,
+                'credit_limit_amount'           => $credit['credit_limit_amount'],
+                'credit_exposure_before_amount' => $credit['credit_exposure_before_amount'],
+                'credit_exposure_after_amount'  => $credit['credit_exposure_after_amount'],
+                'credit_override_required'      => $credit['credit_override_required'],
+                'credit_override_approved_by'   => $credit['credit_override_approved_by'],
+                'credit_override_approved_at'   => $credit['credit_override_approved_at'],
+                'credit_override_notes'         => $credit['credit_override_notes'],
+                'cogs_amount'                   => 0,
             ]);
 
             foreach ($lineItems as $lineItem) {
@@ -850,10 +850,10 @@ class Inventory
                 }
 
                 $box = TransferBox::create([
-                    'transfer_id'         => $transfer->id,
-                    'box_code'            => $boxData['box_code'] ?? 'BOX-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
-                    'measured_weight_kg'  => $measuredWeight,
-                    'notes'               => $boxData['notes'] ?? null,
+                    'transfer_id'        => $transfer->id,
+                    'box_code'           => $boxData['box_code'] ?? 'BOX-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
+                    'measured_weight_kg' => $measuredWeight,
+                    'notes'              => $boxData['notes'] ?? null,
                 ]);
 
                 $preparedItems = [];
@@ -897,16 +897,16 @@ class Inventory
                         : 0.0;
 
                     $boxItem = TransferBoxItem::create([
-                        'transfer_box_id'         => $box->id,
-                        'product_id'              => $preparedItem['product']->id,
-                        'qty_sent'                => $preparedItem['qty_sent'],
-                        'theoretical_weight_kg'   => $preparedItem['theoretical_weight_kg'],
-                        'allocated_weight_kg'     => $allocatedWeight,
-                        'weight_ratio'            => $weightRatio,
-                        'source_unit_cost_amount' => $preparedItem['source_unit_cost_amount'],
+                        'transfer_box_id'           => $box->id,
+                        'product_id'                => $preparedItem['product']->id,
+                        'qty_sent'                  => $preparedItem['qty_sent'],
+                        'theoretical_weight_kg'     => $preparedItem['theoretical_weight_kg'],
+                        'allocated_weight_kg'       => $allocatedWeight,
+                        'weight_ratio'              => $weightRatio,
+                        'source_unit_cost_amount'   => $preparedItem['source_unit_cost_amount'],
                         'shipping_allocated_amount' => 0,
-                        'unit_landed_cost_amount' => $preparedItem['source_unit_cost_amount'],
-                        'notes'                   => $preparedItem['notes'],
+                        'unit_landed_cost_amount'   => $preparedItem['source_unit_cost_amount'],
+                        'notes'                     => $preparedItem['notes'],
                     ]);
 
                     $productId = $preparedItem['product']->id;
@@ -1196,11 +1196,11 @@ class Inventory
         $limit = (float) $customer->credit_limit_amount;
 
         return [
-            'customer_id'              => $customer->id,
-            'credit_limit_amount'      => $limit,
-            'outstanding_exposure'     => $exposure,
-            'available_credit_amount'  => round($limit - $exposure, 4),
-            'is_over_limit'            => $limit > 0
+            'customer_id'             => $customer->id,
+            'credit_limit_amount'     => $limit,
+            'outstanding_exposure'    => $exposure,
+            'available_credit_amount' => round($limit - $exposure, 4),
+            'is_over_limit'           => $limit > 0
                 ? $exposure > $limit + (float) config('inventory.qty_tolerance', 0.0001)
                 : $exposure > (float) config('inventory.qty_tolerance', 0.0001),
         ];

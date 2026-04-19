@@ -7,8 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Models\SaleOrder;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
-use Livewire\Component;
-use Livewire\WithPagination;
+use Livewire\{Component, WithPagination};
 
 #[Layout('layouts.app')]
 class SaleOrderIndexPage extends Component
@@ -51,15 +50,15 @@ class SaleOrderIndexPage extends Component
         }
 
         return view('inventory::livewire.transactions.sale-order-index', [
-            'orders' => $query->paginate(15),
+            'orders'        => $query->paginate(15),
             'statusOptions' => [
-                'draft' => 'Draft',
-                'confirmed' => 'Confirmed',
+                'draft'      => 'Draft',
+                'confirmed'  => 'Confirmed',
                 'processing' => 'Processing',
-                'partial' => 'Partially Fulfilled',
-                'fulfilled' => 'Fulfilled',
-                'cancelled' => 'Cancelled',
-                'returned' => 'Returned',
+                'partial'    => 'Partially Fulfilled',
+                'fulfilled'  => 'Fulfilled',
+                'cancelled'  => 'Cancelled',
+                'returned'   => 'Returned',
             ],
         ]);
     }

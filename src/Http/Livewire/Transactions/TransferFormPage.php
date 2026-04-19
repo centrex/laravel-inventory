@@ -53,18 +53,18 @@ class TransferFormPage extends Component
     public function save(): \Illuminate\Http\RedirectResponse
     {
         $validated = $this->validate([
-            'from_warehouse_id'    => ['required', 'integer'],
-            'to_warehouse_id'      => ['required', 'integer', 'different:from_warehouse_id'],
-            'shipping_rate_per_kg' => ['nullable', 'numeric', 'min:0'],
-            'notes'                => ['nullable', 'string'],
-            'boxes'                       => ['required', 'array', 'min:1'],
-            'boxes.*.box_code'            => ['nullable', 'string', 'max:50'],
-            'boxes.*.measured_weight_kg'  => ['required', 'numeric', 'gt:0'],
-            'boxes.*.notes'               => ['nullable', 'string'],
-            'boxes.*.items'               => ['required', 'array', 'min:1'],
-            'boxes.*.items.*.product_id'  => ['required', 'integer'],
-            'boxes.*.items.*.qty_sent'    => ['required', 'numeric', 'gt:0'],
-            'boxes.*.items.*.notes'       => ['nullable', 'string'],
+            'from_warehouse_id'          => ['required', 'integer'],
+            'to_warehouse_id'            => ['required', 'integer', 'different:from_warehouse_id'],
+            'shipping_rate_per_kg'       => ['nullable', 'numeric', 'min:0'],
+            'notes'                      => ['nullable', 'string'],
+            'boxes'                      => ['required', 'array', 'min:1'],
+            'boxes.*.box_code'           => ['nullable', 'string', 'max:50'],
+            'boxes.*.measured_weight_kg' => ['required', 'numeric', 'gt:0'],
+            'boxes.*.notes'              => ['nullable', 'string'],
+            'boxes.*.items'              => ['required', 'array', 'min:1'],
+            'boxes.*.items.*.product_id' => ['required', 'integer'],
+            'boxes.*.items.*.qty_sent'   => ['required', 'numeric', 'gt:0'],
+            'boxes.*.items.*.notes'      => ['nullable', 'string'],
         ]);
 
         $transfer = app(Inventory::class)->createTransfer($validated);

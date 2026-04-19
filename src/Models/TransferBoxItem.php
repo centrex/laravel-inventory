@@ -37,13 +37,13 @@ class TransferBoxItem extends Model
     ];
 
     protected $casts = [
-        'qty_sent'                => 'decimal:4',
-        'theoretical_weight_kg'   => 'decimal:4',
-        'allocated_weight_kg'     => 'decimal:4',
-        'weight_ratio'            => 'decimal:8',
-        'source_unit_cost_amount' => 'decimal:4',
+        'qty_sent'                  => 'decimal:4',
+        'theoretical_weight_kg'     => 'decimal:4',
+        'allocated_weight_kg'       => 'decimal:4',
+        'weight_ratio'              => 'decimal:8',
+        'source_unit_cost_amount'   => 'decimal:4',
         'shipping_allocated_amount' => 'decimal:4',
-        'unit_landed_cost_amount' => 'decimal:4',
+        'unit_landed_cost_amount'   => 'decimal:4',
     ];
 
     public function box(): BelongsTo

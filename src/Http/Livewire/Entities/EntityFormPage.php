@@ -61,9 +61,9 @@ class EntityFormPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.entities.form-page', [
-            'definition'             => InventoryEntityRegistry::definition($this->entity),
-            'options'                => InventoryEntityRegistry::formOptions($this->entity),
-            'customerHistory'        => $this->entity === 'customers' && $this->recordId
+            'definition'      => InventoryEntityRegistry::definition($this->entity),
+            'options'         => InventoryEntityRegistry::formOptions($this->entity),
+            'customerHistory' => $this->entity === 'customers' && $this->recordId
                 ? app(Inventory::class)->customerHistory($this->recordId)
                 : collect(),
             'customerCreditSnapshot' => $this->entity === 'customers' && $this->recordId

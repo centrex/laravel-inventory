@@ -4,9 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Enums\PriceTierCode;
+use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Models\{Customer, PriceTier, Product, SaleOrder, Warehouse};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -144,18 +143,18 @@ class SaleOrderFormPage extends Component
         $this->credit_override = (bool) $order->credit_override_required;
         $this->credit_override_notes = (string) ($order->credit_override_notes ?? '');
         $this->items = $order->items->map(fn ($item): array => [
-            'product_id' => $item->product_id,
-            'qty_ordered' => (float) $item->qty_ordered,
-            'price_tier_code' => $item->priceTier?->code,
+            'product_id'       => $item->product_id,
+            'qty_ordered'      => (float) $item->qty_ordered,
+            'price_tier_code'  => $item->priceTier?->code,
             'unit_price_local' => (float) $item->unit_price_local,
-            'discount_pct' => (float) $item->discount_pct,
-            'notes' => (string) ($item->notes ?? ''),
+            'discount_pct'     => (float) $item->discount_pct,
+            'notes'            => (string) ($item->notes ?? ''),
         ])->all();
     }
 
     private function canEdit(): bool
     {
-        if (! $this->recordId) {
+        if (!$this->recordId) {
             return true;
         }
 
@@ -190,17 +189,17 @@ class SaleOrderFormPage extends Component
             $subtotal += $lineTotal;
 
             $itemsPayload[] = [
-                'product_id' => (int) $item['product_id'],
-                'price_tier_id' => $item['price_tier_code'] ? $priceTierMap[$item['price_tier_code']] ?? null : null,
-                'qty_ordered' => $qty,
-                'qty_fulfilled' => 0,
-                'unit_price_local' => $unitPrice,
+                'product_id'        => (int) $item['product_id'],
+                'price_tier_id'     => $item['price_tier_code'] ? $priceTierMap[$item['price_tier_code']] ?? null : null,
+                'qty_ordered'       => $qty,
+                'qty_fulfilled'     => 0,
+                'unit_price_local'  => $unitPrice,
                 'unit_price_amount' => $unitPrice,
-                'unit_cost_amount' => (float) ($product?->meta['unit_cost_amount'] ?? 0),
-                'discount_pct' => $discountPct,
-                'line_total_local' => $lineTotal,
+                'unit_cost_amount'  => (float) ($product?->meta['unit_cost_amount'] ?? 0),
+                'discount_pct'      => $discountPct,
+                'line_total_local'  => $lineTotal,
                 'line_total_amount' => $lineTotal,
-                'notes' => $item['notes'] ?? '',
+                'notes'             => $item['notes'] ?? '',
             ];
         }
 
@@ -208,23 +207,23 @@ class SaleOrderFormPage extends Component
 
         DB::transaction(function () use ($saleOrder, $validated, $subtotal, $total, $cogs, $itemsPayload): void {
             $saleOrder->fill([
-                'warehouse_id' => $validated['warehouse_id'],
-                'customer_id' => $validated['customer_id'] ?? null,
-                'price_tier_id' => PriceTier::query()->where('code', $validated['price_tier_code'])->value('id'),
-                'currency' => $validated['currency'],
-                'exchange_rate' => $validated['exchange_rate'] ?? 1,
-                'subtotal_local' => round($subtotal, 4),
-                'subtotal_amount' => round($subtotal, 4),
-                'tax_local' => round((float) ($validated['tax_local'] ?? 0), 4),
-                'tax_amount' => round((float) ($validated['tax_local'] ?? 0), 4),
-                'discount_local' => round((float) ($validated['discount_local'] ?? 0), 4),
-                'discount_amount' => round((float) ($validated['discount_local'] ?? 0), 4),
-                'total_local' => $total,
-                'total_amount' => $total,
-                'cogs_amount' => $cogs,
-                'notes' => $validated['notes'] ?? '',
+                'warehouse_id'             => $validated['warehouse_id'],
+                'customer_id'              => $validated['customer_id'] ?? null,
+                'price_tier_id'            => PriceTier::query()->where('code', $validated['price_tier_code'])->value('id'),
+                'currency'                 => $validated['currency'],
+                'exchange_rate'            => $validated['exchange_rate'] ?? 1,
+                'subtotal_local'           => round($subtotal, 4),
+                'subtotal_amount'          => round($subtotal, 4),
+                'tax_local'                => round((float) ($validated['tax_local'] ?? 0), 4),
+                'tax_amount'               => round((float) ($validated['tax_local'] ?? 0), 4),
+                'discount_local'           => round((float) ($validated['discount_local'] ?? 0), 4),
+                'discount_amount'          => round((float) ($validated['discount_local'] ?? 0), 4),
+                'total_local'              => $total,
+                'total_amount'             => $total,
+                'cogs_amount'              => $cogs,
+                'notes'                    => $validated['notes'] ?? '',
                 'credit_override_required' => (bool) ($validated['credit_override'] ?? false),
-                'credit_override_notes' => $validated['credit_override_notes'] ?? '',
+                'credit_override_notes'    => $validated['credit_override_notes'] ?? '',
             ])->save();
 
             $saleOrder->items()->delete();

@@ -28,7 +28,7 @@ class SaleOrderShowPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.transactions.sale-order-show', [
-            'record' => $this->record,
+            'record'          => $this->record,
             'financeDocument' => $this->financeDocument,
         ]);
     }
@@ -52,14 +52,14 @@ class SaleOrderShowPage extends Component
         $status = $invoice->status->value ?? (string) $invoice->status;
 
         return [
-            'id' => (int) $invoice->getKey(),
-            'number' => (string) $invoice->invoice_number,
-            'status' => ucfirst(str_replace('_', ' ', $status)),
-            'total' => (float) $invoice->total,
-            'paid' => (float) $invoice->paid_amount,
-            'balance' => (float) $invoice->balance,
+            'id'       => (int) $invoice->getKey(),
+            'number'   => (string) $invoice->invoice_number,
+            'status'   => ucfirst(str_replace('_', ' ', $status)),
+            'total'    => (float) $invoice->total,
+            'paid'     => (float) $invoice->paid_amount,
+            'balance'  => (float) $invoice->balance,
             'due_date' => $invoice->due_date?->format('M d, Y') ?? '—',
-            'is_due' => (float) $invoice->balance > 0,
+            'is_due'   => (float) $invoice->balance > 0,
         ];
     }
 }

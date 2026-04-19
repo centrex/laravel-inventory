@@ -18,10 +18,10 @@ class DashboardController
             ->orderBy('name')
             ->get()
             ->map(fn (Warehouse $warehouse) => [
-                'id'            => $warehouse->id,
-                'name'          => $warehouse->name,
-                'currency'      => $warehouse->currency,
-                'stock_value'   => $inventory->getStockValue($warehouse->id),
+                'id'          => $warehouse->id,
+                'name'        => $warehouse->name,
+                'currency'    => $warehouse->currency,
+                'stock_value' => $inventory->getStockValue($warehouse->id),
             ]);
 
         return view('inventory::dashboard', [
