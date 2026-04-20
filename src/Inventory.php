@@ -770,13 +770,13 @@ class Inventory
                     : round((float) ($purchaseOrderItem?->unit_price_amount ?? $stock->wac_amount), 4);
 
                 PurchaseReturnItem::create([
-                    'purchase_return_id'    => $purchaseReturn->id,
-                    'purchase_order_item_id'=> $purchaseOrderItem?->getKey(),
-                    'product_id'            => $productId,
-                    'qty_returned'          => $qty,
-                    'unit_cost_amount'      => $unitCost,
-                    'line_total_amount'     => round($qty * $unitCost, 4),
-                    'notes'                 => $item['notes'] ?? null,
+                    'purchase_return_id'     => $purchaseReturn->id,
+                    'purchase_order_item_id' => $purchaseOrderItem?->getKey(),
+                    'product_id'             => $productId,
+                    'qty_returned'           => $qty,
+                    'unit_cost_amount'       => $unitCost,
+                    'line_total_amount'      => round($qty * $unitCost, 4),
+                    'notes'                  => $item['notes'] ?? null,
                 ]);
             }
 

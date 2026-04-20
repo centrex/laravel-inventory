@@ -42,9 +42,9 @@ class TransferShowPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.transactions.transfer-show', [
-            'record'            => $this->record->fresh(['fromWarehouse', 'toWarehouse', 'items.product', 'boxes.items.product']),
-            'canDispatch'       => Gate::allows('inventory.transfers.dispatch'),
-            'canReceive'        => Gate::allows('inventory.transfers.receive'),
+            'record'      => $this->record->fresh(['fromWarehouse', 'toWarehouse', 'items.product', 'boxes.items.product']),
+            'canDispatch' => Gate::allows('inventory.transfers.dispatch'),
+            'canReceive'  => Gate::allows('inventory.transfers.receive'),
         ]);
     }
 }

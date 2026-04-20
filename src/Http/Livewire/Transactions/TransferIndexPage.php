@@ -50,8 +50,8 @@ class TransferIndexPage extends Component
         }
 
         return view('inventory::livewire.transactions.transfer-index', [
-            'transfers'      => $query->paginate(15),
-            'statusOptions'  => [
+            'transfers'     => $query->paginate(15),
+            'statusOptions' => [
                 'draft'      => 'Draft',
                 'in_transit' => 'In Transit',
                 'partial'    => 'Partially Received',

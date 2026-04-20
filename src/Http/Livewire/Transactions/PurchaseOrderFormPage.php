@@ -81,12 +81,12 @@ class PurchaseOrderFormPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.transactions.purchase-order-form', [
-            'warehouses' => Warehouse::query()->orderBy('name')->get(),
-            'suppliers'  => Supplier::query()->orderBy('name')->get(),
-            'products'   => Product::query()->orderBy('name')->get(),
-            'isEditing'  => $this->recordId !== null,
-            'editable'   => $this->canEdit(),
-            'record'     => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
+            'warehouses'    => Warehouse::query()->orderBy('name')->get(),
+            'suppliers'     => Supplier::query()->orderBy('name')->get(),
+            'products'      => Product::query()->orderBy('name')->get(),
+            'isEditing'     => $this->recordId !== null,
+            'editable'      => $this->canEdit(),
+            'record'        => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
             'documentLabel' => $this->documentLabel(),
             'routeBase'     => $this->routeBase(),
         ]);

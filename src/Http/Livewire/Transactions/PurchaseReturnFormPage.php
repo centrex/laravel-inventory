@@ -14,10 +14,15 @@ use Livewire\Component;
 class PurchaseReturnFormPage extends Component
 {
     public ?int $purchase_order_id = null;
+
     public ?int $warehouse_id = null;
+
     public ?int $supplier_id = null;
+
     public ?string $returned_at = null;
+
     public string $notes = '';
+
     public array $items = [];
 
     public function mount(): void
@@ -40,16 +45,16 @@ class PurchaseReturnFormPage extends Component
     public function save()
     {
         $validated = $this->validate([
-            'purchase_order_id'         => ['nullable', 'integer'],
-            'warehouse_id'              => ['required', 'integer'],
-            'supplier_id'               => ['required', 'integer'],
-            'returned_at'               => ['nullable', 'date'],
-            'notes'                     => ['nullable', 'string'],
-            'items'                     => ['required', 'array', 'min:1'],
-            'items.*.product_id'        => ['required', 'integer'],
-            'items.*.qty_returned'      => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_cost_amount'  => ['nullable', 'numeric', 'min:0'],
-            'items.*.notes'             => ['nullable', 'string'],
+            'purchase_order_id'        => ['nullable', 'integer'],
+            'warehouse_id'             => ['required', 'integer'],
+            'supplier_id'              => ['required', 'integer'],
+            'returned_at'              => ['nullable', 'date'],
+            'notes'                    => ['nullable', 'string'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.product_id'       => ['required', 'integer'],
+            'items.*.qty_returned'     => ['required', 'numeric', 'gt:0'],
+            'items.*.unit_cost_amount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.notes'            => ['nullable', 'string'],
         ]);
 
         $purchaseReturn = app(Inventory::class)->createPurchaseReturn($validated);

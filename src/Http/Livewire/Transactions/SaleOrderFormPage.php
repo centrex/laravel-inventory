@@ -299,6 +299,7 @@ class SaleOrderFormPage extends Component
 
             if ($requested > $available + (float) config('inventory.qty_tolerance', 0.0001)) {
                 $productName = Product::query()->find($productId)?->name ?? ('#' . $productId);
+
                 throw ValidationException::withMessages([
                     'items' => "Only available stock can be sold. {$productName} has {$available} available.",
                 ]);

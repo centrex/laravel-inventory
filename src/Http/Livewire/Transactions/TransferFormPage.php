@@ -103,8 +103,8 @@ class TransferFormPage extends Component
             ->get();
 
         return view('inventory::livewire.transactions.transfer-form', [
-            'warehouses' => Warehouse::query()->orderBy('name')->get(),
-            'products'   => $products,
+            'warehouses'     => Warehouse::query()->orderBy('name')->get(),
+            'products'       => $products,
             'availableStock' => $availableStock->keyBy('product_id'),
         ]);
     }
@@ -154,6 +154,7 @@ class TransferFormPage extends Component
 
             if ($qty > $available + (float) config('inventory.qty_tolerance', 0.0001)) {
                 $productName = Product::query()->find($productId)?->name ?? ('#' . $productId);
+
                 throw ValidationException::withMessages([
                     'boxes' => "{$productName} only has {$available} available for transfer.",
                 ]);

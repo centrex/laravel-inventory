@@ -50,11 +50,11 @@ class InventoryReportsPage extends Component
         $paymentMetrics = $this->buildPaymentMetrics($this->startDate, $this->endDate);
 
         return view('inventory::livewire.transactions.inventory-reports', [
-            'purchaseOrders'   => $purchaseOrders,
-            'saleOrders'       => $saleOrders,
-            'salesMetrics'     => $salesMetrics,
-            'purchaseMetrics'  => $purchaseMetrics,
-            'paymentMetrics'   => $paymentMetrics,
+            'purchaseOrders'  => $purchaseOrders,
+            'saleOrders'      => $saleOrders,
+            'salesMetrics'    => $salesMetrics,
+            'purchaseMetrics' => $purchaseMetrics,
+            'paymentMetrics'  => $paymentMetrics,
         ]);
     }
 
@@ -63,17 +63,17 @@ class InventoryReportsPage extends Component
         $invoiceSummary = $this->invoiceSummary($this->startDate, $this->endDate);
 
         return [
-            'count'            => $saleOrders->count(),
-            'gross_subtotal'   => round((float) $saleOrders->sum('subtotal_local'), 2),
-            'discount'         => round((float) $saleOrders->sum('discount_local'), 2),
-            'tax'              => round((float) $saleOrders->sum('tax_local'), 2),
-            'net_total'        => round((float) $saleOrders->sum('total_local'), 2),
-            'fulfilled_total'  => round((float) $saleOrders
+            'count'           => $saleOrders->count(),
+            'gross_subtotal'  => round((float) $saleOrders->sum('subtotal_local'), 2),
+            'discount'        => round((float) $saleOrders->sum('discount_local'), 2),
+            'tax'             => round((float) $saleOrders->sum('tax_local'), 2),
+            'net_total'       => round((float) $saleOrders->sum('total_local'), 2),
+            'fulfilled_total' => round((float) $saleOrders
                 ->filter(fn (SaleOrder $order) => in_array($order->status?->value, ['fulfilled', 'partial'], true))
                 ->sum('total_local'), 2),
-            'invoice_paid'     => $invoiceSummary['paid'],
-            'invoice_due'      => $invoiceSummary['due'],
-            'status_counts'    => $saleOrders->groupBy(fn (SaleOrder $order) => $order->status?->value ?? 'unknown')
+            'invoice_paid'  => $invoiceSummary['paid'],
+            'invoice_due'   => $invoiceSummary['due'],
+            'status_counts' => $saleOrders->groupBy(fn (SaleOrder $order) => $order->status?->value ?? 'unknown')
                 ->map(fn (Collection $group) => $group->count())
                 ->all(),
         ];
@@ -84,16 +84,16 @@ class InventoryReportsPage extends Component
         $billSummary = $this->billSummary($this->startDate, $this->endDate);
 
         return [
-            'count'            => $purchaseOrders->count(),
-            'gross_subtotal'   => round((float) $purchaseOrders->sum('subtotal_local'), 2),
-            'tax'              => round((float) $purchaseOrders->sum('tax_local'), 2),
-            'shipping'         => round((float) $purchaseOrders->sum('shipping_local'), 2),
-            'other_charges'    => round((float) $purchaseOrders->sum('other_charges_amount'), 2),
-            'net_total'        => round((float) $purchaseOrders->sum('total_local'), 2),
-            'received_total'   => round((float) $purchaseOrders->filter(fn (PurchaseOrder $order) => in_array($order->status?->value, ['received', 'partial'], true))->sum('total_local'), 2),
-            'bill_paid'        => $billSummary['paid'],
-            'bill_due'         => $billSummary['due'],
-            'status_counts'    => $purchaseOrders->groupBy(fn (PurchaseOrder $order) => $order->status?->value ?? 'unknown')
+            'count'          => $purchaseOrders->count(),
+            'gross_subtotal' => round((float) $purchaseOrders->sum('subtotal_local'), 2),
+            'tax'            => round((float) $purchaseOrders->sum('tax_local'), 2),
+            'shipping'       => round((float) $purchaseOrders->sum('shipping_local'), 2),
+            'other_charges'  => round((float) $purchaseOrders->sum('other_charges_amount'), 2),
+            'net_total'      => round((float) $purchaseOrders->sum('total_local'), 2),
+            'received_total' => round((float) $purchaseOrders->filter(fn (PurchaseOrder $order) => in_array($order->status?->value, ['received', 'partial'], true))->sum('total_local'), 2),
+            'bill_paid'      => $billSummary['paid'],
+            'bill_due'       => $billSummary['due'],
+            'status_counts'  => $purchaseOrders->groupBy(fn (PurchaseOrder $order) => $order->status?->value ?? 'unknown')
                 ->map(fn (Collection $group) => $group->count())
                 ->all(),
         ];
@@ -107,11 +107,11 @@ class InventoryReportsPage extends Component
 
         if (!class_exists($paymentClass) || !class_exists($invoiceClass) || !class_exists($billClass)) {
             return [
-                'available'        => false,
-                'count'            => 0,
-                'collections'      => 0.0,
-                'supplier_payments'=> 0.0,
-                'recent'           => collect(),
+                'available'         => false,
+                'count'             => 0,
+                'collections'       => 0.0,
+                'supplier_payments' => 0.0,
+                'recent'            => collect(),
             ];
         }
 
