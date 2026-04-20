@@ -6,7 +6,7 @@ namespace Centrex\Inventory;
 
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductBrand, ProductCategory, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductCategory, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
