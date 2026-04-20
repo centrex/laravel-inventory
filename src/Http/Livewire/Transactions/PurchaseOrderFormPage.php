@@ -15,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class PurchaseOrderFormPage extends Component
 {
+    public string $documentType = 'order';
+
     public ?int $recordId = null;
 
     public ?int $warehouse_id = null;
@@ -37,8 +39,9 @@ class PurchaseOrderFormPage extends Component
 
     public array $items = [];
 
-    public function mount(?int $recordId = null): void
+    public function mount(?int $recordId = null, string $documentType = 'order'): void
     {
+        $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
         $this->items = [$this->blankItem()];
 
         if ($recordId !== null) {
@@ -57,21 +60,22 @@ class PurchaseOrderFormPage extends Component
         $this->items = array_values($this->items);
     }
 
-    public function save(): \Illuminate\Http\RedirectResponse
+    public function save()
     {
         $validated = $this->validate($this->rules());
+        $validated['document_type'] = $this->documentType;
 
         if ($this->recordId) {
             $purchaseOrder = $this->updateOrder($validated);
-            session()->flash('inventory.status', "Purchase order {$purchaseOrder->po_number} updated.");
+            session()->flash('inventory.status', "{$this->documentLabel()} {$purchaseOrder->po_number} updated.");
 
-            return redirect()->route('inventory.purchase-orders.edit', ['recordId' => $purchaseOrder->getKey()]);
+            return redirect()->route($this->routeBase() . '.edit', ['recordId' => $purchaseOrder->getKey()]);
         }
 
         $purchaseOrder = app(Inventory::class)->createPurchaseOrder($validated);
-        session()->flash('inventory.status', "Purchase order {$purchaseOrder->po_number} created.");
+        session()->flash('inventory.status', "{$this->documentLabel()} {$purchaseOrder->po_number} created.");
 
-        return redirect()->route('inventory.purchase-orders.edit', ['recordId' => $purchaseOrder->getKey()]);
+        return redirect()->route($this->routeBase() . '.edit', ['recordId' => $purchaseOrder->getKey()]);
     }
 
     public function render(): View
@@ -83,6 +87,8 @@ class PurchaseOrderFormPage extends Component
             'isEditing'  => $this->recordId !== null,
             'editable'   => $this->canEdit(),
             'record'     => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
+            'documentLabel' => $this->documentLabel(),
+            'routeBase'     => $this->routeBase(),
         ]);
     }
 
@@ -186,6 +192,7 @@ class PurchaseOrderFormPage extends Component
 
         DB::transaction(function () use ($purchaseOrder, $validated, $subtotal, $total, $itemsPayload): void {
             $purchaseOrder->fill([
+                'document_type'        => $validated['document_type'] ?? $purchaseOrder->document_type,
                 'warehouse_id'         => $validated['warehouse_id'],
                 'supplier_id'          => $validated['supplier_id'],
                 'currency'             => $validated['currency'],
@@ -208,5 +215,15 @@ class PurchaseOrderFormPage extends Component
         });
 
         return $purchaseOrder->fresh(['items', 'supplier', 'warehouse']);
+    }
+
+    private function routeBase(): string
+    {
+        return $this->documentType === 'requisition' ? 'inventory.requisitions' : 'inventory.purchase-orders';
+    }
+
+    private function documentLabel(): string
+    {
+        return $this->documentType === 'requisition' ? 'Requisition' : 'Purchase order';
     }
 }

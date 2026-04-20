@@ -6,15 +6,18 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Customer, PriceTier, Product, SaleOrder, Warehouse};
+use Centrex\Inventory\Models\{Customer, PriceTier, Product, SaleOrder, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
 class SaleOrderFormPage extends Component
 {
+    public string $documentType = 'order';
+
     public ?int $recordId = null;
 
     public ?int $warehouse_id = null;
@@ -39,8 +42,9 @@ class SaleOrderFormPage extends Component
 
     public array $items = [];
 
-    public function mount(?int $recordId = null): void
+    public function mount(?int $recordId = null, string $documentType = 'order'): void
     {
+        $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->price_tier_code = PriceTierCode::RETAIL->value;
         $this->items = [$this->blankItem()];
 
@@ -60,36 +64,78 @@ class SaleOrderFormPage extends Component
         $this->items = array_values($this->items);
     }
 
-    public function save(): \Illuminate\Http\RedirectResponse
+    public function save()
     {
         $validated = $this->validate($this->rules());
+        $validated['document_type'] = $this->documentType;
+        $this->assertStockAvailability($validated['items']);
 
         if ($this->recordId) {
             $saleOrder = $this->updateOrder($validated);
-            session()->flash('inventory.status', "Sale order {$saleOrder->so_number} updated.");
+            session()->flash('inventory.status', "{$this->documentLabel()} {$saleOrder->so_number} updated.");
 
-            return redirect()->route('inventory.sale-orders.edit', ['recordId' => $saleOrder->getKey()]);
+            return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
         }
 
         $saleOrder = app(Inventory::class)->createSaleOrder($validated);
-        session()->flash('inventory.status', "Sale order {$saleOrder->so_number} created.");
+        session()->flash('inventory.status', "{$this->documentLabel()} {$saleOrder->so_number} created.");
 
-        return redirect()->route('inventory.sale-orders.edit', ['recordId' => $saleOrder->getKey()]);
+        return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
     }
 
     public function render(): View
     {
+        $selectedProductIds = collect($this->items)->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->all();
+        $availableStock = $this->warehouse_id
+            ? WarehouseProduct::query()
+                ->with('product')
+                ->where('warehouse_id', $this->warehouse_id)
+                ->whereRaw('(qty_on_hand - qty_reserved) > 0')
+                ->get()
+            : collect();
+        $products = Product::query()
+            ->when(
+                $this->warehouse_id,
+                fn ($query) => $query->where(function ($builder) use ($availableStock, $selectedProductIds): void {
+                    $builder->whereIn('id', $availableStock->pluck('product_id')->all());
+
+                    if ($selectedProductIds !== []) {
+                        $builder->orWhereIn('id', $selectedProductIds);
+                    }
+                }),
+            )
+            ->orderBy('name')
+            ->get();
+
         return view('inventory::livewire.transactions.sale-order-form', [
             'warehouses'             => Warehouse::query()->orderBy('name')->get(),
             'customers'              => Customer::query()->orderBy('name')->get(),
-            'products'               => Product::query()->orderBy('name')->get(),
+            'products'               => $products,
             'priceTiers'             => PriceTier::query()->orderBy('sort_order')->get(),
             'selectedCustomer'       => $this->customer_id ? Customer::query()->find($this->customer_id) : null,
             'customerCreditSnapshot' => $this->customer_id ? app(Inventory::class)->customerCreditSnapshot($this->customer_id) : null,
             'isEditing'              => $this->recordId !== null,
             'editable'               => $this->canEdit(),
             'record'                 => $this->recordId ? SaleOrder::query()->with(['customer', 'warehouse'])->find($this->recordId) : null,
+            'documentLabel'          => $this->documentLabel(),
+            'routeBase'              => $this->routeBase(),
+            'availableStock'         => $availableStock->keyBy('product_id'),
         ]);
+    }
+
+    public function updated(string $property): void
+    {
+        if (in_array($property, ['warehouse_id', 'price_tier_code'], true)) {
+            foreach (array_keys($this->items) as $index) {
+                $this->syncItemPrice($index);
+            }
+
+            return;
+        }
+
+        if (preg_match('/^items\.(\d+)\.(product_id|price_tier_code)$/', $property, $matches)) {
+            $this->syncItemPrice((int) $matches[1]);
+        }
     }
 
     private function rules(): array
@@ -207,6 +253,7 @@ class SaleOrderFormPage extends Component
 
         DB::transaction(function () use ($saleOrder, $validated, $subtotal, $total, $cogs, $itemsPayload): void {
             $saleOrder->fill([
+                'document_type'            => $validated['document_type'] ?? $saleOrder->document_type,
                 'warehouse_id'             => $validated['warehouse_id'],
                 'customer_id'              => $validated['customer_id'] ?? null,
                 'price_tier_id'            => PriceTier::query()->where('code', $validated['price_tier_code'])->value('id'),
@@ -231,5 +278,59 @@ class SaleOrderFormPage extends Component
         });
 
         return $saleOrder->fresh(['items', 'customer', 'warehouse']);
+    }
+
+    private function assertStockAvailability(array $items): void
+    {
+        if (!$this->warehouse_id) {
+            return;
+        }
+
+        $stockByProduct = WarehouseProduct::query()
+            ->where('warehouse_id', $this->warehouse_id)
+            ->whereIn('product_id', collect($items)->pluck('product_id')->filter()->all())
+            ->get()
+            ->keyBy('product_id');
+
+        foreach ($items as $item) {
+            $productId = (int) $item['product_id'];
+            $available = (float) ($stockByProduct->get($productId)?->qtyAvailable() ?? 0);
+            $requested = round((float) $item['qty_ordered'], 4);
+
+            if ($requested > $available + (float) config('inventory.qty_tolerance', 0.0001)) {
+                $productName = Product::query()->find($productId)?->name ?? ('#' . $productId);
+                throw ValidationException::withMessages([
+                    'items' => "Only available stock can be sold. {$productName} has {$available} available.",
+                ]);
+            }
+        }
+    }
+
+    private function syncItemPrice(int $index): void
+    {
+        $productId = (int) ($this->items[$index]['product_id'] ?? 0);
+
+        if (!$productId || !$this->warehouse_id) {
+            return;
+        }
+
+        $tierCode = $this->items[$index]['price_tier_code'] ?: $this->price_tier_code;
+
+        try {
+            $price = app(Inventory::class)->resolvePrice($productId, $tierCode, (int) $this->warehouse_id);
+            $this->items[$index]['unit_price_local'] = (float) ($price->price_local ?: app(Inventory::class)->convertFromBase((float) $price->price_amount, $this->currency ?: 'BDT'));
+        } catch (\Throwable) {
+            // Keep manual price when no active price exists.
+        }
+    }
+
+    private function routeBase(): string
+    {
+        return $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders';
+    }
+
+    private function documentLabel(): string
+    {
+        return $this->documentType === 'quotation' ? 'Quotation' : 'Sale order';
     }
 }

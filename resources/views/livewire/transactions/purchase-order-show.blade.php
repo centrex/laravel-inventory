@@ -3,18 +3,18 @@
 
 <x-tallui-page-header
     :title="$record->po_number"
-    subtitle="View purchase order details, supplier info, totals, and document actions."
+    :subtitle="'View ' . strtolower($documentLabel) . ' details, supplier info, totals, and document actions.'"
     icon="o-arrow-down-tray"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'Purchase Orders', 'href' => route('inventory.purchase-orders.index')],
+            ['label' => $documentLabel === 'Requisition' ? 'Requisitions' : 'Purchase Orders', 'href' => route($routeBase . '.index')],
             ['label' => $record->po_number],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
-        <x-tallui-button label="Edit" icon="o-pencil-square" :link="route('inventory.purchase-orders.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
+        <x-tallui-button label="Edit" icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
         @if (Route::has('erp.documents.purchases.print'))
             <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.purchases.print', ['purchaseOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif

@@ -2,14 +2,14 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    title="Purchase Orders"
-    subtitle="Browse, edit, print, and export supplier purchase documents."
+    :title="$documentLabel"
+    :subtitle="$documentLabel === 'Requisitions' ? 'Track internal demand before purchase confirmation.' : 'Browse, edit, print, and export supplier purchase documents.'"
     icon="o-arrow-down-tray"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'Purchase Orders'],
+            ['label' => $documentLabel],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
@@ -25,7 +25,7 @@
                     @endforeach
                 </x-tallui-select>
             </div>
-            <x-tallui-button label="New Purchase" icon="o-plus" :link="route('inventory.purchase-orders.create')" class="btn-primary btn-sm" />
+            <x-tallui-button :label="$documentLabel === 'Requisitions' ? 'New Requisition' : 'New Purchase'" icon="o-plus" :link="route($routeBase . '.create')" class="btn-primary btn-sm" />
         </div>
     </x-slot:actions>
 </x-tallui-page-header>
@@ -55,8 +55,8 @@
                         <td class="text-sm font-medium">{{ number_format((float) $order->total_local, 2) }}</td>
                         <td class="pr-5">
                             <div class="flex justify-end gap-1">
-                                <x-tallui-button icon="o-eye" :link="route('inventory.purchase-orders.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
-                                <x-tallui-button icon="o-pencil-square" :link="route('inventory.purchase-orders.edit', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="Edit" :responsive="true" />
+                                <x-tallui-button icon="o-eye" :link="route($routeBase . '.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
+                                <x-tallui-button icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="Edit" :responsive="true" />
                                 @if (Route::has('erp.documents.purchases.print'))
                                     <x-tallui-button icon="o-printer" :link="route('erp.documents.purchases.print', ['purchaseOrder' => $order->getKey()])" class="btn-ghost btn-xs" label="Print" :responsive="true" />
                                 @endif
@@ -70,7 +70,7 @@
                     <tr>
                         <td colspan="7" class="py-8">
                             <x-tallui-empty-state title="No purchase orders yet" description="Create your first purchase order to manage supplier buying." icon="o-document-arrow-down" size="sm">
-                                <x-tallui-button label="New Purchase" icon="o-plus" :link="route('inventory.purchase-orders.create')" class="btn-primary btn-sm" />
+                                <x-tallui-button :label="$documentLabel === 'Requisitions' ? 'New Requisition' : 'New Purchase'" icon="o-plus" :link="route($routeBase . '.create')" class="btn-primary btn-sm" />
                             </x-tallui-empty-state>
                         </td>
                     </tr>

@@ -160,7 +160,16 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-purchase-order-index', Http\Livewire\Transactions\PurchaseOrderIndexPage::class);
         Livewire::component('inventory-purchase-order-show', Http\Livewire\Transactions\PurchaseOrderShowPage::class);
         Livewire::component('inventory-purchase-order-form', Http\Livewire\Transactions\PurchaseOrderFormPage::class);
+        Livewire::component('inventory-sale-return-index', Http\Livewire\Transactions\SaleReturnIndexPage::class);
+        Livewire::component('inventory-sale-return-form', Http\Livewire\Transactions\SaleReturnFormPage::class);
+        Livewire::component('inventory-sale-return-show', Http\Livewire\Transactions\SaleReturnShowPage::class);
+        Livewire::component('inventory-purchase-return-index', Http\Livewire\Transactions\PurchaseReturnIndexPage::class);
+        Livewire::component('inventory-purchase-return-form', Http\Livewire\Transactions\PurchaseReturnFormPage::class);
+        Livewire::component('inventory-purchase-return-show', Http\Livewire\Transactions\PurchaseReturnShowPage::class);
+        Livewire::component('inventory-transfer-index', Http\Livewire\Transactions\TransferIndexPage::class);
         Livewire::component('inventory-transfer-form', Http\Livewire\Transactions\TransferFormPage::class);
+        Livewire::component('inventory-transfer-show', Http\Livewire\Transactions\TransferShowPage::class);
+        Livewire::component('inventory-reports-page', Http\Livewire\Transactions\InventoryReportsPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
     }

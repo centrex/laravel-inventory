@@ -3,18 +3,18 @@
 
 <x-tallui-page-header
     :title="$record->so_number"
-    subtitle="View sale order details, customer info, totals, and document actions."
+    :subtitle="'View ' . strtolower($documentLabel) . ' details, customer info, totals, and document actions.'"
     icon="o-shopping-cart"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'Sale Orders', 'href' => route('inventory.sale-orders.index')],
+            ['label' => $documentLabel === 'Quotation' ? 'Quotations' : 'Sale Orders', 'href' => route($routeBase . '.index')],
             ['label' => $record->so_number],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
-        <x-tallui-button label="Edit" icon="o-pencil-square" :link="route('inventory.sale-orders.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
+        <x-tallui-button label="Edit" icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
         @if (Route::has('erp.documents.sales.print'))
             <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif

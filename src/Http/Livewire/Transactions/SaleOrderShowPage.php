@@ -12,14 +12,18 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class SaleOrderShowPage extends Component
 {
+    public string $documentType = 'order';
+
     public SaleOrder $record;
 
     public ?array $financeDocument = null;
 
-    public function mount(int $recordId): void
+    public function mount(int $recordId, string $documentType = 'order'): void
     {
+        $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->record = SaleOrder::query()
             ->with(['customer', 'warehouse', 'priceTier', 'items.product'])
+            ->where('document_type', $this->documentType)
             ->findOrFail($recordId);
 
         $this->financeDocument = $this->resolveFinanceDocument();
@@ -30,6 +34,8 @@ class SaleOrderShowPage extends Component
         return view('inventory::livewire.transactions.sale-order-show', [
             'record'          => $this->record,
             'financeDocument' => $this->financeDocument,
+            'documentLabel'   => $this->documentType === 'quotation' ? 'Quotation' : 'Sale Order',
+            'routeBase'       => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
         ]);
     }
 

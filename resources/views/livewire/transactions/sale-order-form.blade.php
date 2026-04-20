@@ -2,15 +2,15 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    :title="$isEditing ? 'Edit Sale Order' : 'New Sale Order'"
-    :subtitle="$isEditing ? 'Review line items, update draft details, and print or export invoice documents.' : 'Capture outbound sales with tier-based or manual pricing.'"
+    :title="$isEditing ? 'Edit ' . $documentLabel : 'New ' . $documentLabel"
+    :subtitle="$documentLabel === 'Quotation' ? 'Prepare customer-ready pricing before stock is committed.' : ($isEditing ? 'Review line items, update draft details, and print or export invoice documents.' : 'Capture outbound sales with tier-based or automatic pricing.')"
     icon="o-shopping-cart"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'Sale Orders', 'href' => route('inventory.sale-orders.index')],
-            ['label' => $isEditing ? 'Edit Sale Order' : 'New Sale Order'],
+            ['label' => $documentLabel === 'Quotation' ? 'Quotations' : 'Sale Orders', 'href' => route($routeBase . '.index')],
+            ['label' => $isEditing ? 'Edit ' . $documentLabel : 'New ' . $documentLabel],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
@@ -148,6 +148,7 @@
                     <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
                         <th class="pl-5 w-52">Product</th>
                         <th class="w-24">Qty</th>
+                        <th class="w-24">Available</th>
                         <th class="w-32">Tier Override</th>
                         <th class="w-32">Unit Price (Local)</th>
                         <th class="w-24">Discount %</th>
@@ -168,6 +169,9 @@
                             </td>
                             <td class="py-2">
                                 <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="0.0001" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" />
+                            </td>
+                            <td class="py-2 text-sm text-base-content/70">
+                                {{ number_format((float) ($availableStock->get($item['product_id'] ?? 0)?->qtyAvailable() ?? 0), 4) }}
                             </td>
                             <td class="py-2">
                                 <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model="items.{{ $index }}.price_tier_code" class="select-sm w-full">
@@ -194,7 +198,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="py-6 text-center">
+                            <td colspan="8" class="py-6 text-center">
                                 <x-tallui-empty-state title="No items yet" description="Add at least one product line." icon="o-shopping-bag" size="sm">
                                     <x-tallui-button label="Add Line" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addItem" />
                                 </x-tallui-empty-state>
@@ -207,9 +211,9 @@
     </x-tallui-card>
 
     <div class="flex justify-end gap-2">
-        <x-tallui-button label="Back to Sales" :link="route('inventory.sale-orders.index')" class="btn-ghost" />
+        <x-tallui-button :label="$documentLabel === 'Quotation' ? 'Back to Quotations' : 'Back to Sales'" :link="route($routeBase . '.index')" class="btn-ghost" />
         @if ($editable)
-            <x-tallui-button :label="$isEditing ? 'Update Sale Order' : 'Create Sale Order'" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+            <x-tallui-button :label="$isEditing ? 'Update ' . $documentLabel : 'Create ' . $documentLabel" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
         @endif
     </div>
 

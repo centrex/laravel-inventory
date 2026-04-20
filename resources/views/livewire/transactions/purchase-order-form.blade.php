@@ -2,15 +2,15 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    :title="$isEditing ? 'Edit Purchase Order' : 'New Purchase Order'"
-    :subtitle="$isEditing ? 'Review supplier lines, update draft details, and print or export purchase documents.' : 'Draft inbound purchases with multi-line item entry.'"
+    :title="$isEditing ? 'Edit ' . $documentLabel : 'New ' . $documentLabel"
+    :subtitle="$documentLabel === 'Requisition' ? 'Capture internal purchasing demand before supplier confirmation.' : ($isEditing ? 'Review supplier lines, update draft details, and print or export purchase documents.' : 'Draft inbound purchases with multi-line item entry.')"
     icon="o-arrow-down-tray"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'Purchase Orders', 'href' => route('inventory.purchase-orders.index')],
-            ['label' => $isEditing ? 'Edit Purchase Order' : 'New Purchase Order'],
+            ['label' => $documentLabel === 'Requisition' ? 'Requisitions' : 'Purchase Orders', 'href' => route($routeBase . '.index')],
+            ['label' => $isEditing ? 'Edit ' . $documentLabel : 'New ' . $documentLabel],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
@@ -175,9 +175,9 @@
 
     {{-- Footer actions --}}
     <div class="flex justify-end gap-2">
-        <x-tallui-button label="Back to Purchases" :link="route('inventory.purchase-orders.index')" class="btn-ghost" />
+        <x-tallui-button :label="$documentLabel === 'Requisition' ? 'Back to Requisitions' : 'Back to Purchases'" :link="route($routeBase . '.index')" class="btn-ghost" />
         @if ($editable)
-            <x-tallui-button :label="$isEditing ? 'Update Purchase Order' : 'Create Purchase Order'" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+            <x-tallui-button :label="$isEditing ? 'Update ' . $documentLabel : 'Create ' . $documentLabel" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
         @endif
     </div>
 

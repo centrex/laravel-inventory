@@ -11,9 +11,12 @@
         <x-tallui-button label="Employees" icon="o-identification" :link="route('payroll.entities.employees.index')" class="btn-outline btn-sm" />
         @endif
         <x-tallui-button label="Purchase" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.create')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Requisition" icon="o-clipboard-document-check" :link="route('inventory.requisitions.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="Sale" icon="o-shopping-cart" :link="route('inventory.sale-orders.create')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Quotation" icon="o-document-duplicate" :link="route('inventory.quotations.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" />
-        <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.create')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
         @if(Route::has('payroll.entries.index'))
         <x-tallui-button label="Payroll" icon="o-users" :link="route('payroll.entries.index')" class="btn-outline btn-sm" />
         @endif
@@ -86,20 +89,35 @@
         <x-heroicon-o-arrow-down-tray class="w-7 h-7 text-primary" />
         <span class="text-sm font-medium">New Purchase</span>
     </a>
+    <a href="{{ route('inventory.requisitions.create') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-clipboard-document-check class="w-7 h-7 text-warning" />
+        <span class="text-sm font-medium">Requisition</span>
+    </a>
     <a href="{{ route('inventory.sale-orders.create') }}"
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-shopping-cart class="w-7 h-7 text-success" />
         <span class="text-sm font-medium">New Sale</span>
+    </a>
+    <a href="{{ route('inventory.quotations.create') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-document-duplicate class="w-7 h-7 text-info" />
+        <span class="text-sm font-medium">Quotation</span>
     </a>
     <a href="{{ route('inventory.pos.index') }}"
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-device-phone-mobile class="w-7 h-7 text-secondary" />
         <span class="text-sm font-medium">POS Terminal</span>
     </a>
-    <a href="{{ route('inventory.transfers.create') }}"
+    <a href="{{ route('inventory.transfers.index') }}"
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-arrows-right-left class="w-7 h-7 text-info" />
-        <span class="text-sm font-medium">New Transfer</span>
+        <span class="text-sm font-medium">Transfers</span>
+    </a>
+    <a href="{{ route('inventory.reports.index') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-chart-bar class="w-7 h-7 text-secondary" />
+        <span class="text-sm font-medium">Reports</span>
     </a>
     <a href="{{ route('inventory.adjustments.create') }}"
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">

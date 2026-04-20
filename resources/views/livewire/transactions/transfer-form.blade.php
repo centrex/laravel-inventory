@@ -106,6 +106,7 @@
                             <thead>
                                 <tr class="bg-base-100 text-xs text-base-content/50 uppercase">
                                     <th class="pl-5">Product</th>
+                                    <th class="w-24">Available</th>
                                     <th class="w-32">Qty to Send</th>
                                     <th>Notes</th>
                                     <th class="pr-5 w-16"></th>
@@ -127,6 +128,9 @@
                                                     </option>
                                                 @endforeach
                                             </x-tallui-select>
+                                        </td>
+                                        <td class="py-2 text-sm text-base-content/70">
+                                            {{ number_format((float) ($availableStock->get($item['product_id'] ?? 0)?->qtyAvailable() ?? 0), 4) }}
                                         </td>
                                         <td class="py-2">
                                             <x-tallui-input

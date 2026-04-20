@@ -26,7 +26,7 @@ class PurchaseOrder extends Model
     }
 
     protected $fillable = [
-        'po_number', 'warehouse_id', 'supplier_id',
+        'po_number', 'document_type', 'warehouse_id', 'supplier_id',
         'currency', 'exchange_rate',
         'subtotal_local', 'subtotal_amount',
         'tax_local', 'tax_amount',
@@ -37,6 +37,7 @@ class PurchaseOrder extends Model
     ];
 
     protected $casts = [
+        'document_type'        => 'string',
         'status'               => PurchaseOrderStatus::class,
         'exchange_rate'        => 'decimal:8',
         'subtotal_local'       => 'decimal:4',

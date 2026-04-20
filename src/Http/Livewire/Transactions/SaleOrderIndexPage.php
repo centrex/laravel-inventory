@@ -14,6 +14,8 @@ class SaleOrderIndexPage extends Component
 {
     use WithPagination;
 
+    public string $documentType = 'order';
+
     public string $search = '';
 
     public string $status = '';
@@ -28,10 +30,16 @@ class SaleOrderIndexPage extends Component
         $this->resetPage();
     }
 
+    public function mount(string $documentType = 'order'): void
+    {
+        $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
+    }
+
     public function render(): View
     {
         $query = SaleOrder::query()
             ->with(['customer', 'warehouse'])
+            ->where('document_type', $this->documentType)
             ->latest('ordered_at')
             ->latest('id');
 
@@ -51,6 +59,8 @@ class SaleOrderIndexPage extends Component
 
         return view('inventory::livewire.transactions.sale-order-index', [
             'orders'        => $query->paginate(15),
+            'documentLabel' => $this->documentType === 'quotation' ? 'Quotations' : 'Sale Orders',
+            'routeBase'     => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
             'statusOptions' => [
                 'draft'      => 'Draft',
                 'confirmed'  => 'Confirmed',

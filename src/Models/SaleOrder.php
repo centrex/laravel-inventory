@@ -26,7 +26,7 @@ class SaleOrder extends Model
     }
 
     protected $fillable = [
-        'so_number', 'warehouse_id', 'customer_id', 'price_tier_id',
+        'so_number', 'document_type', 'warehouse_id', 'customer_id', 'price_tier_id',
         'currency', 'exchange_rate',
         'subtotal_local', 'subtotal_amount',
         'tax_local', 'tax_amount',
@@ -39,6 +39,7 @@ class SaleOrder extends Model
     ];
 
     protected $casts = [
+        'document_type'                 => 'string',
         'status'                        => SaleOrderStatus::class,
         'exchange_rate'                 => 'decimal:8',
         'subtotal_local'                => 'decimal:4',

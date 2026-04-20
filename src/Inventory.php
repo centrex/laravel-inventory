@@ -6,7 +6,7 @@ namespace Centrex\Inventory;
 
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductPrice, PurchaseOrder, PurchaseOrderItem, SaleOrder, SaleOrderItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
@@ -316,12 +316,14 @@ class Inventory
     {
         $po = DB::transaction(function () use ($data): PurchaseOrder {
             $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
+            $documentType = $this->normalizePurchaseDocumentType($data['document_type'] ?? null);
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $shippingLocal = (float) ($data['shipping_local'] ?? 0);
 
             $po = PurchaseOrder::create([
-                'po_number'            => $this->nextNumber('PO', PurchaseOrder::class, 'po_number'),
+                'po_number'            => $this->nextNumber($documentType === 'requisition' ? 'REQ' : 'PO', PurchaseOrder::class, 'po_number'),
+                'document_type'        => $documentType,
                 'warehouse_id'         => $data['warehouse_id'],
                 'supplier_id'          => $data['supplier_id'],
                 'currency'             => strtoupper($data['currency']),
@@ -555,6 +557,7 @@ class Inventory
             $tier = PriceTier::where('code', $data['price_tier_code'] ?? PriceTierCode::RETAIL->value)->firstOrFail();
             $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
             $customer = isset($data['customer_id']) ? Customer::findOrFail($data['customer_id']) : null;
+            $documentType = $this->normalizeSaleDocumentType($data['document_type'] ?? null);
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $discountLocal = (float) ($data['discount_local'] ?? 0);
@@ -598,7 +601,8 @@ class Inventory
             $credit = $this->resolveCreditOverride($customer, $totalBdt, $data);
 
             $so = SaleOrder::create([
-                'so_number'                     => $this->nextNumber('SO', SaleOrder::class, 'so_number'),
+                'so_number'                     => $this->nextNumber($documentType === 'quotation' ? 'QT' : 'SO', SaleOrder::class, 'so_number'),
+                'document_type'                 => $documentType,
                 'warehouse_id'                  => $data['warehouse_id'],
                 'customer_id'                   => $data['customer_id'] ?? null,
                 'price_tier_id'                 => $tier->id,
@@ -649,6 +653,178 @@ class Inventory
         $this->erp()->syncSaleOrderDocument($so);
 
         return $so;
+    }
+
+    public function createSaleReturn(array $data): SaleReturn
+    {
+        return DB::transaction(function () use ($data): SaleReturn {
+            $saleOrder = isset($data['sale_order_id']) ? SaleOrder::query()->with('items')->find($data['sale_order_id']) : null;
+
+            $saleReturn = SaleReturn::create([
+                'return_number' => $this->nextNumber('SRT', SaleReturn::class, 'return_number'),
+                'sale_order_id' => $saleOrder?->getKey(),
+                'warehouse_id'  => $data['warehouse_id'],
+                'customer_id'   => $data['customer_id'] ?? $saleOrder?->customer_id,
+                'status'        => 'draft',
+                'returned_at'   => $data['returned_at'] ?? now(),
+                'notes'         => $data['notes'] ?? null,
+                'created_by'    => $data['created_by'] ?? null,
+            ]);
+
+            foreach ($data['items'] as $item) {
+                $productId = (int) $item['product_id'];
+                $qty = round((float) $item['qty_returned'], 4);
+                $this->ensurePositiveQuantity($qty, 'qty_returned');
+                $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId);
+                $saleOrderItem = $saleOrder?->items->firstWhere('product_id', $productId);
+                $unitPrice = isset($item['unit_price_amount'])
+                    ? round((float) $item['unit_price_amount'], 4)
+                    : round((float) ($saleOrderItem?->unit_price_amount ?? 0), 4);
+                $unitCost = isset($item['unit_cost_amount'])
+                    ? round((float) $item['unit_cost_amount'], 4)
+                    : round((float) $stock->wac_amount, 4);
+
+                SaleReturnItem::create([
+                    'sale_return_id'     => $saleReturn->id,
+                    'sale_order_item_id' => $saleOrderItem?->getKey(),
+                    'product_id'         => $productId,
+                    'qty_returned'       => $qty,
+                    'unit_price_amount'  => $unitPrice,
+                    'unit_cost_amount'   => $unitCost,
+                    'line_total_amount'  => round($qty * $unitPrice, 4),
+                    'notes'              => $item['notes'] ?? null,
+                ]);
+            }
+
+            return $saleReturn->fresh(['items.product', 'customer', 'warehouse', 'saleOrder']);
+        });
+    }
+
+    public function postSaleReturn(int $saleReturnId): SaleReturn
+    {
+        $saleReturn = SaleReturn::query()->with('items')->findOrFail($saleReturnId);
+
+        if ($saleReturn->status !== 'draft') {
+            throw new InvalidTransitionException("Sale return #{$saleReturn->return_number} is already {$saleReturn->status}.");
+        }
+
+        return DB::transaction(function () use ($saleReturn): SaleReturn {
+            foreach ($saleReturn->items as $item) {
+                $warehouseProduct = $this->lockWarehouseProduct($saleReturn->warehouse_id, $item->product_id);
+                $qty = (float) $item->qty_returned;
+                $qtyBefore = (float) $warehouseProduct->qty_on_hand;
+                $qtyAfter = $qtyBefore + $qty;
+                $newWac = $this->recalculateWac($warehouseProduct, $qty, (float) $item->unit_cost_amount);
+
+                $warehouseProduct->update([
+                    'qty_on_hand' => $qtyAfter,
+                    'wac_amount'  => $newWac,
+                ]);
+
+                $this->writeMovement(
+                    $saleReturn->warehouse_id,
+                    $item->product_id,
+                    MovementType::CUSTOMER_RETURN,
+                    $qty,
+                    $qtyBefore,
+                    $qtyAfter,
+                    (float) $item->unit_cost_amount,
+                    $newWac,
+                    SaleReturn::class,
+                    $saleReturn->id,
+                    $saleReturn->created_by,
+                    'Customer return posted',
+                );
+            }
+
+            $saleReturn->update(['status' => 'posted']);
+
+            return $saleReturn->fresh(['items.product', 'customer', 'warehouse', 'saleOrder']);
+        });
+    }
+
+    public function createPurchaseReturn(array $data): PurchaseReturn
+    {
+        return DB::transaction(function () use ($data): PurchaseReturn {
+            $purchaseOrder = isset($data['purchase_order_id']) ? PurchaseOrder::query()->with('items')->find($data['purchase_order_id']) : null;
+
+            $purchaseReturn = PurchaseReturn::create([
+                'return_number'     => $this->nextNumber('PRT', PurchaseReturn::class, 'return_number'),
+                'purchase_order_id' => $purchaseOrder?->getKey(),
+                'warehouse_id'      => $data['warehouse_id'],
+                'supplier_id'       => $data['supplier_id'] ?? $purchaseOrder?->supplier_id,
+                'status'            => 'draft',
+                'returned_at'       => $data['returned_at'] ?? now(),
+                'notes'             => $data['notes'] ?? null,
+                'created_by'        => $data['created_by'] ?? null,
+            ]);
+
+            foreach ($data['items'] as $item) {
+                $productId = (int) $item['product_id'];
+                $qty = round((float) $item['qty_returned'], 4);
+                $this->ensurePositiveQuantity($qty, 'qty_returned');
+                $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId);
+                $purchaseOrderItem = $purchaseOrder?->items->firstWhere('product_id', $productId);
+                $unitCost = isset($item['unit_cost_amount'])
+                    ? round((float) $item['unit_cost_amount'], 4)
+                    : round((float) ($purchaseOrderItem?->unit_price_amount ?? $stock->wac_amount), 4);
+
+                PurchaseReturnItem::create([
+                    'purchase_return_id'    => $purchaseReturn->id,
+                    'purchase_order_item_id'=> $purchaseOrderItem?->getKey(),
+                    'product_id'            => $productId,
+                    'qty_returned'          => $qty,
+                    'unit_cost_amount'      => $unitCost,
+                    'line_total_amount'     => round($qty * $unitCost, 4),
+                    'notes'                 => $item['notes'] ?? null,
+                ]);
+            }
+
+            return $purchaseReturn->fresh(['items.product', 'supplier', 'warehouse', 'purchaseOrder']);
+        });
+    }
+
+    public function postPurchaseReturn(int $purchaseReturnId): PurchaseReturn
+    {
+        $purchaseReturn = PurchaseReturn::query()->with('items')->findOrFail($purchaseReturnId);
+
+        if ($purchaseReturn->status !== 'draft') {
+            throw new InvalidTransitionException("Purchase return #{$purchaseReturn->return_number} is already {$purchaseReturn->status}.");
+        }
+
+        return DB::transaction(function () use ($purchaseReturn): PurchaseReturn {
+            foreach ($purchaseReturn->items as $item) {
+                $warehouseProduct = $this->lockWarehouseProduct($purchaseReturn->warehouse_id, $item->product_id);
+                $qty = (float) $item->qty_returned;
+                $qtyBefore = (float) $warehouseProduct->qty_on_hand;
+
+                if ($qtyBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                    throw new InsufficientStockException("Insufficient stock to return product [{$item->product_id}] to supplier.");
+                }
+
+                $qtyAfter = $qtyBefore - $qty;
+                $warehouseProduct->update(['qty_on_hand' => $qtyAfter]);
+
+                $this->writeMovement(
+                    $purchaseReturn->warehouse_id,
+                    $item->product_id,
+                    MovementType::RETURN_TO_SUPPLIER,
+                    $qty,
+                    $qtyBefore,
+                    $qtyAfter,
+                    (float) $item->unit_cost_amount,
+                    (float) $warehouseProduct->fresh()->wac_amount,
+                    PurchaseReturn::class,
+                    $purchaseReturn->id,
+                    $purchaseReturn->created_by,
+                    'Supplier return posted',
+                );
+            }
+
+            $purchaseReturn->update(['status' => 'posted']);
+
+            return $purchaseReturn->fresh(['items.product', 'supplier', 'warehouse', 'purchaseOrder']);
+        });
     }
 
     public function confirmSaleOrder(int $soId): SaleOrder
@@ -1341,5 +1517,15 @@ class Inventory
         }
 
         return (int) $user->getAuthIdentifier();
+    }
+
+    private function normalizeSaleDocumentType(?string $documentType): string
+    {
+        return $documentType === 'quotation' ? 'quotation' : 'order';
+    }
+
+    private function normalizePurchaseDocumentType(?string $documentType): string
+    {
+        return $documentType === 'requisition' ? 'requisition' : 'order';
     }
 }

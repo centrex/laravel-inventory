@@ -42,7 +42,7 @@ class AdjustmentFormPage extends Component
         $this->items = array_values($this->items);
     }
 
-    public function save(): \Illuminate\Http\RedirectResponse
+    public function save()
     {
         $validated = $this->validate([
             'warehouse_id'       => ['required', 'integer'],

@@ -14,6 +14,8 @@ class PurchaseOrderIndexPage extends Component
 {
     use WithPagination;
 
+    public string $documentType = 'order';
+
     public string $search = '';
 
     public string $status = '';
@@ -28,10 +30,16 @@ class PurchaseOrderIndexPage extends Component
         $this->resetPage();
     }
 
+    public function mount(string $documentType = 'order'): void
+    {
+        $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
+    }
+
     public function render(): View
     {
         $query = PurchaseOrder::query()
             ->with(['supplier', 'warehouse'])
+            ->where('document_type', $this->documentType)
             ->latest('ordered_at')
             ->latest('id');
 
@@ -51,6 +59,8 @@ class PurchaseOrderIndexPage extends Component
 
         return view('inventory::livewire.transactions.purchase-order-index', [
             'orders'        => $query->paginate(15),
+            'documentLabel' => $this->documentType === 'requisition' ? 'Requisitions' : 'Purchase Orders',
+            'routeBase'     => $this->documentType === 'requisition' ? 'inventory.requisitions' : 'inventory.purchase-orders',
             'statusOptions' => [
                 'draft'     => 'Draft',
                 'submitted' => 'Submitted',

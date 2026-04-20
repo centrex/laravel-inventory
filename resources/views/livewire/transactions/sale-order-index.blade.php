@@ -2,14 +2,14 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    title="Sale Orders"
-    subtitle="Browse, edit, print, and export customer sales documents."
+    :title="$documentLabel"
+    :subtitle="$documentLabel === 'Quotations' ? 'Browse and refine customer quotes before confirmation.' : 'Browse, edit, print, and export customer sales documents.'"
     icon="o-shopping-cart"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'Sale Orders'],
+            ['label' => $documentLabel],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
@@ -25,7 +25,7 @@
                     @endforeach
                 </x-tallui-select>
             </div>
-            <x-tallui-button label="New Sale" icon="o-plus" :link="route('inventory.sale-orders.create')" class="btn-primary btn-sm" />
+            <x-tallui-button :label="$documentLabel === 'Quotations' ? 'New Quote' : 'New Sale'" icon="o-plus" :link="route($routeBase . '.create')" class="btn-primary btn-sm" />
         </div>
     </x-slot:actions>
 </x-tallui-page-header>
@@ -55,8 +55,8 @@
                         <td class="text-sm font-medium">{{ number_format((float) $order->total_local, 2) }}</td>
                         <td class="pr-5">
                             <div class="flex justify-end gap-1">
-                                <x-tallui-button icon="o-eye" :link="route('inventory.sale-orders.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
-                                <x-tallui-button icon="o-pencil-square" :link="route('inventory.sale-orders.edit', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="Edit" :responsive="true" />
+                                <x-tallui-button icon="o-eye" :link="route($routeBase . '.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
+                                <x-tallui-button icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="Edit" :responsive="true" />
                                 @if (Route::has('erp.documents.sales.print'))
                                     <x-tallui-button icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $order->getKey()])" class="btn-ghost btn-xs" label="Print" :responsive="true" />
                                 @endif
@@ -70,7 +70,7 @@
                     <tr>
                         <td colspan="7" class="py-8">
                             <x-tallui-empty-state title="No sale orders yet" description="Create your first sale order to start managing customer transactions." icon="o-shopping-bag" size="sm">
-                                <x-tallui-button label="New Sale" icon="o-plus" :link="route('inventory.sale-orders.create')" class="btn-primary btn-sm" />
+                                <x-tallui-button :label="$documentLabel === 'Quotations' ? 'New Quote' : 'New Sale'" icon="o-plus" :link="route($routeBase . '.create')" class="btn-primary btn-sm" />
                             </x-tallui-empty-state>
                         </td>
                     </tr>

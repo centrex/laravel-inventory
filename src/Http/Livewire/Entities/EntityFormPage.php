@@ -40,7 +40,7 @@ class EntityFormPage extends Component
         }
     }
 
-    public function save(): \Illuminate\Http\RedirectResponse
+    public function save()
     {
         $record = $this->record(false);
         $payload = InventoryEntityRegistry::fillablePayload($this->entity, $this->form);

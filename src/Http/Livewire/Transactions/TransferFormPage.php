@@ -5,8 +5,9 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Product, Warehouse};
+use Centrex\Inventory\Models\{Product, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -50,7 +51,7 @@ class TransferFormPage extends Component
         $this->boxes[$boxIndex]['items'] = array_values($this->boxes[$boxIndex]['items']);
     }
 
-    public function save(): \Illuminate\Http\RedirectResponse
+    public function save()
     {
         $validated = $this->validate([
             'from_warehouse_id'          => ['required', 'integer'],
@@ -67,17 +68,44 @@ class TransferFormPage extends Component
             'boxes.*.items.*.notes'      => ['nullable', 'string'],
         ]);
 
+        $this->assertStockAvailability($validated['boxes']);
+
         $transfer = app(Inventory::class)->createTransfer($validated);
         session()->flash('inventory.status', "Transfer {$transfer->transfer_number} created.");
 
-        return redirect()->route('inventory.transfers.create');
+        return redirect()->route('inventory.transfers.show', ['recordId' => $transfer->getKey()]);
     }
 
     public function render(): View
     {
+        $selectedProductIds = collect($this->boxes)
+            ->flatMap(fn (array $box): array => collect($box['items'] ?? [])->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->all())
+            ->all();
+        $availableStock = $this->from_warehouse_id
+            ? WarehouseProduct::query()
+                ->with('product')
+                ->where('warehouse_id', $this->from_warehouse_id)
+                ->whereRaw('(qty_on_hand - qty_reserved) > 0')
+                ->get()
+            : collect();
+        $products = Product::query()
+            ->when(
+                $this->from_warehouse_id,
+                fn ($query) => $query->where(function ($builder) use ($availableStock, $selectedProductIds): void {
+                    $builder->whereIn('id', $availableStock->pluck('product_id')->all());
+
+                    if ($selectedProductIds !== []) {
+                        $builder->orWhereIn('id', $selectedProductIds);
+                    }
+                }),
+            )
+            ->orderBy('name')
+            ->get();
+
         return view('inventory::livewire.transactions.transfer-form', [
             'warehouses' => Warehouse::query()->orderBy('name')->get(),
-            'products'   => Product::query()->orderBy('name')->get(),
+            'products'   => $products,
+            'availableStock' => $availableStock->keyBy('product_id'),
         ]);
     }
 
@@ -98,5 +126,38 @@ class TransferFormPage extends Component
             'qty_sent'   => 1,
             'notes'      => '',
         ];
+    }
+
+    private function assertStockAvailability(array $boxes): void
+    {
+        if (!$this->from_warehouse_id) {
+            return;
+        }
+
+        $requested = [];
+
+        foreach ($boxes as $box) {
+            foreach ($box['items'] as $item) {
+                $productId = (int) $item['product_id'];
+                $requested[$productId] = ($requested[$productId] ?? 0) + round((float) $item['qty_sent'], 4);
+            }
+        }
+
+        $stock = WarehouseProduct::query()
+            ->where('warehouse_id', $this->from_warehouse_id)
+            ->whereIn('product_id', array_keys($requested))
+            ->get()
+            ->keyBy('product_id');
+
+        foreach ($requested as $productId => $qty) {
+            $available = (float) ($stock->get($productId)?->qtyAvailable() ?? 0);
+
+            if ($qty > $available + (float) config('inventory.qty_tolerance', 0.0001)) {
+                $productName = Product::query()->find($productId)?->name ?? ('#' . $productId);
+                throw ValidationException::withMessages([
+                    'boxes' => "{$productName} only has {$available} available for transfer.",
+                ]);
+            }
+        }
     }
 }
