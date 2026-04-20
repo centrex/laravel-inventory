@@ -6,7 +6,7 @@ namespace Centrex\Inventory;
 
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductBrand, ProductCategory, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
@@ -1390,6 +1390,217 @@ class Inventory
             ->when($to, fn ($q) => $q->where('moved_at', '<=', $to))
             ->orderBy('moved_at')
             ->get();
+    }
+
+    // -------------------------------------------------------------------------
+    // Mobile / Query helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Default active warehouse (highest priority by is_default, then name).
+     */
+    public function defaultWarehouse(): ?Warehouse
+    {
+        return Warehouse::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->first();
+    }
+
+    /**
+     * List products with optional filters.
+     */
+    public function listProducts(
+        bool $activeOnly = true,
+        bool $availableOnly = false,
+        ?string $search = null,
+        ?int $categoryId = null,
+    ): Collection {
+        return Product::query()
+            ->with(['category', 'brand', 'warehouseProducts', 'prices.priceTier'])
+            ->when($activeOnly, fn ($q) => $q->where('is_active', true))
+            ->when($availableOnly, fn ($q) => $q->whereHas('warehouseProducts', fn ($wq) => $wq->whereRaw('qty_on_hand > qty_reserved')))
+            ->when($search, fn ($q) => $q->where(fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")))
+            ->when($categoryId, fn ($q) => $q->where('category_id', $categoryId))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Find a single product with full relations.
+     */
+    public function findProduct(int $id): ?Product
+    {
+        return Product::query()
+            ->with(['category', 'brand', 'warehouseProducts', 'prices.priceTier'])
+            ->find($id);
+    }
+
+    /**
+     * List product categories with active product count.
+     */
+    public function listProductCategories(bool $activeOnly = true): Collection
+    {
+        return ProductCategory::query()
+            ->withCount(['products' => fn ($q) => $q->where('is_active', true)])
+            ->when($activeOnly, fn ($q) => $q->where('is_active', true))
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Find a single product category with product count.
+     */
+    public function findProductCategory(int $id): ?ProductCategory
+    {
+        return ProductCategory::query()->withCount('products')->find($id);
+    }
+
+    /**
+     * List customers with optional filters.
+     */
+    public function listCustomers(bool $activeOnly = false, ?string $search = null): Collection
+    {
+        return Customer::query()
+            ->when($activeOnly, fn ($q) => $q->where('is_active', true))
+            ->when($search, fn ($q) => $q->where(fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%")))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Find a single customer by ID.
+     */
+    public function findCustomer(int $id): ?Customer
+    {
+        return Customer::query()->find($id);
+    }
+
+    /**
+     * Find the customer linked to a morphable model (e.g. a User).
+     */
+    public function findCustomerForModel(string $morphClass, int $morphId): ?Customer
+    {
+        return Customer::query()
+            ->where('modelable_type', $morphClass)
+            ->where('modelable_id', $morphId)
+            ->first();
+    }
+
+    /**
+     * Create a customer with auto-generated code.
+     */
+    public function createCustomer(array $data): Customer
+    {
+        if (empty($data['code'])) {
+            $next = Customer::query()->max('id') + 1;
+            $data['code'] = 'CUS-' . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        }
+
+        $data += [
+            'credit_limit_amount' => 0,
+            'is_active'           => true,
+            'currency'            => config('inventory.base_currency', 'BDT'),
+        ];
+
+        return Customer::query()->create($data);
+    }
+
+    /**
+     * Update a customer by ID.
+     */
+    public function updateCustomer(int $id, array $data): Customer
+    {
+        $customer = Customer::query()->findOrFail($id);
+        $customer->update($data);
+
+        return $customer->fresh();
+    }
+
+    /**
+     * Delete a customer by ID.
+     */
+    public function deleteCustomer(int $id): void
+    {
+        Customer::query()->findOrFail($id)->delete();
+    }
+
+    /**
+     * List sale orders with optional date/status filters.
+     */
+    public function listSaleOrders(
+        ?string $status = null,
+        ?string $from = null,
+        ?string $to = null,
+        bool $excludeTerminal = false,
+    ): Collection {
+        return SaleOrder::query()
+            ->with(['customer', 'warehouse', 'items.product'])
+            ->where('document_type', 'sale')
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($excludeTerminal, fn ($q) => $q->whereNotIn('status', [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]))
+            ->when($from, fn ($q) => $q->whereDate('ordered_at', '>=', $from))
+            ->when($to, fn ($q) => $q->whereDate('ordered_at', '<=', $to))
+            ->latest('ordered_at')
+            ->get();
+    }
+
+    /**
+     * Find a single sale order with relations.
+     */
+    public function findSaleOrder(int $id): ?SaleOrder
+    {
+        return SaleOrder::query()
+            ->with(['customer', 'warehouse', 'items.product'])
+            ->where('document_type', 'sale')
+            ->find($id);
+    }
+
+    /**
+     * Oldest pending sale order date (draft/confirmed/processing/partial).
+     */
+    public function oldestPendingOrderDate(): ?string
+    {
+        $order = SaleOrder::query()
+            ->where('document_type', 'sale')
+            ->whereIn('status', [
+                SaleOrderStatus::DRAFT->value,
+                SaleOrderStatus::CONFIRMED->value,
+                SaleOrderStatus::PROCESSING->value,
+                SaleOrderStatus::PARTIAL->value,
+            ])
+            ->oldest('ordered_at')
+            ->first();
+
+        return $order?->ordered_at?->toDateString();
+    }
+
+    /**
+     * Estimate shipping cost for a list of items (product_id + qty).
+     */
+    public function estimateShipping(array $items): array
+    {
+        $products = Product::query()
+            ->whereIn('id', collect($items)->pluck('product_id')->filter()->all())
+            ->get()
+            ->keyBy('id');
+
+        $rate = (float) config('inventory.shipping_rate_per_kg', env('ERP_APP_SHIPPING_RATE_PER_KG', 120));
+
+        $totalWeightKg = collect($items)->sum(function (array $item) use ($products): float {
+            $product = $products->get((int) ($item['product_id'] ?? 0));
+            $qty = (float) ($item['qty'] ?? $item['quantity'] ?? 0);
+
+            return (float) ($product?->weight_kg ?? 0) * $qty;
+        });
+
+        return [
+            'total_weight_kg' => round($totalWeightKg, 4),
+            'rate_per_kg'     => $rate,
+            'shipping_cost'   => $totalWeightKg > 0 ? round($totalWeightKg * $rate, 2) : 0.0,
+        ];
     }
 
     // -------------------------------------------------------------------------
