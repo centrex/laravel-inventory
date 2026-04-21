@@ -1,18 +1,18 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Centrex\Inventory\Enums;
 
 enum PriceTierCode: string
 {
-    case BASE          = 'base';
+    case BASE = 'base';
     case B2B_WHOLESALE = 'b2b_wholesale';
-    case B2B_RETAIL    = 'b2b_retail';
-    case B2B_DROPSHIP  = 'b2b_dropship';
-    case B2C_RETAIL    = 'b2c_retail';
-    case B2C_ECOM      = 'b2c_ecom';
-    case B2C_POS       = 'b2c_pos';
+    case B2B_RETAIL = 'b2b_retail';
+    case B2B_DROPSHIP = 'b2b_dropship';
+    case B2C_RETAIL = 'b2c_retail';
+    case B2C_ECOM = 'b2c_ecom';
+    case B2C_POS = 'b2c_pos';
 
     public function label(): string
     {

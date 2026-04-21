@@ -96,7 +96,7 @@ return new class() extends Migration
         });
 
         // ── Customers ─────────────────────────────────────────────────────────
-        Schema::connection($c)->create($p . 'customers', function (Blueprint $table) use ($p): void {
+        Schema::connection($c)->create($p . 'customers', function (Blueprint $table): void {
             $table->id();
             $table->string('code', 30)->unique();
             $table->string('name', 300);

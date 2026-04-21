@@ -5,8 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
-use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Enums\SaleOrderStatus;
+use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 

@@ -58,16 +58,19 @@ class Inventory
         $anchorCurrency = strtoupper(config('laravel-open-exchange-rates.default_base_currency', 'USD'));
 
         $sourceToBase = $this->lookupExchangeRate($currency, $baseCurrency, $asOf);
+
         if ($sourceToBase !== null) {
             return $sourceToBase;
         }
 
         $anchorToBase = $this->lookupExchangeRate($anchorCurrency, $baseCurrency, $asOf);
+
         if ($currency === $anchorCurrency && $anchorToBase !== null) {
             return $anchorToBase;
         }
 
         $anchorToCurrency = $this->lookupExchangeRate($anchorCurrency, $currency, $asOf);
+
         if ($anchorToBase !== null && $anchorToCurrency !== null && $anchorToCurrency != 0.0) {
             return round($anchorToBase / $anchorToCurrency, 8);
         }
@@ -136,22 +139,22 @@ class Inventory
 
         $data = [
             'price_tier_code' => $tierCode,
-            'price_amount'   => $priceAmount,
-            'cost_price'     => $options['cost_price'] ?? null,
-            'moq'            => $options['moq'] ?? 1,
-            'price_local'    => $options['price_local'] ?? null,
-            'currency'       => $options['currency'] ?? null,
-            'effective_from' => $options['effective_from'] ?? null,
-            'effective_to'   => $options['effective_to'] ?? null,
-            'is_active'      => $options['is_active'] ?? true,
+            'price_amount'    => $priceAmount,
+            'cost_price'      => $options['cost_price'] ?? null,
+            'moq'             => $options['moq'] ?? 1,
+            'price_local'     => $options['price_local'] ?? null,
+            'currency'        => $options['currency'] ?? null,
+            'effective_from'  => $options['effective_from'] ?? null,
+            'effective_to'    => $options['effective_to'] ?? null,
+            'is_active'       => $options['is_active'] ?? true,
         ];
 
         return ProductPrice::updateOrCreate(
             [
-                'product_id'     => $productId,
-                'price_tier_code'=> $tierCode,
-                'warehouse_id'   => $warehouseId,
-                'effective_from' => $data['effective_from'],
+                'product_id'      => $productId,
+                'price_tier_code' => $tierCode,
+                'warehouse_id'    => $warehouseId,
+                'effective_from'  => $data['effective_from'],
             ],
             $data,
         );

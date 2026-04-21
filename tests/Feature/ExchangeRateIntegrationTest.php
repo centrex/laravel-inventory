@@ -3,8 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Inventory;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\{DB, Schema};
 
 beforeEach(function (): void {
     Schema::create('oer_exchange_rates', function ($table): void {
@@ -35,17 +34,17 @@ it('derives inventory exchange rates from a shared open exchange rates base', fu
 
     DB::table('oer_exchange_rates')->insert([
         [
-            'base' => 'USD',
-            'currency' => 'GBP',
-            'rate' => 0.8,
+            'base'       => 'USD',
+            'currency'   => 'GBP',
+            'rate'       => 0.8,
             'fetched_at' => '2026-04-10 23:59:59',
             'created_at' => now(),
             'updated_at' => now(),
         ],
         [
-            'base' => 'USD',
-            'currency' => 'BDT',
-            'rate' => 120,
+            'base'       => 'USD',
+            'currency'   => 'BDT',
+            'rate'       => 120,
             'fetched_at' => '2026-04-10 23:59:59',
             'created_at' => now(),
             'updated_at' => now(),

@@ -270,6 +270,7 @@ class InventoryEntityRegistry
 
             if (!empty($field['options'])) {
                 $options[$field['name']] = $field['options'];
+
                 continue;
             }
 

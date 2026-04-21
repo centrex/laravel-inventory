@@ -402,11 +402,11 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
         'currency'     => 'BDT',
     ]);
     $customer = Customer::create([
-        'code'          => 'CUS-ERP-1',
-        'name'          => 'ERP Customer',
-        'currency'      => 'BDT',
+        'code'            => 'CUS-ERP-1',
+        'name'            => 'ERP Customer',
+        'currency'        => 'BDT',
         'price_tier_code' => 'b2c_retail',
-        'is_active'     => true,
+        'is_active'       => true,
     ]);
     $product = Product::create([
         'sku'          => 'SKU-ERP-2',
