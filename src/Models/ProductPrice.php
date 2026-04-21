@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -24,13 +25,17 @@ class ProductPrice extends Model
     }
 
     protected $fillable = [
-        'product_id', 'price_tier_id', 'warehouse_id',
-        'price_amount', 'price_local', 'currency',
+        'product_id', 'price_tier_code', 'warehouse_id',
+        'price_amount', 'cost_price', 'moq', 'preorder_moq',
+        'price_local', 'currency',
         'effective_from', 'effective_to', 'is_active',
     ];
 
     protected $casts = [
         'price_amount'   => 'decimal:4',
+        'cost_price'     => 'decimal:4',
+        'moq'            => 'integer',
+        'preorder_moq'   => 'integer',
         'price_local'    => 'decimal:4',
         'effective_from' => 'date',
         'effective_to'   => 'date',
@@ -42,14 +47,14 @@ class ProductPrice extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function priceTier(): BelongsTo
-    {
-        return $this->belongsTo(PriceTier::class);
-    }
-
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function getPriceTierNameAttribute(): ?string
+    {
+        return PriceTierCode::labelFor($this->price_tier_code);
     }
 
     public function isGlobal(): bool

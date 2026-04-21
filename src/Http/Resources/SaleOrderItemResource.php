@@ -15,7 +15,7 @@ class SaleOrderItemResource extends JsonResource
             'id'                => $this->id,
             'sale_order_id'     => $this->sale_order_id,
             'product_id'        => $this->product_id,
-            'price_tier_id'     => $this->price_tier_id,
+            'price_tier_code'   => $this->price_tier_code,
             'qty_ordered'       => $this->qty_ordered,
             'qty_fulfilled'     => $this->qty_fulfilled,
             'unit_price_local'  => $this->unit_price_local,

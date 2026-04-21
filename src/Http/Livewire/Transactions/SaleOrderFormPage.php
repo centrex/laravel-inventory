@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Customer, PriceTier, Product, SaleOrder, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, Product, SaleOrder, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +24,7 @@ class SaleOrderFormPage extends Component
 
     public ?int $customer_id = null;
 
-    public string $price_tier_code = 'retail';
+    public string $price_tier_code = 'b2b_retail';
 
     public string $currency = 'BDT';
 
@@ -45,7 +45,7 @@ class SaleOrderFormPage extends Component
     public function mount(?int $recordId = null, string $documentType = 'order'): void
     {
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
-        $this->price_tier_code = PriceTierCode::RETAIL->value;
+        $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
         $this->items = [$this->blankItem()];
 
         if ($recordId !== null) {
@@ -111,7 +111,7 @@ class SaleOrderFormPage extends Component
             'warehouses'             => Warehouse::query()->orderBy('name')->get(),
             'customers'              => Customer::query()->orderBy('name')->get(),
             'products'               => $products,
-            'priceTiers'             => PriceTier::query()->orderBy('sort_order')->get(),
+            'priceTiers'             => PriceTierCode::options(),
             'selectedCustomer'       => $this->customer_id ? Customer::query()->find($this->customer_id) : null,
             'customerCreditSnapshot' => $this->customer_id ? app(Inventory::class)->customerCreditSnapshot($this->customer_id) : null,
             'isEditing'              => $this->recordId !== null,
@@ -180,7 +180,7 @@ class SaleOrderFormPage extends Component
         $this->recordId = $order->getKey();
         $this->warehouse_id = $order->warehouse_id;
         $this->customer_id = $order->customer_id;
-        $this->price_tier_code = $order->priceTier?->code ?? $this->price_tier_code;
+        $this->price_tier_code = $order->price_tier_code ?: $this->price_tier_code;
         $this->currency = $order->currency;
         $this->exchange_rate = $order->exchange_rate !== null ? (float) $order->exchange_rate : null;
         $this->tax_local = (float) $order->tax_local;
@@ -191,7 +191,7 @@ class SaleOrderFormPage extends Component
         $this->items = $order->items->map(fn ($item): array => [
             'product_id'       => $item->product_id,
             'qty_ordered'      => (float) $item->qty_ordered,
-            'price_tier_code'  => $item->priceTier?->code,
+            'price_tier_code'  => $item->price_tier_code,
             'unit_price_local' => (float) $item->unit_price_local,
             'discount_pct'     => (float) $item->discount_pct,
             'notes'            => (string) ($item->notes ?? ''),
@@ -220,7 +220,6 @@ class SaleOrderFormPage extends Component
             ->get()
             ->keyBy('id');
 
-        $priceTierMap = PriceTier::query()->pluck('id', 'code');
         $subtotal = 0.0;
         $cogs = 0.0;
         $itemsPayload = [];
@@ -236,7 +235,7 @@ class SaleOrderFormPage extends Component
 
             $itemsPayload[] = [
                 'product_id'        => (int) $item['product_id'],
-                'price_tier_id'     => $item['price_tier_code'] ? $priceTierMap[$item['price_tier_code']] ?? null : null,
+                'price_tier_code'   => $item['price_tier_code'] ?: $validated['price_tier_code'],
                 'qty_ordered'       => $qty,
                 'qty_fulfilled'     => 0,
                 'unit_price_local'  => $unitPrice,
@@ -256,7 +255,7 @@ class SaleOrderFormPage extends Component
                 'document_type'            => $validated['document_type'] ?? $saleOrder->document_type,
                 'warehouse_id'             => $validated['warehouse_id'],
                 'customer_id'              => $validated['customer_id'] ?? null,
-                'price_tier_id'            => PriceTier::query()->where('code', $validated['price_tier_code'])->value('id'),
+                'price_tier_code'          => $validated['price_tier_code'],
                 'currency'                 => $validated['currency'],
                 'exchange_rate'            => $validated['exchange_rate'] ?? 1,
                 'subtotal_local'           => round($subtotal, 4),

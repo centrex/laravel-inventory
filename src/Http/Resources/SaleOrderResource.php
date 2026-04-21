@@ -16,7 +16,7 @@ class SaleOrderResource extends JsonResource
             'so_number'                     => $this->so_number,
             'warehouse_id'                  => $this->warehouse_id,
             'customer_id'                   => $this->customer_id,
-            'price_tier_id'                 => $this->price_tier_id,
+            'price_tier_code'               => $this->price_tier_code,
             'currency'                      => $this->currency,
             'exchange_rate'                 => $this->exchange_rate,
             'subtotal_local'                => $this->subtotal_local,

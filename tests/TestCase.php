@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Tests;
 
 use Centrex\Inventory\InventoryServiceProvider;
+use Centrex\LaravelOpenExchangeRates\LaravelOpenExchangeRatesServiceProvider;
 use Centrex\TallUi\TallUiServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,10 @@ class TestCase extends Orchestra
         $providers = [
             InventoryServiceProvider::class,
         ];
+
+        if (class_exists(LaravelOpenExchangeRatesServiceProvider::class)) {
+            $providers[] = LaravelOpenExchangeRatesServiceProvider::class;
+        }
 
         if (class_exists(\Centrex\Accounting\AccountingServiceProvider::class)) {
             $providers[] = \Centrex\Accounting\AccountingServiceProvider::class;
@@ -67,5 +72,7 @@ class TestCase extends Orchestra
         config()->set('accounting.api_middleware', ['api']);
         config()->set('laravel-cart.api_middleware', ['api']);
         config()->set('laravel-cart.api_prefix', 'api');
+        config()->set('laravel-open-exchange-rates.db_connection', 'testing');
+        config()->set('laravel-open-exchange-rates.table_name', 'oer_exchange_rates');
     }
 }

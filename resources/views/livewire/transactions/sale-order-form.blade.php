@@ -50,7 +50,7 @@
             <x-tallui-form-group label="Default Price Tier">
                 <x-tallui-select name="price_tier_code" wire:model="price_tier_code">
                     @foreach ($priceTiers as $tier)
-                        <option value="{{ $tier->code }}">{{ $tier->name }}</option>
+                        <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
                     @endforeach
                 </x-tallui-select>
             </x-tallui-form-group>
@@ -177,7 +177,7 @@
                                 <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model="items.{{ $index }}.price_tier_code" class="select-sm w-full">
                                     <option value="">Default</option>
                                     @foreach ($priceTiers as $tier)
-                                        <option value="{{ $tier->code }}">{{ $tier->name }}</option>
+                                        <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
                                     @endforeach
                                 </x-tallui-select>
                             </td>

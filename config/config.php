@@ -87,7 +87,9 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Auto Seed Price Tiers
+    | Auto Seed Price Tiers (deprecated)
+    | Retained for backward compatibility. Price tiers are enum-backed and
+    | no longer stored in a dedicated database table.
     |--------------------------------------------------------------------------
     */
     'seed_price_tiers' => env('INVENTORY_SEED_PRICE_TIERS', true),

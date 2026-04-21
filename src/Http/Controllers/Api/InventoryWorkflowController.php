@@ -295,7 +295,7 @@ class InventoryWorkflowController extends Controller
             'items.*.notes'               => ['nullable', 'string'],
         ]);
 
-        $validated['price_tier_code'] ??= PriceTierCode::RETAIL->value;
+        $validated['price_tier_code'] ??= PriceTierCode::B2B_RETAIL->value;
 
         $so = $this->inventory->createSaleOrder($validated);
 

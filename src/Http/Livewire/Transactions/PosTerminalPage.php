@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Models\{Customer, PriceTier, Product, Warehouse};
+use Centrex\Inventory\Models\{Customer, Product, Warehouse};
 
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -18,7 +18,7 @@ class PosTerminalPage extends Component
 
     public ?int $customer_id = null;
 
-    public string $price_tier_code = 'retail';
+    public string $price_tier_code = 'b2b_pos';
 
     public string $currency = 'BDT';
 
@@ -34,7 +34,7 @@ class PosTerminalPage extends Component
 
     public function mount(): void
     {
-        $this->price_tier_code = PriceTierCode::RETAIL->value;
+        $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
     }
 
     public function updatedProductId(): void
@@ -138,7 +138,7 @@ class PosTerminalPage extends Component
             'warehouses' => Warehouse::query()->orderBy('name')->get(),
             'customers'  => Customer::query()->orderBy('name')->get(),
             'products'   => Product::query()->orderBy('name')->get(),
-            'priceTiers' => PriceTier::query()->orderBy('sort_order')->get(),
+            'priceTiers' => PriceTierCode::options(),
             'cartItems'  => $cart?->content() ?? collect(),
             'cartCount'  => $cart?->count() ?? 0,
             'cartTotal'  => $cart?->total() ?? 0,

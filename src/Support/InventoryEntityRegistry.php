@@ -4,7 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Models\{Customer, ExchangeRate, PriceTier, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Enums\PriceTierCode;
+use Centrex\Inventory\Models\{Customer, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -104,7 +105,7 @@ class InventoryEntityRegistry
                 'singular'      => 'Customer',
                 'model'         => Customer::class,
                 'search'        => ['code', 'name', 'email', 'phone'],
-                'index_columns' => ['code', 'name', 'email', 'phone', 'currency', 'credit_limit_amount', 'price_tier_id', 'is_active'],
+                'index_columns' => ['code', 'name', 'email', 'phone', 'currency', 'credit_limit_amount', 'price_tier_code', 'is_active'],
                 'form_fields'   => [
                     self::field('code', 'text', ['required', 'string', 'max:30']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
@@ -112,22 +113,9 @@ class InventoryEntityRegistry
                     self::field('phone', 'text', ['nullable', 'string', 'max:50']),
                     self::field('currency', 'text', ['required', 'string', 'size:3'], 'BDT'),
                     self::field('credit_limit_amount', 'number', ['nullable', 'numeric', 'min:0'], 0),
-                    self::field('price_tier_id', 'select', ['nullable', 'integer', 'exists:' . (new PriceTier())->getTable() . ',id'], null, PriceTier::class, 'name'),
+                    self::field('price_tier_code', 'select', ['nullable', 'string', Rule::in(PriceTierCode::values())], null, null, null, PriceTierCode::options()),
                     self::field('is_active', 'checkbox', ['boolean'], true),
                     self::field('meta', 'json', ['nullable', 'array'], []),
-                ],
-            ],
-            'price-tiers' => [
-                'label'         => 'Price Tiers',
-                'singular'      => 'Price Tier',
-                'model'         => PriceTier::class,
-                'search'        => ['code', 'name'],
-                'index_columns' => ['code', 'name', 'sort_order', 'is_active'],
-                'form_fields'   => [
-                    self::field('code', 'text', ['required', 'string', 'max:30']),
-                    self::field('name', 'text', ['required', 'string', 'max:100']),
-                    self::field('sort_order', 'number', ['nullable', 'integer', 'min:0'], 0),
-                    self::field('is_active', 'checkbox', ['boolean'], true),
                 ],
             ],
             'product-prices' => [
@@ -135,30 +123,20 @@ class InventoryEntityRegistry
                 'singular'      => 'Product Price',
                 'model'         => ProductPrice::class,
                 'search'        => [],
-                'index_columns' => ['product_id', 'price_tier_id', 'warehouse_id', 'price_amount', 'currency', 'effective_from', 'effective_to', 'is_active'],
+                'index_columns' => ['product_id', 'price_tier_code', 'warehouse_id', 'price_amount', 'cost_price', 'moq', 'preorder_moq', 'currency', 'effective_from', 'effective_to', 'is_active'],
                 'form_fields'   => [
                     self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),
-                    self::field('price_tier_id', 'select', ['required', 'integer', 'exists:' . (new PriceTier())->getTable() . ',id'], null, PriceTier::class, 'name'),
+                    self::field('price_tier_code', 'select', ['required', 'string', Rule::in(PriceTierCode::values())], null, null, null, PriceTierCode::options()),
                     self::field('warehouse_id', 'select', ['nullable', 'integer', 'exists:' . (new Warehouse())->getTable() . ',id'], null, Warehouse::class, 'name'),
                     self::field('price_amount', 'number', ['required', 'numeric', 'min:0']),
+                    self::field('cost_price', 'number', ['nullable', 'numeric', 'min:0']),
+                    self::field('moq', 'number', ['nullable', 'integer', 'min:1'], 1),
+                    self::field('preorder_moq', 'number', ['nullable', 'integer', 'min:1']),
                     self::field('price_local', 'number', ['nullable', 'numeric', 'min:0']),
                     self::field('currency', 'text', ['nullable', 'string', 'size:3']),
                     self::field('effective_from', 'date', ['nullable', 'date']),
                     self::field('effective_to', 'date', ['nullable', 'date', 'after_or_equal:effective_from']),
                     self::field('is_active', 'checkbox', ['boolean'], true),
-                ],
-            ],
-            'exchange-rates' => [
-                'label'         => 'Exchange Rates',
-                'singular'      => 'Exchange Rate',
-                'model'         => ExchangeRate::class,
-                'search'        => ['currency', 'source'],
-                'index_columns' => ['currency', 'rate', 'source', 'valid_at'],
-                'form_fields'   => [
-                    self::field('currency', 'text', ['required', 'string', 'size:3']),
-                    self::field('rate', 'number', ['required', 'numeric', 'gt:0']),
-                    self::field('source', 'text', ['required', 'string', 'max:30'], 'manual'),
-                    self::field('valid_at', 'date', ['required', 'date']),
                 ],
             ],
             'warehouse-products' => [
@@ -224,12 +202,6 @@ class InventoryEntityRegistry
                 $fieldRules[] = Rule::unique($table, $field['name'])->ignore($record?->getKey());
             }
 
-            if ($entity === 'exchange-rates' && $field['name'] === 'currency') {
-                $fieldRules[] = Rule::unique($table, 'currency')
-                    ->where(fn ($query) => $query->where('valid_at', $payload['valid_at'] ?? null))
-                    ->ignore($record?->getKey());
-            }
-
             $rules[$field['name']] = $fieldRules;
         }
 
@@ -292,7 +264,16 @@ class InventoryEntityRegistry
         $options = [];
 
         foreach ($definition['form_fields'] as $field) {
-            if (($field['type'] ?? null) !== 'select' || empty($field['related_model'])) {
+            if (($field['type'] ?? null) !== 'select') {
+                continue;
+            }
+
+            if (!empty($field['options'])) {
+                $options[$field['name']] = $field['options'];
+                continue;
+            }
+
+            if (empty($field['related_model'])) {
                 continue;
             }
 
@@ -327,6 +308,7 @@ class InventoryEntityRegistry
         mixed $default = null,
         ?string $relatedModel = null,
         ?string $relatedLabel = null,
+        ?array $options = null,
     ): array {
         return [
             'name'          => $name,
@@ -336,6 +318,7 @@ class InventoryEntityRegistry
             'default'       => $default,
             'related_model' => $relatedModel,
             'related_label' => $relatedLabel,
+            'options'       => $options,
         ];
     }
 }

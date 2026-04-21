@@ -3,11 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Customer, PriceTier, Product, PurchaseOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
-
-beforeEach(function (): void {
-    app(Inventory::class)->seedPriceTiers();
-});
+use Centrex\Inventory\Models\{Customer, Product, PurchaseOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
 
 it('prevents crossing purchase order items when creating stock receipts', function (): void {
     $inventory = app(Inventory::class);
@@ -86,7 +82,7 @@ it('prevents fulfilling more than the remaining sale order quantity', function (
     $saleOrder = $inventory->createSaleOrder([
         'warehouse_id'    => $warehouse->id,
         'currency'        => 'BDT',
-        'price_tier_code' => PriceTier::where('code', 'retail')->value('code'),
+        'price_tier_code' => 'b2c_retail',
         'items'           => [[
             'product_id'       => $product->id,
             'qty_ordered'      => 5,
@@ -115,7 +111,7 @@ it('blocks sale orders that exceed a customer credit limit without approval', fu
         'name'                => 'Limited Customer',
         'currency'            => 'BDT',
         'credit_limit_amount' => 1000,
-        'price_tier_id'       => PriceTier::where('code', 'retail')->value('id'),
+        'price_tier_code'     => 'b2c_retail',
         'is_active'           => true,
     ]);
     $product = Product::create([
@@ -129,7 +125,7 @@ it('blocks sale orders that exceed a customer credit limit without approval', fu
         'warehouse_id'    => $warehouse->id,
         'customer_id'     => $customer->id,
         'currency'        => 'BDT',
-        'price_tier_code' => PriceTier::where('code', 'retail')->value('code'),
+        'price_tier_code' => 'b2c_retail',
         'items'           => [[
             'product_id'       => $product->id,
             'qty_ordered'      => 2,
@@ -151,7 +147,7 @@ it('stores higher-authority credit override details on sale orders', function ()
         'name'                => 'Approved Customer',
         'currency'            => 'BDT',
         'credit_limit_amount' => 1000,
-        'price_tier_id'       => PriceTier::where('code', 'retail')->value('id'),
+        'price_tier_code'     => 'b2c_retail',
         'is_active'           => true,
     ]);
     $product = Product::create([
@@ -165,7 +161,7 @@ it('stores higher-authority credit override details on sale orders', function ()
         'warehouse_id'          => $warehouse->id,
         'customer_id'           => $customer->id,
         'currency'              => 'BDT',
-        'price_tier_code'       => PriceTier::where('code', 'retail')->value('code'),
+        'price_tier_code'       => 'b2c_retail',
         'created_by'            => 88,
         'credit_override'       => true,
         'credit_override_notes' => 'Approved by finance manager.',
@@ -409,7 +405,7 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
         'code'          => 'CUS-ERP-1',
         'name'          => 'ERP Customer',
         'currency'      => 'BDT',
-        'price_tier_id' => PriceTier::where('code', 'retail')->value('id'),
+        'price_tier_code' => 'b2c_retail',
         'is_active'     => true,
     ]);
     $product = Product::create([
@@ -432,7 +428,7 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
         'warehouse_id'    => $warehouse->id,
         'customer_id'     => $customer->id,
         'currency'        => 'BDT',
-        'price_tier_code' => PriceTier::where('code', 'retail')->value('code'),
+        'price_tier_code' => 'b2c_retail',
         'items'           => [[
             'product_id'       => $product->id,
             'qty_ordered'      => 2,

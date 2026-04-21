@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -24,7 +25,7 @@ class SaleOrderItem extends Model
     }
 
     protected $fillable = [
-        'sale_order_id', 'product_id', 'price_tier_id',
+        'sale_order_id', 'product_id', 'price_tier_code',
         'qty_ordered', 'qty_fulfilled',
         'unit_price_local', 'unit_price_amount', 'unit_cost_amount',
         'discount_pct', 'line_total_local', 'line_total_amount',
@@ -52,11 +53,6 @@ class SaleOrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function priceTier(): BelongsTo
-    {
-        return $this->belongsTo(PriceTier::class);
-    }
-
     public function lineCogsAmount(): float
     {
         return round((float) $this->qty_fulfilled * (float) $this->unit_cost_amount, 4);
@@ -65,5 +61,10 @@ class SaleOrderItem extends Model
     public function lineCogsBdt(): float
     {
         return $this->lineCogsAmount();
+    }
+
+    public function getPriceTierNameAttribute(): ?string
+    {
+        return PriceTierCode::labelFor($this->price_tier_code);
     }
 }

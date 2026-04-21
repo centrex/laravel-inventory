@@ -31,7 +31,7 @@
                 <div><span class="text-base-content/50">Shop</span><div class="font-medium">{{ data_get($record->customer?->meta, 'company_name') ?: ($record->customer?->name ?? 'Walk-in') }}</div></div>
                 <div><span class="text-base-content/50">Warehouse</span><div class="font-medium">{{ $record->warehouse?->name ?? '—' }}</div></div>
                 <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $record->status?->label() ?? '—' }}</div></div>
-                <div><span class="text-base-content/50">Price Tier</span><div class="font-medium">{{ $record->priceTier?->name ?? '—' }}</div></div>
+                <div><span class="text-base-content/50">Price Tier</span><div class="font-medium">{{ $record->price_tier_name ?? '—' }}</div></div>
                 <div><span class="text-base-content/50">Ordered At</span><div class="font-medium">{{ $record->ordered_at?->format('M d, Y h:i A') ?? '—' }}</div></div>
                 <div><span class="text-base-content/50">Notes</span><div class="font-medium whitespace-pre-line">{{ $record->notes ?: '—' }}</div></div>
             </div>

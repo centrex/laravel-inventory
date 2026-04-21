@@ -22,7 +22,7 @@ class SaleOrderShowPage extends Component
     {
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->record = SaleOrder::query()
-            ->with(['customer', 'warehouse', 'priceTier', 'items.product'])
+            ->with(['customer', 'warehouse', 'items.product'])
             ->where('document_type', $this->documentType)
             ->findOrFail($recordId);
 

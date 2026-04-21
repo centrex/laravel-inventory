@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Enums\PriceTierCode;
 use Centrex\Inventory\Enums\SaleOrderStatus;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
@@ -26,7 +27,7 @@ class SaleOrder extends Model
     }
 
     protected $fillable = [
-        'so_number', 'document_type', 'warehouse_id', 'customer_id', 'price_tier_id',
+        'so_number', 'document_type', 'warehouse_id', 'customer_id', 'price_tier_code',
         'currency', 'exchange_rate',
         'subtotal_local', 'subtotal_amount',
         'tax_local', 'tax_amount',
@@ -69,14 +70,14 @@ class SaleOrder extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function priceTier(): BelongsTo
-    {
-        return $this->belongsTo(PriceTier::class);
-    }
-
     public function items(): HasMany
     {
         return $this->hasMany(SaleOrderItem::class);
+    }
+
+    public function getPriceTierNameAttribute(): ?string
+    {
+        return PriceTierCode::labelFor($this->price_tier_code);
     }
 
     public function grossProfitAmount(): float

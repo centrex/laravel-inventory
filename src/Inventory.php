@@ -4,10 +4,12 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
+use Carbon\Carbon;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, ExchangeRate, PriceTier, Product, ProductCategory, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, Product, ProductCategory, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\ErpIntegration;
+use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate};
@@ -18,14 +20,22 @@ class Inventory
     // Exchange Rates
     // -------------------------------------------------------------------------
 
-    public function setExchangeRate(string $currency, float $rate, ?string $date = null, string $source = 'manual'): ExchangeRate
+    public function setExchangeRate(string $currency, float $rate, ?string $date = null, string $source = 'manual'): OpenExchangeRate
     {
-        $date ??= now()->toDateString();
+        $baseCurrency = strtoupper(config('inventory.base_currency', 'BDT'));
+        $currency = strtoupper($currency);
+        $fetchedAt = Carbon::parse($date ?? now()->toDateString())->endOfDay();
 
-        return ExchangeRate::updateOrCreate(
-            ['currency' => strtoupper($currency), 'valid_at' => $date],
-            ['rate' => $rate, 'source' => $source],
-        );
+        OpenExchangeRate::upsertRates([
+            $currency => $rate,
+        ], $baseCurrency, $fetchedAt);
+
+        return OpenExchangeRate::query()
+            ->where('base', $baseCurrency)
+            ->where('currency', $currency)
+            ->where('fetched_at', '<=', $fetchedAt->toDateTimeString())
+            ->latest('fetched_at')
+            ->firstOrFail();
     }
 
     public function getExchangeRate(string $currency, ?string $date = null): float
@@ -37,17 +47,32 @@ class Inventory
         }
 
         $date ??= now()->toDateString();
+        $asOf = Carbon::parse($date)->endOfDay();
 
-        $rate = ExchangeRate::where('currency', $currency)
-            ->where('valid_at', '<=', $date)
-            ->orderByDesc('valid_at')
-            ->first();
+        $rate = $this->lookupExchangeRate($baseCurrency = strtoupper(config('inventory.base_currency', 'BDT')), $currency, $asOf);
 
-        if (!$rate) {
-            throw new \RuntimeException("No exchange rate found for currency [{$currency}] on or before [{$date}].");
+        if ($rate !== null) {
+            return $rate;
         }
 
-        return (float) $rate->rate;
+        $anchorCurrency = strtoupper(config('laravel-open-exchange-rates.default_base_currency', 'USD'));
+
+        $sourceToBase = $this->lookupExchangeRate($currency, $baseCurrency, $asOf);
+        if ($sourceToBase !== null) {
+            return $sourceToBase;
+        }
+
+        $anchorToBase = $this->lookupExchangeRate($anchorCurrency, $baseCurrency, $asOf);
+        if ($currency === $anchorCurrency && $anchorToBase !== null) {
+            return $anchorToBase;
+        }
+
+        $anchorToCurrency = $this->lookupExchangeRate($anchorCurrency, $currency, $asOf);
+        if ($anchorToBase !== null && $anchorToCurrency !== null && $anchorToCurrency != 0.0) {
+            return round($anchorToBase / $anchorToCurrency, 8);
+        }
+
+        throw new \RuntimeException("No exchange rate found for currency [{$currency}] on or before [{$date}].");
     }
 
     public function convertToBase(float $amount, string $currency, ?string $date = null): float
@@ -76,18 +101,25 @@ class Inventory
         return $this->convertFromBase($amountBdt, $currency, $date);
     }
 
+    private function lookupExchangeRate(string $base, string $currency, Carbon $asOf): ?float
+    {
+        $row = OpenExchangeRate::query()
+            ->where('base', strtoupper($base))
+            ->where('currency', strtoupper($currency))
+            ->where('fetched_at', '<=', $asOf->toDateTimeString())
+            ->orderByDesc('fetched_at')
+            ->first();
+
+        return $row ? (float) $row->rate : null;
+    }
+
     // -------------------------------------------------------------------------
     // Price Tiers
     // -------------------------------------------------------------------------
 
     public function seedPriceTiers(): void
     {
-        foreach (PriceTierCode::cases() as $tier) {
-            PriceTier::firstOrCreate(
-                ['code' => $tier->value],
-                ['name' => $tier->label(), 'sort_order' => $tier->sortOrder(), 'is_active' => true],
-            );
-        }
+        // Price tiers are enum-backed and no longer persisted in a dedicated table.
     }
 
     // -------------------------------------------------------------------------
@@ -100,10 +132,13 @@ class Inventory
      */
     public function setPrice(int $productId, string $tierCode, float $priceAmount, ?int $warehouseId = null, array $options = []): ProductPrice
     {
-        $tier = PriceTier::where('code', $tierCode)->firstOrFail();
+        $tierCode = $this->normalizePriceTierCode($tierCode);
 
         $data = [
+            'price_tier_code' => $tierCode,
             'price_amount'   => $priceAmount,
+            'cost_price'     => $options['cost_price'] ?? null,
+            'moq'            => $options['moq'] ?? 1,
             'price_local'    => $options['price_local'] ?? null,
             'currency'       => $options['currency'] ?? null,
             'effective_from' => $options['effective_from'] ?? null,
@@ -114,7 +149,7 @@ class Inventory
         return ProductPrice::updateOrCreate(
             [
                 'product_id'     => $productId,
-                'price_tier_id'  => $tier->id,
+                'price_tier_code'=> $tierCode,
                 'warehouse_id'   => $warehouseId,
                 'effective_from' => $data['effective_from'],
             ],
@@ -128,11 +163,11 @@ class Inventory
      */
     public function resolvePrice(int $productId, string $tierCode, int $warehouseId, ?string $date = null): ProductPrice
     {
-        $tier = PriceTier::where('code', $tierCode)->firstOrFail();
+        $tierCode = $this->normalizePriceTierCode($tierCode);
         $date ??= now()->toDateString();
 
         $base = ProductPrice::where('product_id', $productId)
-            ->where('price_tier_id', $tier->id)
+            ->where('price_tier_code', $tierCode)
             ->where('is_active', true)
             ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $date))
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date));
@@ -156,17 +191,17 @@ class Inventory
      */
     public function getPriceSheet(int $productId, int $warehouseId, ?string $date = null): Collection
     {
-        return PriceTier::where('is_active', true)->orderBy('sort_order')->get()
-            ->map(function (PriceTier $tier) use ($productId, $warehouseId, $date) {
+        return collect(PriceTierCode::ordered())
+            ->map(function (PriceTierCode $tier) use ($productId, $warehouseId, $date) {
                 try {
-                    $price = $this->resolvePrice($productId, $tier->code, $warehouseId, $date);
+                    $price = $this->resolvePrice($productId, $tier->value, $warehouseId, $date);
                 } catch (PriceNotFoundException) {
                     $price = null;
                 }
 
                 return [
-                    'tier_code'    => $tier->code,
-                    'tier_name'    => $tier->name,
+                    'tier_code'    => $tier->value,
+                    'tier_name'    => $tier->label(),
                     'price_amount' => $price?->price_amount,
                     'price_local'  => $price?->price_local,
                     'currency'     => $price?->currency,
@@ -554,7 +589,7 @@ class Inventory
     public function createSaleOrder(array $data): SaleOrder
     {
         $so = DB::transaction(function () use ($data): SaleOrder {
-            $tier = PriceTier::where('code', $data['price_tier_code'] ?? PriceTierCode::RETAIL->value)->firstOrFail();
+            $tierCode = $this->normalizePriceTierCode($data['price_tier_code'] ?? PriceTierCode::B2B_RETAIL->value);
             $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
             $customer = isset($data['customer_id']) ? Customer::findOrFail($data['customer_id']) : null;
             $documentType = $this->normalizeSaleDocumentType($data['document_type'] ?? null);
@@ -565,13 +600,13 @@ class Inventory
             $subtotalLocal = 0.0;
 
             foreach ($data['items'] as $item) {
-                $itemTier = isset($item['price_tier_code'])
-                    ? PriceTier::where('code', $item['price_tier_code'])->firstOrFail()
-                    : $tier;
+                $itemTierCode = isset($item['price_tier_code'])
+                    ? $this->normalizePriceTierCode($item['price_tier_code'])
+                    : $tierCode;
 
                 $unitPriceBdt = isset($item['unit_price_local'])
                     ? round((float) $item['unit_price_local'] * $rate, 4)
-                    : (float) $this->resolvePrice($item['product_id'], $itemTier->code, $data['warehouse_id'])->price_amount;
+                    : (float) $this->resolvePrice($item['product_id'], $itemTierCode, $data['warehouse_id'])->price_amount;
 
                 $unitPriceLocal = round($unitPriceBdt / ($rate ?: 1), 4);
                 $qty = (float) $item['qty_ordered'];
@@ -582,7 +617,7 @@ class Inventory
 
                 $lineItems[] = [
                     'product_id'        => $item['product_id'],
-                    'price_tier_id'     => $itemTier->id,
+                    'price_tier_code'   => $itemTierCode,
                     'qty_ordered'       => $qty,
                     'qty_fulfilled'     => 0,
                     'unit_price_local'  => $unitPriceLocal,
@@ -605,7 +640,7 @@ class Inventory
                 'document_type'                 => $documentType,
                 'warehouse_id'                  => $data['warehouse_id'],
                 'customer_id'                   => $data['customer_id'] ?? null,
-                'price_tier_id'                 => $tier->id,
+                'price_tier_code'               => $tierCode,
                 'currency'                      => strtoupper($data['currency']),
                 'exchange_rate'                 => $rate,
                 'status'                        => SaleOrderStatus::DRAFT,
@@ -634,7 +669,7 @@ class Inventory
                 SaleOrderItem::create([
                     'sale_order_id'     => $so->id,
                     'product_id'        => $lineItem['product_id'],
-                    'price_tier_id'     => $lineItem['price_tier_id'],
+                    'price_tier_code'   => $lineItem['price_tier_code'],
                     'qty_ordered'       => $lineItem['qty_ordered'],
                     'qty_fulfilled'     => $lineItem['qty_fulfilled'],
                     'unit_price_local'  => $lineItem['unit_price_local'],
@@ -653,6 +688,17 @@ class Inventory
         $this->erp()->syncSaleOrderDocument($so);
 
         return $so;
+    }
+
+    private function normalizePriceTierCode(string $tierCode): string
+    {
+        $tier = PriceTierCode::tryFrom($tierCode);
+
+        if (!$tier) {
+            throw new \InvalidArgumentException("Unknown price tier [{$tierCode}].");
+        }
+
+        return $tier->value;
     }
 
     public function createSaleReturn(array $data): SaleReturn
@@ -1418,7 +1464,7 @@ class Inventory
         ?int $categoryId = null,
     ): Collection {
         return Product::query()
-            ->with(['category', 'brand', 'warehouseProducts', 'prices.priceTier'])
+            ->with(['category', 'brand', 'warehouseProducts', 'prices'])
             ->when($activeOnly, fn ($q) => $q->where('is_active', true))
             ->when($availableOnly, fn ($q) => $q->whereHas('warehouseProducts', fn ($wq) => $wq->whereRaw('qty_on_hand > qty_reserved')))
             ->when($search, fn ($q) => $q->where(fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%")))
@@ -1433,7 +1479,7 @@ class Inventory
     public function findProduct(int $id): ?Product
     {
         return Product::query()
-            ->with(['category', 'brand', 'warehouseProducts', 'prices.priceTier'])
+            ->with(['category', 'brand', 'warehouseProducts', 'prices'])
             ->find($id);
     }
 
