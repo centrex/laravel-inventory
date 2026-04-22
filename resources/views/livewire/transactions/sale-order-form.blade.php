@@ -30,7 +30,7 @@
     <x-tallui-card title="Order Details" subtitle="Customer, pricing tier, and currency settings." icon="o-banknotes" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <x-tallui-form-group label="Warehouse *" :error="$errors->first('warehouse_id')">
-                <x-tallui-select name="warehouse_id" wire:model="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
+                <x-tallui-select name="warehouse_id" wire:model.live="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
                     <option value="">Select warehouse…</option>
                     @foreach ($warehouses as $warehouse)
                         <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
@@ -48,7 +48,7 @@
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Default Price Tier">
-                <x-tallui-select name="price_tier_code" wire:model="price_tier_code">
+                <x-tallui-select name="price_tier_code" wire:model.live="price_tier_code">
                     @foreach ($priceTiers as $tier)
                         <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
                     @endforeach
@@ -160,7 +160,7 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="so-item-{{ $index }}" class="hover:bg-base-50">
                             <td class="pl-5 py-2">
-                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model="items.{{ $index }}.product_id" class="select-sm w-full">
+                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model.live="items.{{ $index }}.product_id" class="select-sm w-full">
                                     <option value="">Select product…</option>
                                     @foreach ($products as $product)
                                         <option value="{{ $product->id }}">{{ $product->name }}</option>
@@ -174,7 +174,7 @@
                                 {{ number_format((float) ($availableStock->get($item['product_id'] ?? 0)?->qtyAvailable() ?? 0), 4) }}
                             </td>
                             <td class="py-2">
-                                <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model="items.{{ $index }}.price_tier_code" class="select-sm w-full">
+                                <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model.live="items.{{ $index }}.price_tier_code" class="select-sm w-full">
                                     <option value="">Default</option>
                                     @foreach ($priceTiers as $tier)
                                         <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>

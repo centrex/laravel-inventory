@@ -4,9 +4,9 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Enums\PurchaseOrderStatus;
+use Centrex\Inventory\Enums\{PriceTierCode, PurchaseOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse};
+use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -39,13 +39,28 @@ class PurchaseOrderFormPage extends Component
 
     public array $items = [];
 
-    public function mount(?int $recordId = null, string $documentType = 'order'): void
+    public function mount(int|string|null $recordId = null, string $documentType = 'order'): void
     {
+        $recordId = is_numeric($recordId) && (int) $recordId > 0 ? (int) $recordId : null;
+
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
         $this->items = [$this->blankItem()];
 
         if ($recordId !== null) {
             $this->loadOrder($recordId);
+        } else {
+            $first = Warehouse::query()->orderBy('id')->first();
+
+            if ($first) {
+                $this->warehouse_id = $first->id;
+            }
+        }
+    }
+
+    public function updated(string $property): void
+    {
+        if (preg_match('/^items\.(\d+)\.product_id$/', $property, $matches)) {
+            $this->syncItemPrice((int) $matches[1]);
         }
     }
 
@@ -80,16 +95,44 @@ class PurchaseOrderFormPage extends Component
 
     public function render(): View
     {
+        $onHandStock = $this->warehouse_id
+            ? WarehouseProduct::query()
+                ->where('warehouse_id', $this->warehouse_id)
+                ->get()
+                ->keyBy('product_id')
+            : collect();
+
         return view('inventory::livewire.transactions.purchase-order-form', [
-            'warehouses'    => Warehouse::query()->orderBy('name')->get(),
+            'warehouses'    => Warehouse::query()->orderBy('id')->get(),
             'suppliers'     => Supplier::query()->orderBy('name')->get(),
-            'products'      => Product::query()->orderBy('name')->get(),
+            'products'      => Product::query()->where('is_active', true)->orderBy('name')->get(),
+            'onHandStock'   => $onHandStock,
             'isEditing'     => $this->recordId !== null,
             'editable'      => $this->canEdit(),
             'record'        => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
             'documentLabel' => $this->documentLabel(),
             'routeBase'     => $this->routeBase(),
         ]);
+    }
+
+    private function syncItemPrice(int $index): void
+    {
+        $productId = (int) ($this->items[$index]['product_id'] ?? 0);
+
+        if (!$productId) {
+            return;
+        }
+
+        try {
+            $price = app(Inventory::class)->resolvePrice($productId, PriceTierCode::BASE->value, (int) ($this->warehouse_id ?? 0));
+            $this->items[$index]['unit_price_local'] = (float) ($price->price_local ?: app(Inventory::class)->convertFromBase((float) $price->price_amount, $this->currency ?: 'BDT'));
+        } catch (\Throwable) {
+            $defaultPrice = (float) (Product::find($productId)?->meta['default_price'] ?? 0);
+
+            if ($defaultPrice > 0) {
+                $this->items[$index]['unit_price_local'] = $defaultPrice;
+            }
+        }
     }
 
     private function rules(): array

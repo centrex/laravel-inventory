@@ -42,14 +42,22 @@ class SaleOrderFormPage extends Component
 
     public array $items = [];
 
-    public function mount(?int $recordId = null, string $documentType = 'order'): void
+    public function mount(int|string|null $recordId = null, string $documentType = 'order'): void
     {
+        $recordId = is_numeric($recordId) && (int) $recordId > 0 ? (int) $recordId : null;
+
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
         $this->items = [$this->blankItem()];
 
         if ($recordId !== null) {
             $this->loadOrder($recordId);
+        } else {
+            $first = Warehouse::query()->orderBy('id')->first();
+
+            if ($first) {
+                $this->warehouse_id = $first->id;
+            }
         }
     }
 
@@ -108,7 +116,7 @@ class SaleOrderFormPage extends Component
             ->get();
 
         return view('inventory::livewire.transactions.sale-order-form', [
-            'warehouses'             => Warehouse::query()->orderBy('name')->get(),
+            'warehouses'             => Warehouse::query()->orderBy('id')->get(),
             'customers'              => Customer::query()->orderBy('name')->get(),
             'products'               => $products,
             'priceTiers'             => PriceTierCode::options(),
@@ -166,7 +174,7 @@ class SaleOrderFormPage extends Component
         return [
             'product_id'       => null,
             'qty_ordered'      => 1,
-            'price_tier_code'  => null,
+            'price_tier_code'  => PriceTierCode::B2B_RETAIL->value,
             'unit_price_local' => null,
             'discount_pct'     => 0,
             'notes'            => '',
@@ -311,10 +319,13 @@ class SaleOrderFormPage extends Component
         $productId = (int) ($this->items[$index]['product_id'] ?? 0);
 
         if (!$productId || !$this->warehouse_id) {
+            $this->items[$index]['unit_price_local'] = null;
+
             return;
         }
 
-        $tierCode = $this->items[$index]['price_tier_code'] ?: $this->price_tier_code;
+        $tierCode = $this->items[$index]['price_tier_code'] ?: $this->price_tier_code ?: PriceTierCode::B2B_RETAIL->value;
+        $this->items[$index]['price_tier_code'] = $tierCode;
 
         try {
             $price = app(Inventory::class)->resolvePrice($productId, $tierCode, (int) $this->warehouse_id);

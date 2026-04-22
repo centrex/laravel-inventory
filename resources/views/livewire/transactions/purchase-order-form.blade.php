@@ -30,7 +30,7 @@
     <x-tallui-card title="Order Details" subtitle="Supplier, warehouse, and cost settings." icon="o-document-arrow-down" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <x-tallui-form-group label="Warehouse *" :error="$errors->first('warehouse_id')">
-                <x-tallui-select name="warehouse_id" wire:model="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
+                <x-tallui-select name="warehouse_id" wire:model.live="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
                     <option value="">Select warehouse…</option>
                     @foreach ($warehouses as $warehouse)
                         <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
@@ -99,6 +99,7 @@
                     <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
                         <th class="pl-5 w-64">Product</th>
                         <th class="w-28">Qty Ordered</th>
+                        <th class="w-24">On Hand</th>
                         <th class="w-36">Unit Price (Local)</th>
                         <th>Notes</th>
                         <th class="pr-5 w-20"></th>
@@ -110,7 +111,7 @@
                             <td class="pl-5 py-2">
                                 <x-tallui-select
                                     name="items.{{ $index }}.product_id"
-                                    wire:model="items.{{ $index }}.product_id"
+                                    wire:model.live="items.{{ $index }}.product_id"
                                     class="select-sm w-full"
                                 >
                                     <option value="">Select product…</option>
@@ -126,6 +127,9 @@
                                     wire:model="items.{{ $index }}.qty_ordered"
                                     class="input-sm text-right w-full"
                                 />
+                            </td>
+                            <td class="py-2 text-sm text-base-content/70">
+                                {{ number_format((float) ($onHandStock->get($item['product_id'] ?? 0)?->qty_on_hand ?? 0), 4) }}
                             </td>
                             <td class="py-2">
                                 <x-tallui-input
@@ -156,7 +160,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="py-6 text-center">
+                            <td colspan="6" class="py-6 text-center">
                                 <x-tallui-empty-state
                                     title="No items yet"
                                     description="Add at least one product line."

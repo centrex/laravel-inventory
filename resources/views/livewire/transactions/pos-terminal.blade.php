@@ -1,180 +1,249 @@
-<div>
-<x-tallui-notification />
-
-<x-tallui-page-header
-    title="POS Terminal"
-    subtitle="Ring up counter sales, then post directly into inventory and accounting."
-    icon="o-device-phone-mobile"
+<div
+    class="flex flex-col overflow-hidden bg-base-100"
+    style="height: 100dvh"
+    x-data="{ fullscreen: false }"
+    @fullscreenchange.window="fullscreen = !!document.fullscreenElement"
 >
-    <x-slot:breadcrumbs>
-        <x-tallui-breadcrumb :links="[
-            ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'POS Terminal'],
-        ]" />
-    </x-slot:breadcrumbs>
-    <x-slot:actions>
-        <x-tallui-badge type="secondary">POS</x-tallui-badge>
-    </x-slot:actions>
-</x-tallui-page-header>
+    <x-tallui-notification />
 
-@if ($errorMessage)
-    <x-tallui-alert type="error" title="POS unavailable" class="mb-4">{{ $errorMessage }}</x-tallui-alert>
-@endif
+    {{-- ── TOP TOOLBAR ── --}}
+    <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-300 flex-shrink-0 flex-wrap gap-y-2">
 
-<div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {{-- Brand --}}
+        <div class="flex items-center gap-2 mr-2 flex-shrink-0">
+            <x-heroicon-o-device-phone-mobile class="w-6 h-6 text-primary" />
+            <span class="font-bold text-base hidden sm:block leading-none">POS Terminal</span>
+        </div>
 
-    {{-- Left: Add items panel --}}
-    <div class="lg:col-span-3 space-y-4">
-        <x-tallui-card title="Add Item" subtitle="Configure session and select a product to add." icon="o-plus-circle" :shadow="true">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <x-tallui-form-group label="Warehouse">
-                    <x-tallui-select name="warehouse_id" wire:model="warehouse_id">
-                        <option value="">Select warehouse…</option>
-                        @foreach ($warehouses as $warehouse)
-                            <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                        @endforeach
-                    </x-tallui-select>
-                </x-tallui-form-group>
+        {{-- Session controls --}}
+        <div class="flex items-center gap-2 flex-1 flex-wrap gap-y-1 min-w-0">
+            <select wire:model="warehouse_id" class="select select-sm select-bordered flex-1 min-w-28">
+                <option value="">Warehouse…</option>
+                @foreach ($warehouses as $w)
+                    <option value="{{ $w->id }}">{{ $w->name }}</option>
+                @endforeach
+            </select>
 
-                <x-tallui-form-group label="Customer">
-                    <x-tallui-select name="customer_id" wire:model="customer_id">
-                        <option value="">Walk-in customer</option>
-                        @foreach ($customers as $customer)
-                            <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                        @endforeach
-                    </x-tallui-select>
-                </x-tallui-form-group>
+            <select wire:model="customer_id" class="select select-sm select-bordered flex-1 min-w-28">
+                <option value="">Walk-in</option>
+                @foreach ($customers as $c)
+                    <option value="{{ $c->id }}">{{ $c->name }}</option>
+                @endforeach
+            </select>
 
-                <x-tallui-form-group label="Price Tier">
-                    <x-tallui-select name="price_tier_code" wire:model="price_tier_code">
-                        @foreach ($priceTiers as $tier)
-                            <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
-                        @endforeach
-                    </x-tallui-select>
-                </x-tallui-form-group>
+            <select wire:model="price_tier_code" class="select select-sm select-bordered flex-1 min-w-28">
+                @foreach ($priceTiers as $tier)
+                    <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
+                @endforeach
+            </select>
 
-                <x-tallui-form-group label="Currency">
-                    <x-tallui-input name="currency" wire:model="currency" placeholder="BDT" />
-                </x-tallui-form-group>
-            </div>
+            <input wire:model="currency" class="input input-sm input-bordered w-16 text-center font-mono uppercase" placeholder="BDT" maxlength="3" />
+        </div>
 
-            <div class="divider my-3 text-xs text-base-content/40">Add Product</div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="md:col-span-2">
-                    <x-tallui-form-group label="Product">
-                        <x-tallui-select name="product_id" wire:model.live="product_id">
-                            <option value="">Select product…</option>
-                            @foreach ($products as $product)
-                                <option value="{{ $product->id }}">{{ $product->name }} ({{ $product->sku }})</option>
-                            @endforeach
-                        </x-tallui-select>
-                    </x-tallui-form-group>
-                </div>
-
-                <x-tallui-form-group label="Quantity">
-                    <x-tallui-input name="qty" type="number" min="1" step="1" wire:model="qty" class="text-right" />
-                </x-tallui-form-group>
-
-                <x-tallui-form-group label="Unit Price (Local)">
-                    <x-tallui-input name="unit_price_local" type="number" step="0.0001" min="0" wire:model="unit_price_local" class="text-right" />
-                </x-tallui-form-group>
-
-                <div class="md:col-span-2">
-                    <x-tallui-form-group label="Line Notes">
-                        <x-tallui-input name="notes" wire:model="notes" placeholder="Optional note for this item…" />
-                    </x-tallui-form-group>
-                </div>
-            </div>
-
-            <div class="flex justify-end mt-4">
-                <x-tallui-button
-                    label="Add to Cart"
-                    icon="o-plus"
-                    class="btn-primary"
-                    type="button"
-                    wire:click="addProduct"
-                    :spinner="'addProduct'"
-                />
-            </div>
-        </x-tallui-card>
+        {{-- Fullscreen toggle --}}
+        <button
+            class="btn btn-ghost btn-sm btn-square flex-shrink-0"
+            title="Toggle fullscreen"
+            @click="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()"
+        >
+            <x-heroicon-o-arrows-pointing-out x-show="!fullscreen" class="w-5 h-5" />
+            <x-heroicon-o-arrows-pointing-in x-show="fullscreen" class="w-5 h-5" style="display:none" />
+        </button>
     </div>
 
-    {{-- Right: Basket panel --}}
-    <div class="lg:col-span-2 space-y-4">
-        <x-tallui-card padding="none" :shadow="true">
-            <x-slot:actions>
-                <x-tallui-badge type="neutral">{{ $cartCount }} {{ $cartCount === 1 ? 'item' : 'items' }}</x-tallui-badge>
-            </x-slot:actions>
+    @if ($errorMessage)
+        <div class="px-4 pt-2 flex-shrink-0">
+            <x-tallui-alert type="error" title="POS error" :dismissible="true">{{ $errorMessage }}</x-tallui-alert>
+        </div>
+    @endif
 
-            {{-- Cart total stat --}}
-            <div class="px-5 pt-3 pb-2">
-                <div class="flex items-end justify-between">
-                    <div>
-                        <p class="text-xs text-base-content/50 uppercase tracking-wide">Cart Total</p>
-                        <p class="text-3xl font-bold font-mono text-primary">{{ number_format($cartTotal, 2) }}</p>
-                    </div>
-                    <x-heroicon-o-shopping-cart class="w-10 h-10 text-base-content/10" />
-                </div>
-            </div>
+    {{-- ── MAIN AREA ── --}}
+    <div class="flex flex-1 overflow-hidden flex-col md:flex-row">
 
-            <div class="border-t border-base-200">
-                <div class="overflow-x-auto">
-                    <table class="table table-sm w-full">
-                        <thead>
-                            <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
-                                <th class="pl-5">Item</th>
-                                <th class="text-right w-12">Qty</th>
-                                <th class="text-right w-24">Price</th>
-                                <th class="text-right w-24">Total</th>
-                                <th class="pr-5 w-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-base-200">
-                            @forelse ($cartItems as $item)
-                                <tr class="hover:bg-base-50">
-                                    <td class="pl-5 py-2 text-sm font-medium max-w-[120px] truncate" title="{{ $item->name }}">
-                                        {{ $item->name }}
-                                    </td>
-                                    <td class="py-2 text-right text-sm font-mono">{{ $item->qty }}</td>
-                                    <td class="py-2 text-right text-sm font-mono">{{ number_format($item->price, 2) }}</td>
-                                    <td class="py-2 text-right text-sm font-mono font-semibold">{{ number_format($item->subtotal, 2) }}</td>
-                                    <td class="pr-5 py-2 text-right">
-                                        <x-tallui-button
-                                            icon="o-x-mark"
-                                            class="btn-ghost btn-xs text-error"
-                                            type="button"
-                                            wire:click="removeItem('{{ $item->rowId }}')"
-                                        />
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="py-8 text-center text-sm text-base-content/40">
-                                        Cart is empty. Add a product to start.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+        {{-- ═══ PRODUCT PANEL (left / top) ═══ --}}
+        <div class="flex flex-col flex-1 overflow-hidden">
 
-            @if ($cartCount > 0)
-                <div class="px-5 py-4 border-t border-base-200">
-                    <x-tallui-button
-                        label="Checkout & Fulfill"
-                        icon="o-check-badge"
-                        class="btn-primary w-full"
-                        type="button"
-                        wire:click="checkout"
-                        :spinner="'checkout'"
-                        wire:confirm="Complete this sale and post to inventory?"
+            {{-- Search bar --}}
+            <div class="px-3 py-2 border-b border-base-200 flex-shrink-0">
+                <label class="input input-sm input-bordered flex items-center gap-2 w-full">
+                    <x-heroicon-o-magnifying-glass class="w-4 h-4 text-base-content/40 flex-shrink-0" />
+                    <input
+                        type="search"
+                        wire:model.live.debounce.250ms="search"
+                        placeholder="Search by name or SKU…"
+                        class="grow bg-transparent outline-none"
                     />
-                </div>
-            @endif
-        </x-tallui-card>
-    </div>
+                    @if ($search)
+                        <button wire:click="$set('search', '')" class="flex-shrink-0 opacity-50 hover:opacity-100">
+                            <x-heroicon-o-x-mark class="w-4 h-4" />
+                        </button>
+                    @endif
+                </label>
+            </div>
 
-</div>
+            {{-- Product grid --}}
+            <div class="flex-1 overflow-y-auto p-3">
+                @if ($products->isEmpty())
+                    <div class="flex flex-col items-center justify-center py-16 text-base-content/30 select-none">
+                        <x-heroicon-o-archive-box-x-mark class="w-16 h-16 mb-3" />
+                        <p class="text-base font-medium">No products found</p>
+                        @if ($search)
+                            <p class="text-sm mt-1">Try a different search term</p>
+                        @endif
+                    </div>
+                @else
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                        @foreach ($products as $product)
+                            <button
+                                wire:click="tapProduct({{ $product->id }})"
+                                wire:key="product-{{ $product->id }}"
+                                class="card card-compact bg-base-200 hover:bg-base-300 active:scale-95 transition-all text-left overflow-hidden touch-manipulation select-none border border-transparent hover:border-primary/30 focus:outline-none focus:border-primary rounded-xl"
+                            >
+                                {{-- Image --}}
+                                <figure class="aspect-square bg-base-300 overflow-hidden">
+                                    @if ($product->primary_image_url)
+                                        <img
+                                            src="{{ $product->primary_image_url }}"
+                                            alt="{{ $product->name }}"
+                                            class="w-full h-full object-cover"
+                                            loading="lazy"
+                                        />
+                                    @else
+                                        <div class="w-full h-full flex items-center justify-center">
+                                            <x-heroicon-o-photo class="w-10 h-10 text-base-content/15" />
+                                        </div>
+                                    @endif
+                                </figure>
+
+                                {{-- Info --}}
+                                <div class="p-2 space-y-0.5">
+                                    <p class="text-sm font-semibold leading-tight line-clamp-2">{{ $product->name }}</p>
+                                    <p class="text-xs text-base-content/40 font-mono">{{ $product->sku }}</p>
+                                    @if (!empty($product->meta['default_price']))
+                                        <p class="text-sm font-bold text-primary font-mono pt-0.5">
+                                            {{ $currency }} {{ number_format((float) $product->meta['default_price'], 2) }}
+                                        </p>
+                                    @endif
+                                    @if ($product->is_stockable)
+                                        @php $stock = $product->warehouseProducts->first(); $qty = $stock?->qtyAvailable() ?? 0; @endphp
+                                        <p @class([
+                                            'text-xs font-mono mt-0.5',
+                                            'text-success'  => $qty > 10,
+                                            'text-warning'  => $qty > 0 && $qty <= 10,
+                                        ])>
+                                            {{ number_format($qty, 0) }} {{ $product->unit ?? 'pcs' }} left
+                                        </p>
+                                    @endif
+                                </div>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+
+        {{-- ═══ CART PANEL (right / bottom) ═══ --}}
+        <div class="flex flex-col border-t md:border-t-0 md:border-l border-base-200 bg-base-50 md:w-80 lg:w-96 flex-shrink-0 max-h-[45vh] md:max-h-none">
+
+            {{-- Cart header --}}
+            <div class="flex items-center justify-between px-4 py-3 border-b border-base-200 flex-shrink-0 bg-base-200">
+                <div class="flex items-center gap-2">
+                    <x-heroicon-o-shopping-cart class="w-5 h-5" />
+                    <span class="font-semibold">Cart</span>
+                    @if ($cartCount > 0)
+                        <span class="badge badge-primary badge-sm">{{ $cartCount }}</span>
+                    @endif
+                </div>
+                @if ($cartCount > 0)
+                    <button
+                        wire:click="clearCart"
+                        wire:confirm="Clear all items from the cart?"
+                        class="btn btn-ghost btn-xs text-error touch-manipulation"
+                    >
+                        Clear all
+                    </button>
+                @endif
+            </div>
+
+            {{-- Cart items --}}
+            <div class="flex-1 overflow-y-auto divide-y divide-base-200">
+                @forelse ($cartItems as $item)
+                    <div class="flex items-center gap-2 px-3 py-3" wire:key="cart-{{ $item->rowId }}">
+                        {{-- Name + price --}}
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium leading-tight truncate">{{ $item->name }}</p>
+                            <p class="text-xs text-base-content/40 font-mono">@ {{ number_format($item->price, 2) }}</p>
+                        </div>
+
+                        {{-- Qty stepper --}}
+                        <div class="flex items-center gap-0.5 flex-shrink-0">
+                            <button
+                                wire:click="decrementItem('{{ $item->rowId }}')"
+                                class="btn btn-sm btn-ghost btn-square touch-manipulation text-lg font-bold leading-none"
+                            >−</button>
+                            <span class="text-sm font-mono w-7 text-center select-none tabular-nums">{{ $item->qty }}</span>
+                            <button
+                                wire:click="incrementItem('{{ $item->rowId }}')"
+                                class="btn btn-sm btn-ghost btn-square touch-manipulation text-lg font-bold leading-none"
+                            >+</button>
+                        </div>
+
+                        {{-- Subtotal + remove --}}
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <span class="text-sm font-mono font-semibold w-20 text-right tabular-nums">{{ number_format($item->subtotal, 2) }}</span>
+                            <button
+                                wire:click="removeItem('{{ $item->rowId }}')"
+                                class="btn btn-sm btn-ghost btn-square text-error touch-manipulation flex-shrink-0"
+                            >
+                                <x-heroicon-o-x-mark class="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                @empty
+                    <div class="flex flex-col items-center justify-center py-10 text-base-content/30 select-none">
+                        <x-heroicon-o-shopping-cart class="w-12 h-12 mb-2" />
+                        <p class="text-sm font-medium">Cart is empty</p>
+                        <p class="text-xs mt-0.5">Tap a product to add</p>
+                    </div>
+                @endforelse
+            </div>
+
+            {{-- Cart footer --}}
+            <div class="border-t border-base-200 flex-shrink-0 bg-base-100">
+                {{-- Total row --}}
+                <div class="flex items-baseline justify-between px-4 py-3 border-b border-base-200">
+                    <span class="text-xs text-base-content/50 uppercase tracking-widest font-medium">Total</span>
+                    <span class="text-2xl font-bold font-mono text-primary tabular-nums">
+                        {{ $currency }} {{ number_format($cartTotal, 2) }}
+                    </span>
+                </div>
+
+                {{-- Checkout button --}}
+                <div class="p-3">
+                    <button
+                        wire:click="checkout"
+                        wire:confirm="Complete this sale and post to inventory?"
+                        wire:loading.attr="disabled"
+                        wire:target="checkout"
+                        @class([
+                            'btn btn-lg w-full gap-2 touch-manipulation',
+                            'btn-primary' => $cartCount > 0,
+                            'btn-disabled opacity-40 cursor-not-allowed' => $cartCount === 0,
+                        ])
+                        @disabled($cartCount === 0)
+                    >
+                        <span wire:loading.remove wire:target="checkout" class="flex items-center gap-2">
+                            <x-heroicon-o-check-badge class="w-5 h-5" />
+                            Checkout &amp; Fulfill
+                        </span>
+                        <span wire:loading wire:target="checkout" class="flex items-center gap-2">
+                            <span class="loading loading-spinner loading-sm"></span>
+                            Processing…
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
 </div>

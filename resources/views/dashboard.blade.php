@@ -14,7 +14,7 @@
         <x-tallui-button label="Requisition" icon="o-clipboard-document-check" :link="route('inventory.requisitions.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="Sale" icon="o-shopping-cart" :link="route('inventory.sale-orders.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="Quotation" icon="o-document-duplicate" :link="route('inventory.quotations.create')" class="btn-outline btn-sm" />
-        <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" target="_blank" />
         <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
         @if(Route::has('payroll.entries.index'))
@@ -104,7 +104,7 @@
         <x-heroicon-o-document-duplicate class="w-7 h-7 text-info" />
         <span class="text-sm font-medium">Quotation</span>
     </a>
-    <a href="{{ route('inventory.pos.index') }}"
+    <a href="{{ route('inventory.pos.index') }}" target="_blank"
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-device-phone-mobile class="w-7 h-7 text-secondary" />
         <span class="text-sm font-medium">POS Terminal</span>

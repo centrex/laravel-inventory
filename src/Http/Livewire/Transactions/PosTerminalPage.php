@@ -11,7 +11,7 @@ use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Layout('layouts.app')]
+#[Layout('inventory::layouts.pos')]
 class PosTerminalPage extends Component
 {
     public ?int $warehouse_id = null;
@@ -21,6 +21,8 @@ class PosTerminalPage extends Component
     public string $price_tier_code = 'b2b_pos';
 
     public string $currency = 'BDT';
+
+    public string $search = '';
 
     public ?int $product_id = null;
 
@@ -35,6 +37,12 @@ class PosTerminalPage extends Component
     public function mount(): void
     {
         $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
+
+        $first = Warehouse::query()->orderBy('id')->first();
+
+        if ($first) {
+            $this->warehouse_id = $first->id;
+        }
     }
 
     public function updatedProductId(): void
@@ -50,6 +58,31 @@ class PosTerminalPage extends Component
         }
 
         $this->unit_price_local ??= (float) ($product->meta['default_price'] ?? 0);
+    }
+
+    public function tapProduct(int $id): void
+    {
+        if (!class_exists(\Centrex\Cart\Cart::class)) {
+            $this->errorMessage = 'Cart package is not available.';
+
+            return;
+        }
+
+        $product = Product::find($id);
+
+        if (!$product) {
+            return;
+        }
+
+        app(\Centrex\Cart\Cart::class)->instance('pos')->add(
+            $product->id,
+            $product->name,
+            1,
+            (float) ($product->meta['default_price'] ?? 0),
+            ['sku' => $product->sku, 'notes' => null],
+        );
+
+        $this->errorMessage = null;
     }
 
     public function addProduct(): void
@@ -85,6 +118,38 @@ class PosTerminalPage extends Component
         $this->errorMessage = null;
     }
 
+    public function incrementItem(string $rowId): void
+    {
+        if (!class_exists(\Centrex\Cart\Cart::class)) {
+            return;
+        }
+
+        $cart = app(\Centrex\Cart\Cart::class)->instance('pos');
+        $item = $cart->content()->get($rowId);
+
+        if ($item) {
+            $cart->update($rowId, $item->qty + 1);
+        }
+    }
+
+    public function decrementItem(string $rowId): void
+    {
+        if (!class_exists(\Centrex\Cart\Cart::class)) {
+            return;
+        }
+
+        $cart = app(\Centrex\Cart\Cart::class)->instance('pos');
+        $item = $cart->content()->get($rowId);
+
+        if ($item) {
+            if ($item->qty <= 1) {
+                $cart->remove($rowId);
+            } else {
+                $cart->update($rowId, $item->qty - 1);
+            }
+        }
+    }
+
     public function removeItem(string $rowId): void
     {
         if (!class_exists(\Centrex\Cart\Cart::class)) {
@@ -92,6 +157,15 @@ class PosTerminalPage extends Component
         }
 
         app(\Centrex\Cart\Cart::class)->instance('pos')->remove($rowId);
+    }
+
+    public function clearCart(): void
+    {
+        if (!class_exists(\Centrex\Cart\Cart::class)) {
+            return;
+        }
+
+        app(\Centrex\Cart\Cart::class)->instance('pos')->clear();
     }
 
     public function checkout(): \Illuminate\Http\RedirectResponse
@@ -134,10 +208,37 @@ class PosTerminalPage extends Component
             ? app(\Centrex\Cart\Cart::class)->instance('pos')
             : null;
 
+        $products = Product::query()
+            ->with([
+                'media',
+                'warehouseProducts' => fn ($q) => $q->where('warehouse_id', $this->warehouse_id),
+            ])
+            ->where('is_active', true)
+            ->when(
+                $this->warehouse_id,
+                fn ($q) => $q->where(
+                    fn ($inner) => $inner
+                        ->where('is_stockable', false)
+                        ->orWhereHas(
+                            'warehouseProducts',
+                            fn ($wp) => $wp
+                                ->where('warehouse_id', $this->warehouse_id)
+                                ->whereRaw('qty_on_hand - qty_reserved > 0'),
+                        ),
+                ),
+            )
+            ->when(
+                $this->search,
+                fn ($q) => $q->where('name', 'like', "%{$this->search}%")
+                    ->orWhere('sku', 'like', "%{$this->search}%"),
+            )
+            ->orderBy('name')
+            ->get();
+
         return view('inventory::livewire.transactions.pos-terminal', [
             'warehouses' => Warehouse::query()->orderBy('name')->get(),
             'customers'  => Customer::query()->orderBy('name')->get(),
-            'products'   => Product::query()->orderBy('name')->get(),
+            'products'   => $products,
             'priceTiers' => PriceTierCode::options(),
             'cartItems'  => $cart?->content() ?? collect(),
             'cartCount'  => $cart?->count() ?? 0,
