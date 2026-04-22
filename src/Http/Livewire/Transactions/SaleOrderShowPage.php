@@ -36,15 +36,15 @@ class SaleOrderShowPage extends Component
         $this->record->loadMissing(['customer', 'warehouse', 'items.product']);
 
         return view('inventory::livewire.transactions.sale-order-show', [
-            'record'          => $this->record,
-            'financeDocument' => $this->financeDocument,
-            'documentLabel'   => $this->documentType === 'quotation' ? 'Quotation' : 'Sale Order',
-            'routeBase'       => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
-            'statusValue'     => $this->record->status?->value,
-            'canConfirm'      => in_array($this->record->status?->value, ['draft'], true),
-            'canReserve'      => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
-            'canFulfill'      => $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
-            'canCancel'       => in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
+            'record'           => $this->record,
+            'financeDocument'  => $this->financeDocument,
+            'documentLabel'    => $this->documentType === 'quotation' ? 'Quotation' : 'Sale Order',
+            'routeBase'        => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
+            'statusValue'      => $this->record->status?->value,
+            'canConfirm'       => in_array($this->record->status?->value, ['draft'], true),
+            'canReserve'       => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
+            'canFulfill'       => $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
+            'canCancel'        => in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
             'canCreateInvoice' => $this->documentType === 'order' && $this->financeDocument === null,
         ]);
     }

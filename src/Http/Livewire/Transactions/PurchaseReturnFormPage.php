@@ -77,10 +77,10 @@ class PurchaseReturnFormPage extends Component
         $availableProducts = $this->availableProducts();
 
         return view('inventory::livewire.transactions.purchase-return-form', [
-            'purchaseOrders'    => PurchaseOrder::query()->with('supplier')->where('document_type', 'order')->orderByDesc('ordered_at')->limit(100)->get(),
-            'warehouses'        => Warehouse::query()->orderBy('name')->get(),
-            'suppliers'         => Supplier::query()->orderBy('name')->get(),
-            'products'          => $selectedOrder
+            'purchaseOrders' => PurchaseOrder::query()->with('supplier')->where('document_type', 'order')->orderByDesc('ordered_at')->limit(100)->get(),
+            'warehouses'     => Warehouse::query()->orderBy('name')->get(),
+            'suppliers'      => Supplier::query()->orderBy('name')->get(),
+            'products'       => $selectedOrder
                 ? collect($availableProducts)->sortBy('name')->values()->all()
                 : Product::query()->orderBy('name')->get()->all(),
             'selectedOrder'     => $selectedOrder,
@@ -157,7 +157,7 @@ class PurchaseReturnFormPage extends Component
             ->map(function ($item) use ($returnedByItem): array {
                 $maxQty = max(0.0, round(
                     (float) $item->qty_received - (float) ($returnedByItem[$item->getKey()] ?? 0),
-                    4
+                    4,
                 ));
 
                 return [

@@ -242,7 +242,7 @@ class PosTerminalPage extends Component
         }
 
         $available = $this->availableQty($product);
-        $inCart    = $this->cartQtyForProduct($id);
+        $inCart = $this->cartQtyForProduct($id);
 
         if ($inCart >= $available) {
             $this->errorMessage = "Max stock reached for {$product->name} ({$available} available).";
@@ -446,7 +446,7 @@ class PosTerminalPage extends Component
                             ->where('warehouse_id', $this->warehouse_id)
                             ->whereRaw('qty_on_hand - qty_reserved > 0'),
                     ),
-                )
+                ),
             )
             ->when(
                 $search,
