@@ -269,7 +269,22 @@ class InventoryEntityRegistry
             }
 
             if (!empty($field['options'])) {
-                $options[$field['name']] = $field['options'];
+                $options[$field['name']] = array_map(
+                    static function (mixed $option): array {
+                        if (!is_array($option)) {
+                            return [
+                                'value' => (string) $option,
+                                'label' => (string) $option,
+                            ];
+                        }
+
+                        return [
+                            'value' => (string) ($option['value'] ?? $option['code'] ?? $option['id'] ?? ''),
+                            'label' => (string) ($option['label'] ?? $option['name'] ?? $option['title'] ?? $option['value'] ?? $option['code'] ?? ''),
+                        ];
+                    },
+                    $field['options'],
+                );
 
                 continue;
             }

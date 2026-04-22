@@ -13,6 +13,7 @@ use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate};
+use Illuminate\Validation\ValidationException;
 
 class Inventory
 {
@@ -411,7 +412,7 @@ class Inventory
 
             $po->update(['subtotal_local' => $subtotalLocal, 'subtotal_amount' => $subtotalBdt, 'total_local' => $totalLocal, 'total_amount' => $totalBdt]);
 
-            return $po->refresh();
+            return $po->fresh(['supplier', 'items.product']);
         });
 
         $this->erp()->syncPurchaseOrderDocument($po);
@@ -434,6 +435,57 @@ class Inventory
         $this->assertTransition($po->status, PurchaseOrderStatus::CONFIRMED, "purchase order #{$poId}");
         $po->update(['status' => PurchaseOrderStatus::CONFIRMED]);
         $this->erp()->syncPurchaseOrderDocument($po->fresh(['supplier', 'items.product']));
+
+        return $po;
+    }
+
+    public function receivePurchaseOrder(int $poId, array $receivedQtys = [], array $options = []): PurchaseOrder
+    {
+        $po = PurchaseOrder::with('items')->findOrFail($poId);
+
+        if (!in_array($po->status, [PurchaseOrderStatus::CONFIRMED, PurchaseOrderStatus::PARTIAL], true)) {
+            throw new InvalidTransitionException("Purchase order #{$poId} cannot be received from status [{$po->status->value}].");
+        }
+
+        $items = [];
+
+        foreach ($po->items as $item) {
+            $remainingQty = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
+
+            if ($remainingQty <= (float) config('inventory.qty_tolerance', 0.0001)) {
+                continue;
+            }
+
+            $qty = array_key_exists($item->id, $receivedQtys)
+                ? (float) $receivedQtys[$item->id]
+                : $remainingQty;
+
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $items[] = [
+                'purchase_order_item_id' => $item->id,
+                'qty_received'           => $qty,
+                'unit_cost_local'        => (float) $item->unit_price_local,
+            ];
+        }
+
+        if ($items === []) {
+            throw new \InvalidArgumentException("Purchase order #{$poId} has no remaining quantity to receive.");
+        }
+
+        $grn = $this->createStockReceipt($poId, $items, $options);
+        $this->postStockReceipt((int) $grn->getKey());
+
+        return PurchaseOrder::query()->with(['items.product', 'supplier', 'warehouse'])->findOrFail($poId);
+    }
+
+    public function cancelPurchaseOrder(int $poId): PurchaseOrder
+    {
+        $po = PurchaseOrder::findOrFail($poId);
+        $this->assertTransition($po->status, PurchaseOrderStatus::CANCELLED, "purchase order #{$poId}");
+        $po->update(['status' => PurchaseOrderStatus::CANCELLED]);
 
         return $po;
     }
@@ -685,7 +737,7 @@ class Inventory
                 ]);
             }
 
-            return $so->refresh();
+            return $so->fresh(['customer', 'items.product']);
         });
 
         $this->erp()->syncSaleOrderDocument($so);
@@ -708,12 +760,22 @@ class Inventory
     {
         return DB::transaction(function () use ($data): SaleReturn {
             $saleOrder = isset($data['sale_order_id']) ? SaleOrder::query()->with('items')->find($data['sale_order_id']) : null;
+            $requestedQuantities = collect($data['items'])
+                ->groupBy(fn (array $item): int => (int) $item['product_id'])
+                ->map(fn (Collection $items): float => round((float) $items->sum('qty_returned'), 4))
+                ->all();
+
+            if ($saleOrder && isset($data['customer_id']) && (int) $data['customer_id'] !== (int) $saleOrder->customer_id) {
+                throw ValidationException::withMessages([
+                    'customer_id' => 'Customer is determined by the selected sale order.',
+                ]);
+            }
 
             $saleReturn = SaleReturn::create([
                 'return_number' => $this->nextNumber('SRT', SaleReturn::class, 'return_number'),
                 'sale_order_id' => $saleOrder?->getKey(),
                 'warehouse_id'  => $data['warehouse_id'],
-                'customer_id'   => $data['customer_id'] ?? $saleOrder?->customer_id,
+                'customer_id'   => $saleOrder?->customer_id ?? ($data['customer_id'] ?? null),
                 'status'        => 'draft',
                 'returned_at'   => $data['returned_at'] ?? now(),
                 'notes'         => $data['notes'] ?? null,
@@ -726,6 +788,26 @@ class Inventory
                 $this->ensurePositiveQuantity($qty, 'qty_returned');
                 $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId);
                 $saleOrderItem = $saleOrder?->items->firstWhere('product_id', $productId);
+
+                if ($saleOrder) {
+                    if (!$saleOrderItem) {
+                        throw ValidationException::withMessages([
+                            'items' => ["Product [{$productId}] is not available on the selected sale order."],
+                        ]);
+                    }
+
+                    $alreadyReturned = (float) SaleReturnItem::query()
+                        ->where('sale_order_item_id', $saleOrderItem->getKey())
+                        ->sum('qty_returned');
+                    $maxReturnable = max(0.0, round((float) $saleOrderItem->qty_fulfilled - $alreadyReturned, 4));
+
+                    if (($requestedQuantities[$productId] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
+                        throw ValidationException::withMessages([
+                            'items' => ["Return quantity for product [{$productId}] exceeds the fulfilled quantity still available to return."],
+                        ]);
+                    }
+                }
+
                 $unitPrice = isset($item['unit_price_amount'])
                     ? round((float) $item['unit_price_amount'], 4)
                     : round((float) ($saleOrderItem?->unit_price_amount ?? 0), 4);
@@ -796,12 +878,22 @@ class Inventory
     {
         return DB::transaction(function () use ($data): PurchaseReturn {
             $purchaseOrder = isset($data['purchase_order_id']) ? PurchaseOrder::query()->with('items')->find($data['purchase_order_id']) : null;
+            $requestedQuantities = collect($data['items'])
+                ->groupBy(fn (array $item): int => (int) $item['product_id'])
+                ->map(fn (Collection $items): float => round((float) $items->sum('qty_returned'), 4))
+                ->all();
+
+            if ($purchaseOrder && isset($data['supplier_id']) && (int) $data['supplier_id'] !== (int) $purchaseOrder->supplier_id) {
+                throw ValidationException::withMessages([
+                    'supplier_id' => 'Supplier is determined by the selected purchase order.',
+                ]);
+            }
 
             $purchaseReturn = PurchaseReturn::create([
                 'return_number'     => $this->nextNumber('PRT', PurchaseReturn::class, 'return_number'),
                 'purchase_order_id' => $purchaseOrder?->getKey(),
                 'warehouse_id'      => $data['warehouse_id'],
-                'supplier_id'       => $data['supplier_id'] ?? $purchaseOrder?->supplier_id,
+                'supplier_id'       => $purchaseOrder?->supplier_id ?? ($data['supplier_id'] ?? null),
                 'status'            => 'draft',
                 'returned_at'       => $data['returned_at'] ?? now(),
                 'notes'             => $data['notes'] ?? null,
@@ -814,6 +906,26 @@ class Inventory
                 $this->ensurePositiveQuantity($qty, 'qty_returned');
                 $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId);
                 $purchaseOrderItem = $purchaseOrder?->items->firstWhere('product_id', $productId);
+
+                if ($purchaseOrder) {
+                    if (!$purchaseOrderItem) {
+                        throw ValidationException::withMessages([
+                            'items' => ["Product [{$productId}] is not available on the selected purchase order."],
+                        ]);
+                    }
+
+                    $alreadyReturned = (float) PurchaseReturnItem::query()
+                        ->where('purchase_order_item_id', $purchaseOrderItem->getKey())
+                        ->sum('qty_returned');
+                    $maxReturnable = max(0.0, round((float) $purchaseOrderItem->qty_received - $alreadyReturned, 4));
+
+                    if (($requestedQuantities[$productId] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
+                        throw ValidationException::withMessages([
+                            'items' => ["Return quantity for product [{$productId}] exceeds the received quantity still available to return."],
+                        ]);
+                    }
+                }
+
                 $unitCost = isset($item['unit_cost_amount'])
                     ? round((float) $item['unit_cost_amount'], 4)
                     : round((float) ($purchaseOrderItem?->unit_price_amount ?? $stock->wac_amount), 4);

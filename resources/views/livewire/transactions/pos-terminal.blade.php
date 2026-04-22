@@ -1,10 +1,47 @@
 <div
     class="flex flex-col overflow-hidden bg-base-100"
     style="height: 100dvh"
-    x-data="{ fullscreen: false }"
+    x-data="{
+        fullscreen: false,
+        focusSearch() { $nextTick(() => { const el = document.getElementById('pos-search'); if (el) el.focus(); }); }
+    }"
     @fullscreenchange.window="fullscreen = !!document.fullscreenElement"
+    @focus-search.window="focusSearch()"
+    x-init="focusSearch()"
 >
     <x-tallui-notification />
+
+    {{-- ── CONFIRMATION DIALOGS ── --}}
+    <x-tallui-dialog id="pos-confirm-clear" type="warning" title="Clear cart?">
+        All items in this tab will be removed.
+        <x-slot:footer>
+            <button @click="open = false" class="btn btn-ghost">Cancel</button>
+            <button wire:click="clearCart" @click="open = false" class="btn btn-error">Clear all</button>
+        </x-slot:footer>
+    </x-tallui-dialog>
+
+    <x-tallui-dialog id="pos-confirm-checkout" type="confirm" title="Complete sale?">
+        This will post the order to inventory and fulfill stock immediately.
+        <x-slot:footer>
+            <button @click="open = false" class="btn btn-ghost">Cancel</button>
+            <button
+                wire:click="checkout"
+                wire:loading.attr="disabled"
+                wire:target="checkout"
+                @click="open = false"
+                class="btn btn-primary gap-2"
+            >
+                <span wire:loading.remove wire:target="checkout" class="flex items-center gap-2">
+                    <x-heroicon-o-check-badge class="w-5 h-5" />
+                    Checkout &amp; Fulfill
+                </span>
+                <span wire:loading wire:target="checkout" class="flex items-center gap-2">
+                    <span class="loading loading-spinner loading-sm"></span>
+                    Processing…
+                </span>
+            </button>
+        </x-slot:footer>
+    </x-tallui-dialog>
 
     {{-- ── TOP TOOLBAR ── --}}
     <div class="flex items-center gap-2 px-3 py-2 bg-base-200 border-b border-base-300 flex-shrink-0 flex-wrap gap-y-2">
@@ -15,29 +52,22 @@
             <span class="font-bold text-base hidden sm:block leading-none">POS Terminal</span>
         </div>
 
-        {{-- Session controls --}}
+        {{-- Session controls (warehouse / tier / currency — shared across tabs) --}}
         <div class="flex items-center gap-2 flex-1 flex-wrap gap-y-1 min-w-0">
-            <select wire:model="warehouse_id" class="select select-sm select-bordered flex-1 min-w-28">
+            <select wire:model.live="warehouse_id" class="select select-sm select-bordered flex-1 min-w-28">
                 <option value="">Warehouse…</option>
                 @foreach ($warehouses as $w)
                     <option value="{{ $w->id }}">{{ $w->name }}</option>
                 @endforeach
             </select>
 
-            <select wire:model="customer_id" class="select select-sm select-bordered flex-1 min-w-28">
-                <option value="">Walk-in</option>
-                @foreach ($customers as $c)
-                    <option value="{{ $c->id }}">{{ $c->name }}</option>
-                @endforeach
-            </select>
-
-            <select wire:model="price_tier_code" class="select select-sm select-bordered flex-1 min-w-28">
+            <select wire:model.live="price_tier_code" class="select select-sm select-bordered flex-1 min-w-28">
                 @foreach ($priceTiers as $tier)
                     <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
                 @endforeach
             </select>
 
-            <input wire:model="currency" class="input input-sm input-bordered w-16 text-center font-mono uppercase" placeholder="BDT" maxlength="3" />
+            <input wire:model.blur="currency" class="input input-sm input-bordered w-16 text-center font-mono uppercase" placeholder="BDT" maxlength="3" />
         </div>
 
         {{-- Fullscreen toggle --}}
@@ -49,6 +79,47 @@
             <x-heroicon-o-arrows-pointing-out x-show="!fullscreen" class="w-5 h-5" />
             <x-heroicon-o-arrows-pointing-in x-show="fullscreen" class="w-5 h-5" style="display:none" />
         </button>
+    </div>
+
+    {{-- ── TAB STRIP ── --}}
+    <div class="flex items-center gap-1 px-2 py-1.5 bg-base-300 border-b border-base-300 flex-shrink-0 overflow-x-auto">
+        @foreach ($tabIds as $tabId)
+            <button
+                wire:click="switchTab({{ $tabId }})"
+                wire:key="tab-btn-{{ $tabId }}"
+                @class([
+                    'group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap',
+                    'bg-base-100 shadow text-base-content border border-base-200' => $activeTabId === $tabId,
+                    'text-base-content/60 hover:bg-base-200 hover:text-base-content' => $activeTabId !== $tabId,
+                ])
+            >
+                <span>{{ $tabLabels[$tabId] }}</span>
+                @if (($tabCartCounts[$tabId] ?? 0) > 0)
+                    <span @class([
+                        'badge badge-xs tabular-nums',
+                        'badge-primary' => $activeTabId === $tabId,
+                        'badge-ghost'   => $activeTabId !== $tabId,
+                    ])>{{ $tabCartCounts[$tabId] }}</span>
+                @endif
+                @if (count($tabIds) > 1)
+                    <span
+                        wire:click.stop="closeTab({{ $tabId }})"
+                        class="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-xs leading-none cursor-pointer ml-0.5"
+                        title="Close tab"
+                    >×</span>
+                @endif
+            </button>
+        @endforeach
+
+        @if (count($tabIds) < 5)
+            <button
+                wire:click="addTab"
+                class="flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm text-base-content/50 hover:text-base-content hover:bg-base-200 transition-all flex-shrink-0"
+                title="New tab (serve another customer)"
+            >
+                <x-heroicon-o-plus class="w-4 h-4" />
+            </button>
+        @endif
     </div>
 
     @if ($errorMessage)
@@ -63,18 +134,21 @@
         {{-- ═══ PRODUCT PANEL (left / top) ═══ --}}
         <div class="flex flex-col flex-1 overflow-hidden">
 
-            {{-- Search bar --}}
+            {{-- Barcode / search bar — always focused for scanner input --}}
             <div class="px-3 py-2 border-b border-base-200 flex-shrink-0">
                 <label class="input input-sm input-bordered flex items-center gap-2 w-full">
-                    <x-heroicon-o-magnifying-glass class="w-4 h-4 text-base-content/40 flex-shrink-0" />
+                    <x-heroicon-o-qr-code class="w-4 h-4 text-base-content/40 flex-shrink-0" />
                     <input
+                        id="pos-search"
                         type="search"
-                        wire:model.live.debounce.250ms="search"
-                        placeholder="Search by name or SKU…"
+                        wire:model.live.debounce.250ms="tabSearches.{{ $activeTabId }}"
+                        placeholder="Scan barcode or search by name / SKU…"
                         class="grow bg-transparent outline-none"
+                        autocomplete="off"
+                        @keydown.enter.prevent="$wire.scanFromSearch()"
                     />
-                    @if ($search)
-                        <button wire:click="$set('search', '')" class="flex-shrink-0 opacity-50 hover:opacity-100">
+                    @if (!empty($tabSearches[$activeTabId]))
+                        <button wire:click="clearSearch" class="flex-shrink-0 opacity-50 hover:opacity-100">
                             <x-heroicon-o-x-mark class="w-4 h-4" />
                         </button>
                     @endif
@@ -87,8 +161,8 @@
                     <div class="flex flex-col items-center justify-center py-16 text-base-content/30 select-none">
                         <x-heroicon-o-archive-box-x-mark class="w-16 h-16 mb-3" />
                         <p class="text-base font-medium">No products found</p>
-                        @if ($search)
-                            <p class="text-sm mt-1">Try a different search term</p>
+                        @if (!empty($tabSearches[$activeTabId]))
+                            <p class="text-sm mt-1">Try a different search term or barcode</p>
                         @endif
                     </div>
                 @else
@@ -119,17 +193,25 @@
                                 <div class="p-2 space-y-0.5">
                                     <p class="text-sm font-semibold leading-tight line-clamp-2">{{ $product->name }}</p>
                                     <p class="text-xs text-base-content/40 font-mono">{{ $product->sku }}</p>
-                                    @if (!empty($product->meta['default_price']))
+                                    @php
+                                        // Warehouse-specific tier price → global tier price → meta fallback
+                                        $tierPrice = $product->prices->first(fn($p) => $p->warehouse_id == $warehouse_id)
+                                            ?? $product->prices->first();
+                                        $displayPrice = $tierPrice
+                                            ? (float) $tierPrice->price_local
+                                            : (float) ($product->meta['default_price'] ?? 0);
+                                    @endphp
+                                    @if ($displayPrice > 0)
                                         <p class="text-sm font-bold text-primary font-mono pt-0.5">
-                                            {{ $currency }} {{ number_format((float) $product->meta['default_price'], 2) }}
+                                            {{ $currency }} {{ number_format($displayPrice, 2) }}
                                         </p>
                                     @endif
                                     @if ($product->is_stockable)
                                         @php $stock = $product->warehouseProducts->first(); $qty = $stock?->qtyAvailable() ?? 0; @endphp
                                         <p @class([
                                             'text-xs font-mono mt-0.5',
-                                            'text-success'  => $qty > 10,
-                                            'text-warning'  => $qty > 0 && $qty <= 10,
+                                            'text-success' => $qty > 10,
+                                            'text-warning' => $qty > 0 && $qty <= 10,
                                         ])>
                                             {{ number_format($qty, 0) }} {{ $product->unit ?? 'pcs' }} left
                                         </p>
@@ -145,24 +227,33 @@
         {{-- ═══ CART PANEL (right / bottom) ═══ --}}
         <div class="flex flex-col border-t md:border-t-0 md:border-l border-base-200 bg-base-50 md:w-80 lg:w-96 flex-shrink-0 max-h-[45vh] md:max-h-none">
 
-            {{-- Cart header --}}
-            <div class="flex items-center justify-between px-4 py-3 border-b border-base-200 flex-shrink-0 bg-base-200">
-                <div class="flex items-center gap-2">
-                    <x-heroicon-o-shopping-cart class="w-5 h-5" />
-                    <span class="font-semibold">Cart</span>
+            {{-- Cart header + per-tab customer --}}
+            <div class="px-4 py-3 border-b border-base-200 flex-shrink-0 bg-base-200 space-y-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <x-heroicon-o-shopping-cart class="w-5 h-5" />
+                        <span class="font-semibold">Cart</span>
+                        @if ($cartCount > 0)
+                            <span class="badge badge-primary badge-sm">{{ $cartCount }}</span>
+                        @endif
+                    </div>
                     @if ($cartCount > 0)
-                        <span class="badge badge-primary badge-sm">{{ $cartCount }}</span>
+                        <button
+                            @click="$dispatch('open-dialog', 'pos-confirm-clear')"
+                            class="btn btn-ghost btn-xs text-error touch-manipulation"
+                        >
+                            Clear all
+                        </button>
                     @endif
                 </div>
-                @if ($cartCount > 0)
-                    <button
-                        wire:click="clearCart"
-                        wire:confirm="Clear all items from the cart?"
-                        class="btn btn-ghost btn-xs text-error touch-manipulation"
-                    >
-                        Clear all
-                    </button>
-                @endif
+
+                {{-- Customer — per tab --}}
+                <select wire:model.live="tabCustomers.{{ $activeTabId }}" class="select select-sm select-bordered w-full">
+                    <option value="">Walk-in customer</option>
+                    @foreach ($customers as $c)
+                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                    @endforeach
+                </select>
             </div>
 
             {{-- Cart items --}}
@@ -203,7 +294,7 @@
                     <div class="flex flex-col items-center justify-center py-10 text-base-content/30 select-none">
                         <x-heroicon-o-shopping-cart class="w-12 h-12 mb-2" />
                         <p class="text-sm font-medium">Cart is empty</p>
-                        <p class="text-xs mt-0.5">Tap a product to add</p>
+                        <p class="text-xs mt-0.5">Tap a product or scan a barcode</p>
                     </div>
                 @endforelse
             </div>
@@ -221,8 +312,6 @@
                 {{-- Checkout button --}}
                 <div class="p-3">
                     <button
-                        wire:click="checkout"
-                        wire:confirm="Complete this sale and post to inventory?"
                         wire:loading.attr="disabled"
                         wire:target="checkout"
                         @class([
@@ -231,15 +320,10 @@
                             'btn-disabled opacity-40 cursor-not-allowed' => $cartCount === 0,
                         ])
                         @disabled($cartCount === 0)
+                        @click="if (!$el.disabled) $dispatch('open-dialog', 'pos-confirm-checkout')"
                     >
-                        <span wire:loading.remove wire:target="checkout" class="flex items-center gap-2">
-                            <x-heroicon-o-check-badge class="w-5 h-5" />
-                            Checkout &amp; Fulfill
-                        </span>
-                        <span wire:loading wire:target="checkout" class="flex items-center gap-2">
-                            <span class="loading loading-spinner loading-sm"></span>
-                            Processing…
-                        </span>
+                        <x-heroicon-o-check-badge class="w-5 h-5" />
+                        Checkout &amp; Fulfill
                     </button>
                 </div>
             </div>

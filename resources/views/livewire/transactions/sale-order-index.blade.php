@@ -61,7 +61,7 @@
                                     <x-tallui-button icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $order->getKey()])" class="btn-ghost btn-xs" label="Print" :responsive="true" />
                                 @endif
                                 @if (Route::has('erp.documents.sales.pdf'))
-                                    <x-tallui-button icon="o-arrow-down-tray" :link="route('erp.documents.sales.pdf', ['saleOrder' => $order->getKey()])" class="btn-ghost btn-xs" label="PDF" :responsive="true" />
+                                    <x-tallui-button icon="o-arrow-down-tray" :link="route('erp.documents.sales.pdf', ['saleOrder' => $order->getKey()])" :no-wire-navigate="true" class="btn-ghost btn-xs" label="PDF" :responsive="true" />
                                 @endif
                             </div>
                         </td>

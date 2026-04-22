@@ -7,6 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, SaleOrder, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -70,6 +71,15 @@ class SaleOrderFormPage extends Component
     {
         unset($this->items[$index]);
         $this->items = array_values($this->items);
+    }
+
+    public function toggleItemNotes(int $index): void
+    {
+        if (!isset($this->items[$index])) {
+            return;
+        }
+
+        $this->items[$index]['show_notes'] = !((bool) ($this->items[$index]['show_notes'] ?? false));
     }
 
     public function save()
@@ -178,6 +188,7 @@ class SaleOrderFormPage extends Component
             'unit_price_local' => null,
             'discount_pct'     => 0,
             'notes'            => '',
+            'show_notes'       => false,
         ];
     }
 
@@ -203,6 +214,7 @@ class SaleOrderFormPage extends Component
             'unit_price_local' => (float) $item->unit_price_local,
             'discount_pct'     => (float) $item->discount_pct,
             'notes'            => (string) ($item->notes ?? ''),
+            'show_notes'       => (string) ($item->notes ?? '') !== '',
         ])->all();
     }
 
@@ -284,7 +296,10 @@ class SaleOrderFormPage extends Component
             $saleOrder->items()->createMany($itemsPayload);
         });
 
-        return $saleOrder->fresh(['items', 'customer', 'warehouse']);
+        $saleOrder = $saleOrder->fresh(['items.product', 'customer', 'warehouse']);
+        app(ErpIntegration::class)->syncSaleOrderDocument($saleOrder);
+
+        return $saleOrder;
     }
 
     private function assertStockAvailability(array $items): void

@@ -1,6 +1,16 @@
 <div>
 <x-tallui-page-header :title="$record->return_number" subtitle="Posted supplier return and stock reversal lines." icon="o-arrow-uturn-right">
     <x-slot:breadcrumbs><x-tallui-breadcrumb :links="[['label' => 'Inventory', 'href' => route('inventory.dashboard')], ['label' => 'Purchase Returns', 'href' => route('inventory.purchase-returns.index')], ['label' => $record->return_number]]" /></x-slot:breadcrumbs>
+    <x-slot:actions>
+        @if (Route::has('accounting.journal'))
+            <x-tallui-button
+                label="Post Return Journal"
+                icon="o-pencil-square"
+                :link="route('accounting.journal', ['create' => 1, 'reference' => $record->return_number, 'description' => 'Purchase return ' . $record->return_number])"
+                class="btn-info btn-sm"
+            />
+        @endif
+    </x-slot:actions>
 </x-tallui-page-header>
 <x-tallui-card title="Summary" subtitle="Supplier return context." icon="o-document-text" :shadow="true" class="mb-4">
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
@@ -9,6 +19,9 @@
         <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ ucfirst((string) $record->status) }}</div></div>
         <div><span class="text-base-content/50">Source</span><div class="font-medium">{{ $record->purchaseOrder?->po_number ?? 'Manual' }}</div></div>
     </div>
+</x-tallui-card>
+<x-tallui-card title="Finance" subtitle="Post the accounting side of this return." icon="o-banknotes" :shadow="true" class="mb-4">
+    <p class="text-sm text-base-content/60">Inventory has already been updated for this return. Use the posting button to record the accounting journal until automated supplier debit-note posting is added.</p>
 </x-tallui-card>
 <x-tallui-card title="Lines" subtitle="Products returned to the supplier." icon="o-queue-list" :shadow="true">
     <div class="overflow-x-auto">

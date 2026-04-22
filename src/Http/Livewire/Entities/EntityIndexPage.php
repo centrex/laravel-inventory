@@ -6,6 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Entities;
 
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
 
@@ -44,6 +45,18 @@ class EntityIndexPage extends Component
         $definition = InventoryEntityRegistry::definition($this->entity);
         $model = InventoryEntityRegistry::makeModel($this->entity);
         $query = $model->newQuery()->latest($model->getKeyName());
+        $fieldDefinitions = collect($definition['form_fields'])
+            ->keyBy('name')
+            ->all();
+        $relations = collect(InventoryEntityRegistry::indexColumns($this->entity))
+            ->map(fn (string $column): ?string => $this->relationNameForColumn($column, $fieldDefinitions))
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($relations !== []) {
+            $query->with($relations);
+        }
 
         if ($this->search !== '' && $definition['search'] !== []) {
             $search = $this->search;
@@ -55,9 +68,25 @@ class EntityIndexPage extends Component
         }
 
         return view('inventory::livewire.entities.index-page', [
-            'definition' => $definition,
-            'columns'    => InventoryEntityRegistry::indexColumns($this->entity),
-            'records'    => $query->paginate(15),
+            'definition'       => $definition,
+            'columns'          => InventoryEntityRegistry::indexColumns($this->entity),
+            'fieldDefinitions' => $fieldDefinitions,
+            'records'          => $query->paginate(15),
         ]);
+    }
+
+    private function relationNameForColumn(string $column, array $fieldDefinitions): ?string
+    {
+        $field = $fieldDefinitions[$column] ?? null;
+
+        if (!is_array($field) || empty($field['related_model']) || !str_ends_with($column, '_id')) {
+            return null;
+        }
+
+        $relation = Str::camel((string) Str::beforeLast($column, '_id'));
+
+        return method_exists(InventoryEntityRegistry::makeModel($this->entity), $relation)
+            ? $relation
+            : null;
     }
 }

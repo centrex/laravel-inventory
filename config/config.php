@@ -110,7 +110,7 @@ return [
     */
     'erp' => [
         'accounting' => [
-            'enabled' => env('INVENTORY_ACCOUNTING_ENABLED', false),
+            'enabled' => env('INVENTORY_ACCOUNTING_ENABLED', true),
             'accounts' => [
                 'inventory_asset'      => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
                 'cost_of_goods_sold'   => env('INVENTORY_ACCOUNTING_COGS', '5000'),

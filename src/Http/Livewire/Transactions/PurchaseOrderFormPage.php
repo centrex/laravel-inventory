@@ -7,6 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Enums\{PriceTierCode, PurchaseOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -73,6 +74,15 @@ class PurchaseOrderFormPage extends Component
     {
         unset($this->items[$index]);
         $this->items = array_values($this->items);
+    }
+
+    public function toggleItemNotes(int $index): void
+    {
+        if (!isset($this->items[$index])) {
+            return;
+        }
+
+        $this->items[$index]['show_notes'] = !((bool) ($this->items[$index]['show_notes'] ?? false));
     }
 
     public function save()
@@ -162,6 +172,7 @@ class PurchaseOrderFormPage extends Component
             'qty_ordered'      => 1,
             'unit_price_local' => 0,
             'notes'            => '',
+            'show_notes'       => false,
         ];
     }
 
@@ -184,6 +195,7 @@ class PurchaseOrderFormPage extends Component
             'qty_ordered'      => (float) $item->qty_ordered,
             'unit_price_local' => (float) $item->unit_price_local,
             'notes'            => (string) ($item->notes ?? ''),
+            'show_notes'       => (string) ($item->notes ?? '') !== '',
         ])->all();
     }
 
@@ -257,7 +269,10 @@ class PurchaseOrderFormPage extends Component
             $purchaseOrder->items()->createMany($itemsPayload);
         });
 
-        return $purchaseOrder->fresh(['items', 'supplier', 'warehouse']);
+        $purchaseOrder = $purchaseOrder->fresh(['items.product', 'supplier', 'warehouse']);
+        app(ErpIntegration::class)->syncPurchaseOrderDocument($purchaseOrder);
+
+        return $purchaseOrder;
     }
 
     private function routeBase(): string

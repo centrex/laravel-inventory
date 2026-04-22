@@ -47,7 +47,16 @@
                     <tr class="hover:bg-base-50">
                         @foreach ($columns as $column)
                             <td class="pl-4 first:pl-5 text-sm">
-                                @php $val = $record->{$column}; @endphp
+                                @php
+                                    $field = $fieldDefinitions[$column] ?? null;
+                                    $relationName = is_array($field) && !empty($field['related_model']) && str_ends_with($column, '_id')
+                                        ? \Illuminate\Support\Str::camel((string) \Illuminate\Support\Str::beforeLast($column, '_id'))
+                                        : null;
+                                    $relatedLabel = $relationName && $record->relationLoaded($relationName)
+                                        ? data_get($record->{$relationName}, $field['related_label'] ?? 'name')
+                                        : null;
+                                    $val = $relatedLabel ?? $record->{$column};
+                                @endphp
                                 @if (is_bool($val))
                                     <x-tallui-badge :type="$val ? 'success' : 'neutral'">
                                         {{ $val ? 'Yes' : 'No' }}

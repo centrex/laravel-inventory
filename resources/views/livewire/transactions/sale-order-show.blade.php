@@ -14,12 +14,24 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
+        @if ($canConfirm)
+            <x-tallui-button label="{{ $documentLabel === 'Quotation' ? 'Confirm Quote' : 'Confirm Order' }}" icon="o-check-circle" class="btn-primary btn-sm" wire:click="confirm" wire:confirm="Confirm this {{ strtolower($documentLabel) }}?" />
+        @endif
+        @if ($canReserve)
+            <x-tallui-button label="Reserve Stock" icon="o-archive-box-arrow-down" class="btn-warning btn-sm" wire:click="reserve" wire:confirm="Reserve stock for this sale order?" />
+        @endif
+        @if ($canFulfill)
+            <x-tallui-button label="Fulfill Remaining" icon="o-truck" class="btn-success btn-sm" wire:click="fulfill" wire:confirm="Fulfill all remaining quantities for this sale order?" />
+        @endif
+        @if ($canCancel)
+            <x-tallui-button label="Cancel" icon="o-x-circle" class="btn-error btn-sm" wire:click="cancel" wire:confirm="Cancel this {{ strtolower($documentLabel) }}?" />
+        @endif
         <x-tallui-button label="Edit" icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
         @if (Route::has('erp.documents.sales.print'))
             <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif
         @if (Route::has('erp.documents.sales.pdf'))
-            <x-tallui-button label="PDF" icon="o-arrow-down-tray" :link="route('erp.documents.sales.pdf', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
+            <x-tallui-button label="PDF" icon="o-arrow-down-tray" :link="route('erp.documents.sales.pdf', ['saleOrder' => $record->getKey()])" :no-wire-navigate="true" class="btn-ghost btn-sm" />
         @endif
     </x-slot:actions>
 </x-tallui-page-header>
@@ -47,20 +59,72 @@
                     <div><span class="text-base-content/50">Paid</span><div class="font-medium text-success">{{ number_format($financeDocument['paid'], 2) }}</div></div>
                     <div><span class="text-base-content/50">Due</span><div class="font-semibold {{ $financeDocument['is_due'] ? 'text-warning' : 'text-success' }}">{{ number_format($financeDocument['balance'], 2) }}</div></div>
                 </div>
+
+                <div class="mt-4 border-t border-base-200 pt-4">
+                    <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Payments</div>
+                    <div class="space-y-3">
+                        @forelse ($financeDocument['payments'] as $payment)
+                            <div class="rounded-xl border border-base-200 bg-base-50/60 p-3 text-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="font-medium">{{ $payment['date'] }}</div>
+                                        <div class="text-base-content/60">{{ $payment['method'] }}</div>
+                                        @if ($payment['reference'])
+                                            <div class="text-xs text-base-content/50">Ref: {{ $payment['reference'] }}</div>
+                                        @endif
+                                        @if ($payment['notes'])
+                                            <div class="mt-1 whitespace-pre-line text-xs text-base-content/60">{{ $payment['notes'] }}</div>
+                                        @endif
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-semibold text-success">{{ number_format($payment['amount'], 2) }}</div>
+                                        <div class="text-xs text-base-content/50">{{ $payment['journal_entry'] ?: 'Manual payment' }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="text-sm text-base-content/60">No payments recorded yet.</p>
+                        @endforelse
+                    </div>
+                </div>
             @else
                 <p class="text-sm text-base-content/60">No linked accounting invoice yet. Once the accounting document is synced, you can check dues and record payment here.</p>
             @endif
 
             <div class="mt-4 flex flex-wrap gap-2">
-                @if ($financeDocument && Route::has('accounting.invoices'))
+                @if ($canCreateInvoice)
+                    <x-tallui-button
+                        label="Create Invoice"
+                        icon="o-plus-circle"
+                        class="btn-primary btn-sm"
+                        wire:click="createInvoice"
+                        wire:confirm="Create an accounting invoice for this sale order?"
+                    />
+                @endif
+                @if ($financeDocument && Route::has('accounting.invoices.show'))
                     <x-tallui-button
                         label="View Invoice"
                         icon="o-document-text"
-                        :link="route('accounting.invoices', ['search' => $financeDocument['number']])"
+                        :link="route('accounting.invoices.show', ['invoice' => $financeDocument['id']])"
                         class="btn-ghost btn-sm"
                     />
                 @endif
-                @if ($financeDocument && $financeDocument['is_due'] && Route::has('accounting.invoices'))
+                @if ($financeDocument && $financeDocument['status_raw'] === 'draft' && Route::has('accounting.invoices'))
+                    <x-tallui-button
+                        label="Post Invoice"
+                        icon="o-check-badge"
+                        :link="route('accounting.invoices', ['search' => $financeDocument['number'], 'invoice' => $financeDocument['id'], 'action' => 'post'])"
+                        class="btn-info btn-sm"
+                    />
+                @endif
+                @if ($financeDocument && $financeDocument['status_raw'] === 'draft' && $financeDocument['is_due'] && Route::has('accounting.invoices'))
+                    <x-tallui-button
+                        label="Post & Add Payment"
+                        icon="o-banknotes"
+                        :link="route('accounting.invoices', ['invoice' => $financeDocument['id'], 'action' => 'post-and-pay'])"
+                        class="btn-success btn-sm"
+                    />
+                @elseif ($financeDocument && $financeDocument['is_due'] && Route::has('accounting.invoices'))
                     <x-tallui-button
                         label="Add Payment"
                         icon="o-banknotes"
@@ -80,7 +144,7 @@
         </x-tallui-card>
     </div>
 
-    <x-tallui-card title="Line Items" subtitle="Products, quantities, and pricing." icon="o-queue-list" :shadow="true" class="xl:col-span-2">
+        <x-tallui-card title="Line Items" subtitle="Products, quantities, and pricing." icon="o-queue-list" :shadow="true" class="xl:col-span-2">
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>

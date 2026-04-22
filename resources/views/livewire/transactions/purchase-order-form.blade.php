@@ -19,7 +19,7 @@
             <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.purchases.print', ['purchaseOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif
         @if ($isEditing && $record && Route::has('erp.documents.purchases.pdf'))
-            <x-tallui-button label="PDF" icon="o-arrow-down-tray" :link="route('erp.documents.purchases.pdf', ['purchaseOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
+            <x-tallui-button label="PDF" icon="o-arrow-down-tray" :link="route('erp.documents.purchases.pdf', ['purchaseOrder' => $record->getKey()])" :no-wire-navigate="true" class="btn-ghost btn-sm" />
         @endif
     </x-slot:actions>
 </x-tallui-page-header>
@@ -101,8 +101,7 @@
                         <th class="w-28">Qty Ordered</th>
                         <th class="w-24">On Hand</th>
                         <th class="w-36">Unit Price (Local)</th>
-                        <th>Notes</th>
-                        <th class="pr-5 w-20"></th>
+                        <th class="pr-5 w-28 text-right">Options</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-base-200">
@@ -139,28 +138,43 @@
                                     class="input-sm text-right w-full"
                                 />
                             </td>
-                            <td class="py-2">
-                                <x-tallui-input
-                                    name="items.{{ $index }}.notes"
-                                    wire:model="items.{{ $index }}.notes"
-                                    class="input-sm w-full"
-                                    placeholder="Optional…"
-                                />
-                            </td>
                             <td class="pr-5 py-2 text-right">
-                                @if ($editable)
+                                <div class="flex items-center justify-end gap-1">
                                     <x-tallui-button
-                                        icon="o-trash"
-                                        class="btn-ghost btn-xs text-error"
+                                        :icon="filled($item['notes'] ?? '') || ($item['show_notes'] ?? false) ? 'o-chat-bubble-left-ellipsis' : 'o-plus-circle'"
+                                        class="btn-ghost btn-xs"
                                         type="button"
-                                        wire:click="removeItem({{ $index }})"
+                                        wire:click="toggleItemNotes({{ $index }})"
+                                        :tooltip="($item['show_notes'] ?? false) ? 'Hide notes' : 'Add notes'"
                                     />
-                                @endif
+                                    @if ($editable)
+                                        <x-tallui-button
+                                            icon="o-trash"
+                                            class="btn-ghost btn-xs text-error"
+                                            type="button"
+                                            wire:click="removeItem({{ $index }})"
+                                        />
+                                    @endif
+                                </div>
                             </td>
                         </tr>
+                        @if (($item['show_notes'] ?? false) || filled($item['notes'] ?? ''))
+                            <tr wire:key="po-item-notes-{{ $index }}" class="bg-base-50/60">
+                                <td colspan="5" class="px-5 py-3">
+                                    <x-tallui-form-group label="Line Note">
+                                        <x-tallui-textarea
+                                            name="items.{{ $index }}.notes"
+                                            wire:model="items.{{ $index }}.notes"
+                                            rows="2"
+                                            placeholder="Optional line-specific note…"
+                                        />
+                                    </x-tallui-form-group>
+                                </td>
+                            </tr>
+                        @endif
                     @empty
                         <tr>
-                            <td colspan="6" class="py-6 text-center">
+                            <td colspan="5" class="py-6 text-center">
                                 <x-tallui-empty-state
                                     title="No items yet"
                                     description="Add at least one product line."

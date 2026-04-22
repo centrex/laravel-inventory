@@ -95,12 +95,15 @@ class ErpIntegration
 
     public function syncSaleOrderDocument(SaleOrder $saleOrder): ?int
     {
-        if (!$this->enabled() || !$saleOrder->customer_id) {
+        if (!$this->enabled()) {
             return null;
         }
 
-        $saleOrder->loadMissing(['customer', 'items.product']);
-        $customerId = $this->syncCustomer($saleOrder->customer);
+        $saleOrder->loadMissing(['customer', 'items']);
+        $saleOrder->items->loadMissing('product');
+        $customerId = $saleOrder->customer_id
+            ? $this->syncCustomer($saleOrder->customer)
+            : $this->resolveWalkInAccountingCustomerId();
 
         if (!$customerId) {
             return null;
@@ -175,7 +178,8 @@ class ErpIntegration
             return null;
         }
 
-        $purchaseOrder->loadMissing(['supplier', 'items.product']);
+        $purchaseOrder->loadMissing(['supplier', 'items']);
+        $purchaseOrder->items->loadMissing('product');
         $vendorId = $this->syncSupplier($purchaseOrder->supplier);
 
         if (!$vendorId) {
@@ -450,5 +454,24 @@ class ErpIntegration
         $name = $product?->name ?? 'Inventory line';
 
         return sprintf('%s x %s', $name, rtrim(rtrim(number_format($qty, 4, '.', ''), '0'), '.'));
+    }
+
+    private function resolveWalkInAccountingCustomerId(): ?int
+    {
+        if (!$this->enabled()) {
+            return null;
+        }
+
+        $accountingCustomerClass = \Centrex\Accounting\Models\Customer::class;
+        $customer = $accountingCustomerClass::query()->firstOrCreate(
+            ['code' => 'WALK-IN'],
+            [
+                'name'      => 'Walk-in Customer',
+                'currency'  => config('inventory.base_currency', 'BDT'),
+                'is_active' => true,
+            ],
+        );
+
+        return (int) $customer->id;
     }
 }

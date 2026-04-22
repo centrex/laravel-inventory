@@ -306,6 +306,142 @@ it('allocates transfer weight and landed cost from mixed-product boxes', functio
     expect((float) $heavyTransferItem->unit_landed_cost_amount)->toBe(90.0);
 });
 
+it('can progress a purchase order from draft to received with the remaining quantity', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-PO-FLOW',
+        'name'         => 'Purchase Flow Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $supplier = Supplier::create([
+        'code'     => 'SUP-PO-FLOW',
+        'name'     => 'Purchase Flow Supplier',
+        'currency' => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-PO-FLOW',
+        'name'         => 'Purchase Flow Product',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    $purchaseOrder = $inventory->createPurchaseOrder([
+        'warehouse_id' => $warehouse->id,
+        'supplier_id'  => $supplier->id,
+        'currency'     => 'BDT',
+        'items'        => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 4,
+            'unit_price_local' => 125,
+        ]],
+    ]);
+
+    expect($purchaseOrder->status->value)->toBe('draft');
+
+    $purchaseOrder = $inventory->submitPurchaseOrder($purchaseOrder->id);
+    expect($purchaseOrder->status->value)->toBe('submitted');
+
+    $purchaseOrder = $inventory->confirmPurchaseOrder($purchaseOrder->id);
+    expect($purchaseOrder->status->value)->toBe('confirmed');
+
+    $purchaseOrder = $inventory->receivePurchaseOrder($purchaseOrder->id);
+    $purchaseOrderItem = $purchaseOrder->items->first();
+
+    expect($purchaseOrder->status->value)->toBe('received');
+    expect((float) $purchaseOrderItem->qty_received)->toBe(4.0);
+    expect((float) WarehouseProduct::query()
+        ->where('warehouse_id', $warehouse->id)
+        ->where('product_id', $product->id)
+        ->value('qty_on_hand'))->toBe(4.0);
+});
+
+it('can cancel a purchase order before it is received', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-PO-CANCEL',
+        'name'         => 'Purchase Cancel Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $supplier = Supplier::create([
+        'code'     => 'SUP-PO-CANCEL',
+        'name'     => 'Purchase Cancel Supplier',
+        'currency' => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-PO-CANCEL',
+        'name'         => 'Purchase Cancel Product',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    $purchaseOrder = $inventory->createPurchaseOrder([
+        'warehouse_id' => $warehouse->id,
+        'supplier_id'  => $supplier->id,
+        'currency'     => 'BDT',
+        'items'        => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 75,
+        ]],
+    ]);
+
+    $purchaseOrder = $inventory->cancelPurchaseOrder($purchaseOrder->id);
+
+    expect($purchaseOrder->status->value)->toBe('cancelled');
+});
+
+it('can confirm and cancel a quotation without reserving stock', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-QT-FLOW',
+        'name'         => 'Quotation Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-QT-FLOW',
+        'name'         => 'Quoted Product',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    WarehouseProduct::create([
+        'warehouse_id'   => $warehouse->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 10,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 50,
+    ]);
+
+    $quotation = $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'currency'        => 'BDT',
+        'document_type'   => 'quotation',
+        'price_tier_code' => 'b2c_retail',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 3,
+            'unit_price_local' => 120,
+        ]],
+    ]);
+
+    expect($quotation->document_type)->toBe('quotation');
+    expect($quotation->status->value)->toBe('draft');
+
+    $quotation = $inventory->confirmSaleOrder($quotation->id);
+    expect($quotation->status->value)->toBe('confirmed');
+
+    $quotation = $inventory->cancelSaleOrder($quotation->id);
+    expect($quotation->status->value)->toBe('cancelled');
+    expect((float) WarehouseProduct::query()
+        ->where('warehouse_id', $warehouse->id)
+        ->where('product_id', $product->id)
+        ->value('qty_reserved'))->toBe(0.0);
+});
+
 it('exposes inventory api routes', function (): void {
     $response = $this->postJson('/api/inventory/exchange-rates/set', [
         'currency' => 'USD',
