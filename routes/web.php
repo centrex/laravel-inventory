@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\DashboardController;
+use Centrex\Inventory\Http\Controllers\Web\AsyncSelectController;
 use Centrex\Inventory\Http\Livewire\Entities\{EntityFormPage, EntityIndexPage};
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
@@ -13,6 +14,7 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
     ->as('inventory.')
     ->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('/async-select/{resource}', AsyncSelectController::class)->name('async-select');
 
         foreach (InventoryEntityRegistry::masterDataEntities() as $entity) {
             Route::get("/{$entity}", EntityIndexPage::class)->name("entities.{$entity}.index")->defaults('entity', $entity);

@@ -20,6 +20,8 @@ class PurchaseOrderShowPage extends Component
 
     public ?array $financeDocument = null;
 
+    public ?array $linkedPurchaseOrder = null;
+
     public function mount(int $recordId, string $documentType = 'order'): void
     {
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
@@ -29,6 +31,7 @@ class PurchaseOrderShowPage extends Component
             ->findOrFail($recordId);
 
         $this->financeDocument = $this->resolveFinanceDocument();
+        $this->linkedPurchaseOrder = $this->resolveLinkedPurchaseOrder();
     }
 
     public function render(): View
@@ -36,16 +39,20 @@ class PurchaseOrderShowPage extends Component
         $this->record->loadMissing(['supplier', 'warehouse', 'items.product']);
 
         return view('inventory::livewire.transactions.purchase-order-show', [
-            'record'          => $this->record,
-            'financeDocument' => $this->financeDocument,
-            'documentLabel'   => $this->documentType === 'requisition' ? 'Requisition' : 'Purchase Order',
-            'routeBase'       => $this->documentType === 'requisition' ? 'inventory.requisitions' : 'inventory.purchase-orders',
-            'statusValue'     => $this->record->status?->value,
-            'canSubmit'       => in_array($this->record->status?->value, ['draft'], true),
-            'canConfirm'      => in_array($this->record->status?->value, ['submitted'], true),
-            'canReceive'      => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed', 'partial'], true),
-            'canCancel'       => in_array($this->record->status?->value, ['draft', 'submitted', 'confirmed', 'partial'], true),
-            'canCreateBill'   => $this->documentType === 'order' && $this->financeDocument === null,
+            'record'                 => $this->record,
+            'financeDocument'        => $this->financeDocument,
+            'documentLabel'          => $this->documentType === 'requisition' ? 'Requisition' : 'Purchase Order',
+            'routeBase'              => $this->documentType === 'requisition' ? 'inventory.requisitions' : 'inventory.purchase-orders',
+            'statusValue'            => $this->record->status?->value,
+            'canSubmit'              => in_array($this->record->status?->value, ['draft'], true),
+            'canConfirm'             => in_array($this->record->status?->value, ['submitted'], true),
+            'canReceive'             => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed', 'partial'], true),
+            'canCancel'              => in_array($this->record->status?->value, ['draft', 'submitted', 'confirmed', 'partial'], true),
+            'canCreateBill'          => $this->documentType === 'order' && $this->financeDocument === null,
+            'canCreatePurchaseOrder' => $this->documentType === 'requisition'
+                && $this->record->status?->value === 'confirmed'
+                && $this->linkedPurchaseOrder === null,
+            'linkedPurchaseOrder' => $this->linkedPurchaseOrder,
         ]);
     }
 
@@ -100,6 +107,20 @@ class PurchaseOrderShowPage extends Component
             session()->flash('inventory.status', "Bill created for {$this->record->po_number}.");
         } catch (\Throwable $exception) {
             session()->flash('inventory.error', $exception->getMessage());
+        }
+    }
+
+    public function createPurchaseOrder(): mixed
+    {
+        try {
+            $purchaseOrder = app(Inventory::class)->createPurchaseOrderFromRequisition((int) $this->record->getKey());
+            session()->flash('inventory.status', "Purchase order {$purchaseOrder->po_number} created from {$this->record->po_number}.");
+
+            return redirect()->route('inventory.purchase-orders.show', ['recordId' => $purchaseOrder->getKey()]);
+        } catch (\Throwable $exception) {
+            session()->flash('inventory.error', $exception->getMessage());
+
+            return null;
         }
     }
 
@@ -170,5 +191,47 @@ class PurchaseOrderShowPage extends Component
             ->findOrFail($this->record->getKey());
 
         $this->financeDocument = $this->resolveFinanceDocument();
+        $this->linkedPurchaseOrder = $this->resolveLinkedPurchaseOrder();
+    }
+
+    private function resolveLinkedPurchaseOrder(): ?array
+    {
+        $purchaseOrderId = (int) ($this->documentMetadata()['converted_purchase_order_id'] ?? 0);
+
+        if ($purchaseOrderId <= 0) {
+            return null;
+        }
+
+        $purchaseOrder = PurchaseOrder::query()
+            ->where('document_type', 'order')
+            ->find($purchaseOrderId);
+
+        if (!$purchaseOrder) {
+            return null;
+        }
+
+        return [
+            'id'     => (int) $purchaseOrder->getKey(),
+            'number' => (string) $purchaseOrder->po_number,
+        ];
+    }
+
+    private function documentMetadata(): array
+    {
+        if (!class_exists(\Centrex\ModelData\Data::class)) {
+            return [];
+        }
+
+        $record = \Centrex\ModelData\Data::query()
+            ->forModel($this->record)
+            ->first();
+
+        if (!$record) {
+            return [];
+        }
+
+        return is_array($record->data)
+            ? $record->data
+            : (json_decode((string) $record->data, true) ?: []);
     }
 }

@@ -99,7 +99,7 @@ return [
     | Authorization
     |--------------------------------------------------------------------------
     */
-    'admin_roles'          => env('INVENTORY_ADMIN_ROLES', 'inventory-manager,admin'),
+    'admin_roles'          => env('INVENTORY_ADMIN_ROLES', 'administrator,admin,superadmin,inventory-manager'),
     'admin_role_attribute' => env('INVENTORY_ADMIN_ROLE_ATTRIBUTE', null),
     'user_foreign_keys'    => env('INVENTORY_USER_FOREIGN_KEYS', false),
 

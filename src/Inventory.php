@@ -7,12 +7,15 @@ namespace Centrex\Inventory;
 use Carbon\Carbon;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Customer, Product, ProductCategory, ProductPrice, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Product, ProductCategory, ProductPrice, ProductVariant, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\ErpIntegration;
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
+use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate};
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class Inventory
@@ -137,8 +140,10 @@ class Inventory
     public function setPrice(int $productId, string $tierCode, float $priceAmount, ?int $warehouseId = null, array $options = []): ProductPrice
     {
         $tierCode = $this->normalizePriceTierCode($tierCode);
+        $variantId = $this->normalizeVariantId($options['variant_id'] ?? null, $productId);
 
         $data = [
+            'variant_id'      => $variantId,
             'price_tier_code' => $tierCode,
             'price_amount'    => $priceAmount,
             'cost_price'      => $options['cost_price'] ?? null,
@@ -153,6 +158,7 @@ class Inventory
         return ProductPrice::updateOrCreate(
             [
                 'product_id'      => $productId,
+                'variant_id'      => $variantId,
                 'price_tier_code' => $tierCode,
                 'warehouse_id'    => $warehouseId,
                 'effective_from'  => $data['effective_from'],
@@ -165,10 +171,11 @@ class Inventory
      * Resolve the effective sell price for a product + tier at a given warehouse.
      * Priority: warehouse-specific active price → global active price.
      */
-    public function resolvePrice(int $productId, string $tierCode, int $warehouseId, ?string $date = null): ProductPrice
+    public function resolvePrice(int $productId, string $tierCode, int $warehouseId, ?string $date = null, ?int $variantId = null): ProductPrice
     {
         $tierCode = $this->normalizePriceTierCode($tierCode);
         $date ??= now()->toDateString();
+        $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $base = ProductPrice::where('product_id', $productId)
             ->where('price_tier_code', $tierCode)
@@ -176,8 +183,15 @@ class Inventory
             ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $date))
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date));
 
-        $price = (clone $base)->where('warehouse_id', $warehouseId)->latest()->first();
-        $price ??= (clone $base)->whereNull('warehouse_id')->latest()->first();
+        $price = null;
+
+        if ($variantId !== null) {
+            $price = (clone $base)->where('variant_id', $variantId)->where('warehouse_id', $warehouseId)->latest()->first();
+            $price ??= (clone $base)->where('variant_id', $variantId)->whereNull('warehouse_id')->latest()->first();
+        }
+
+        $price ??= (clone $base)->whereNull('variant_id')->where('warehouse_id', $warehouseId)->latest()->first();
+        $price ??= (clone $base)->whereNull('variant_id')->whereNull('warehouse_id')->latest()->first();
 
         if (!$price) {
             if (config('inventory.price_not_found_throws', true)) {
@@ -193,12 +207,12 @@ class Inventory
     /**
      * Get all tier prices for a product at a warehouse (global fallback per tier).
      */
-    public function getPriceSheet(int $productId, int $warehouseId, ?string $date = null): Collection
+    public function getPriceSheet(int $productId, int $warehouseId, ?string $date = null, ?int $variantId = null): Collection
     {
         return collect(PriceTierCode::ordered())
-            ->map(function (PriceTierCode $tier) use ($productId, $warehouseId, $date) {
+            ->map(function (PriceTierCode $tier) use ($productId, $warehouseId, $date, $variantId) {
                 try {
-                    $price = $this->resolvePrice($productId, $tier->value, $warehouseId, $date);
+                    $price = $this->resolvePrice($productId, $tier->value, $warehouseId, $date, $variantId);
                 } catch (PriceNotFoundException) {
                     $price = null;
                 }
@@ -218,17 +232,19 @@ class Inventory
     // Warehouse-Product (Stock Ledger)
     // -------------------------------------------------------------------------
 
-    public function getOrCreateWarehouseProduct(int $warehouseId, int $productId): WarehouseProduct
+    public function getOrCreateWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
+        $variantId = $this->normalizeVariantId($variantId, $productId);
+
         return WarehouseProduct::firstOrCreate(
-            ['warehouse_id' => $warehouseId, 'product_id' => $productId],
+            ['warehouse_id' => $warehouseId, 'product_id' => $productId, 'variant_id' => $variantId],
             ['qty_on_hand' => 0, 'qty_reserved' => 0, 'qty_in_transit' => 0, 'wac_amount' => 0],
         );
     }
 
-    public function getStockLevel(int $productId, int $warehouseId): WarehouseProduct
+    public function getStockLevel(int $productId, int $warehouseId, ?int $variantId = null): WarehouseProduct
     {
-        return $this->getOrCreateWarehouseProduct($warehouseId, $productId);
+        return $this->getOrCreateWarehouseProduct($warehouseId, $productId, $variantId);
     }
 
     public function getStockLevels(int $warehouseId): Collection
@@ -270,11 +286,12 @@ class Inventory
         return round($newWac, (int) config('inventory.wac_precision', 4));
     }
 
-    private function writeMovement(int $warehouseId, int $productId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null): StockMovement
+    private function writeMovement(int $warehouseId, int $productId, ?int $variantId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null): StockMovement
     {
         return StockMovement::create([
             'warehouse_id'     => $warehouseId,
             'product_id'       => $productId,
+            'variant_id'       => $variantId,
             'movement_type'    => $type,
             'direction'        => $type->direction(),
             'qty'              => $qty,
@@ -305,12 +322,14 @@ class Inventory
         return "{$prefix}-{$today}-" . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
     }
 
-    private function lockWarehouseProduct(int $warehouseId, int $productId): WarehouseProduct
+    private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
         $model = new WarehouseProduct();
+        $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
             ->where('product_id', $productId)
+            ->where('variant_id', $variantId)
             ->lockForUpdate()
             ->first();
 
@@ -321,6 +340,7 @@ class Inventory
         DB::connection($model->getConnectionName())->table($model->getTable())->insertOrIgnore([
             'warehouse_id'   => $warehouseId,
             'product_id'     => $productId,
+            'variant_id'     => $variantId,
             'qty_on_hand'    => 0,
             'qty_reserved'   => 0,
             'qty_in_transit' => 0,
@@ -331,8 +351,45 @@ class Inventory
 
         return WarehouseProduct::where('warehouse_id', $warehouseId)
             ->where('product_id', $productId)
+            ->where('variant_id', $variantId)
             ->lockForUpdate()
             ->firstOrFail();
+    }
+
+    private function normalizeVariantId(null|int|string $variantId, int $productId): ?int
+    {
+        if ($variantId === null || $variantId === '') {
+            return null;
+        }
+
+        $variant = ProductVariant::query()->findOrFail((int) $variantId);
+
+        if ((int) $variant->product_id !== $productId) {
+            throw new \InvalidArgumentException("Variant [{$variant->getKey()}] does not belong to product [{$productId}].");
+        }
+
+        return (int) $variant->getKey();
+    }
+
+    private function resolveProductReference(array $item): array
+    {
+        $productId = (int) $item['product_id'];
+        $variantId = $this->normalizeVariantId($item['variant_id'] ?? null, $productId);
+
+        return [$productId, $variantId];
+    }
+
+    private function productLabel(int $productId, ?int $variantId = null): string
+    {
+        $product = Product::query()->find($productId);
+
+        if ($variantId === null) {
+            return $product?->name ?? ('#' . $productId);
+        }
+
+        $variant = ProductVariant::query()->find($variantId);
+
+        return $variant?->display_name ?? (($product?->name ?? ('#' . $productId)) . ' / #' . $variantId);
     }
 
     private function ensurePositiveQuantity(float $qty, string $field): void
@@ -386,6 +443,7 @@ class Inventory
             $subtotalLocal = 0.0;
 
             foreach ($data['items'] as $item) {
+                [$productId, $variantId] = $this->resolveProductReference($item);
                 $unitPriceLocal = (float) $item['unit_price_local'];
                 $qty = (float) $item['qty_ordered'];
                 $unitPriceBdt = round($unitPriceLocal * $rate, 4);
@@ -395,7 +453,8 @@ class Inventory
 
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $po->id,
-                    'product_id'        => $item['product_id'],
+                    'product_id'        => $productId,
+                    'variant_id'        => $variantId,
                     'qty_ordered'       => $qty,
                     'qty_received'      => 0,
                     'unit_price_local'  => $unitPriceLocal,
@@ -418,6 +477,71 @@ class Inventory
         $this->erp()->syncPurchaseOrderDocument($po);
 
         return $po;
+    }
+
+    public function createPurchaseOrderFromRequisition(int $requisitionId, array $overrides = []): PurchaseOrder
+    {
+        $requisition = PurchaseOrder::query()
+            ->with(['items'])
+            ->where('document_type', 'requisition')
+            ->findOrFail($requisitionId);
+
+        if ($requisition->status === PurchaseOrderStatus::CANCELLED) {
+            throw new InvalidTransitionException("Requisition #{$requisition->po_number} has been cancelled and cannot be converted.");
+        }
+
+        $metadata = $this->documentMetadata($requisition);
+        $convertedPurchaseOrderId = (int) ($metadata['converted_purchase_order_id'] ?? 0);
+
+        if ($convertedPurchaseOrderId > 0) {
+            $existingPurchaseOrder = PurchaseOrder::query()
+                ->where('document_type', 'order')
+                ->find($convertedPurchaseOrderId);
+
+            if ($existingPurchaseOrder) {
+                return $existingPurchaseOrder->fresh(['supplier', 'items.product']);
+            }
+        }
+
+        $purchaseOrder = $this->createPurchaseOrder([
+            'warehouse_id'         => (int) ($overrides['warehouse_id'] ?? $requisition->warehouse_id),
+            'supplier_id'          => (int) ($overrides['supplier_id'] ?? $requisition->supplier_id),
+            'currency'             => (string) ($overrides['currency'] ?? $requisition->currency),
+            'exchange_rate'        => (float) ($overrides['exchange_rate'] ?? $requisition->exchange_rate),
+            'document_type'        => 'order',
+            'ordered_at'           => $overrides['ordered_at'] ?? now(),
+            'expected_at'          => $overrides['expected_at'] ?? $requisition->expected_at,
+            'notes'                => $overrides['notes'] ?? $this->appendConversionNote($requisition->notes, "Converted from requisition {$requisition->po_number}."),
+            'created_by'           => $overrides['created_by'] ?? $requisition->created_by,
+            'tax_local'            => (float) ($overrides['tax_local'] ?? $requisition->tax_local),
+            'shipping_local'       => (float) ($overrides['shipping_local'] ?? $requisition->shipping_local),
+            'other_charges_amount' => (float) ($overrides['other_charges_amount'] ?? $requisition->other_charges_amount),
+            'items'                => collect($overrides['items'] ?? $requisition->items)
+                ->map(function ($item): array {
+                    return [
+                        'product_id'       => (int) $item['product_id'],
+                        'variant_id'       => $item['variant_id'] !== null ? (int) $item['variant_id'] : null,
+                        'qty_ordered'      => (float) $item['qty_ordered'],
+                        'unit_price_local' => (float) $item['unit_price_local'],
+                        'notes'            => $item['notes'] ?? null,
+                    ];
+                })
+                ->values()
+                ->all(),
+        ]);
+
+        $this->putDocumentMetadata($requisition, array_merge($metadata, [
+            'converted_purchase_order_id'     => $purchaseOrder->getKey(),
+            'converted_purchase_order_number' => $purchaseOrder->po_number,
+            'converted_purchase_order_at'     => now()->toIso8601String(),
+        ]));
+
+        $this->putDocumentMetadata($purchaseOrder, array_merge($this->documentMetadata($purchaseOrder), [
+            'source_requisition_id'     => $requisition->getKey(),
+            'source_requisition_number' => $requisition->po_number,
+        ]));
+
+        return $purchaseOrder;
     }
 
     public function submitPurchaseOrder(int $poId): PurchaseOrder
@@ -536,6 +660,7 @@ class Inventory
                     'stock_receipt_id'       => $grn->id,
                     'purchase_order_item_id' => $poItem->id,
                     'product_id'             => $poItem->product_id,
+                    'variant_id'             => $poItem->variant_id,
                     'qty_received'           => $qty,
                     'unit_cost_local'        => $unitCostLocal,
                     'unit_cost_amount'       => $unitCostBdt,
@@ -560,7 +685,7 @@ class Inventory
 
         $grn = DB::transaction(function () use ($grn): StockReceipt {
             foreach ($grn->items as $item) {
-                $wp = $this->lockWarehouseProduct($grn->warehouse_id, $item->product_id);
+                $wp = $this->lockWarehouseProduct($grn->warehouse_id, $item->product_id, $item->variant_id);
 
                 $qtyBefore = (float) $wp->qty_on_hand;
                 $wacBefore = (float) $wp->wac_amount;
@@ -575,7 +700,7 @@ class Inventory
                         ->increment('qty_received', $item->qty_received);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id);
+                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id);
             }
 
             $grn->update(['status' => StockReceiptStatus::POSTED]);
@@ -606,6 +731,7 @@ class Inventory
             foreach ($grn->items as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $grn->warehouse_id)
                     ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
@@ -624,7 +750,7 @@ class Inventory
                         ->decrement('qty_received', $item->qty_received);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, StockReceipt::class, $grn->id, null, 'GRN void');
+                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, StockReceipt::class, $grn->id, null, 'GRN void');
             }
 
             $grn->update(['status' => StockReceiptStatus::VOID]);
@@ -645,9 +771,11 @@ class Inventory
     {
         $so = DB::transaction(function () use ($data): SaleOrder {
             $tierCode = $this->normalizePriceTierCode($data['price_tier_code'] ?? PriceTierCode::B2B_RETAIL->value);
-            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
+            $currency = strtoupper((string) $data['currency']);
+            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
             $customer = isset($data['customer_id']) ? Customer::findOrFail($data['customer_id']) : null;
             $documentType = $this->normalizeSaleDocumentType($data['document_type'] ?? null);
+            $orderedAt = Carbon::parse($data['ordered_at'] ?? now());
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $discountLocal = (float) ($data['discount_local'] ?? 0);
@@ -655,13 +783,14 @@ class Inventory
             $subtotalLocal = 0.0;
 
             foreach ($data['items'] as $item) {
+                [$productId, $variantId] = $this->resolveProductReference($item);
                 $itemTierCode = isset($item['price_tier_code'])
                     ? $this->normalizePriceTierCode($item['price_tier_code'])
                     : $tierCode;
 
                 $unitPriceBdt = isset($item['unit_price_local'])
                     ? round((float) $item['unit_price_local'] * $rate, 4)
-                    : (float) $this->resolvePrice($item['product_id'], $itemTierCode, $data['warehouse_id'])->price_amount;
+                    : (float) $this->resolvePrice($productId, $itemTierCode, $data['warehouse_id'], null, $variantId)->price_amount;
 
                 $unitPriceLocal = round($unitPriceBdt / ($rate ?: 1), 4);
                 $qty = (float) $item['qty_ordered'];
@@ -671,7 +800,8 @@ class Inventory
                 $subtotalLocal += $lineTotalLocal;
 
                 $lineItems[] = [
-                    'product_id'        => $item['product_id'],
+                    'product_id'        => $productId,
+                    'variant_id'        => $variantId,
                     'price_tier_code'   => $itemTierCode,
                     'qty_ordered'       => $qty,
                     'qty_fulfilled'     => 0,
@@ -686,8 +816,15 @@ class Inventory
             }
 
             $subtotalBdt = round($subtotalLocal * $rate, 4);
-            $totalLocal = $subtotalLocal + $taxLocal - $discountLocal;
-            $totalBdt = $subtotalBdt + round($taxLocal * $rate, 4) - round($discountLocal * $rate, 4);
+            $coupon = $this->resolveCouponDiscount(
+                $data['coupon_code'] ?? null,
+                $subtotalLocal,
+                $currency,
+                $orderedAt,
+                $documentType,
+            );
+            $totalLocal = $subtotalLocal + $taxLocal - $discountLocal - $coupon['coupon_discount_local'];
+            $totalBdt = $subtotalBdt + round($taxLocal * $rate, 4) - round($discountLocal * $rate, 4) - $coupon['coupon_discount_amount'];
             $credit = $this->resolveCreditOverride($customer, $totalBdt, $data);
 
             $so = SaleOrder::create([
@@ -695,17 +832,24 @@ class Inventory
                 'document_type'                 => $documentType,
                 'warehouse_id'                  => $data['warehouse_id'],
                 'customer_id'                   => $data['customer_id'] ?? null,
+                'coupon_id'                     => $coupon['coupon_id'],
                 'price_tier_code'               => $tierCode,
+                'coupon_code'                   => $coupon['coupon_code'],
+                'coupon_name'                   => $coupon['coupon_name'],
+                'coupon_discount_type'          => $coupon['coupon_discount_type'],
+                'coupon_discount_value'         => $coupon['coupon_discount_value'],
                 'currency'                      => strtoupper($data['currency']),
                 'exchange_rate'                 => $rate,
                 'status'                        => SaleOrderStatus::DRAFT,
-                'ordered_at'                    => $data['ordered_at'] ?? now(),
+                'ordered_at'                    => $orderedAt,
                 'notes'                         => $data['notes'] ?? null,
                 'created_by'                    => $data['created_by'] ?? null,
                 'tax_local'                     => $taxLocal,
                 'tax_amount'                    => round($taxLocal * $rate, 4),
                 'discount_local'                => $discountLocal,
                 'discount_amount'               => round($discountLocal * $rate, 4),
+                'coupon_discount_local'         => $coupon['coupon_discount_local'],
+                'coupon_discount_amount'        => $coupon['coupon_discount_amount'],
                 'subtotal_local'                => $subtotalLocal,
                 'subtotal_amount'               => $subtotalBdt,
                 'total_local'                   => $totalLocal,
@@ -724,6 +868,7 @@ class Inventory
                 SaleOrderItem::create([
                     'sale_order_id'     => $so->id,
                     'product_id'        => $lineItem['product_id'],
+                    'variant_id'        => $lineItem['variant_id'],
                     'price_tier_code'   => $lineItem['price_tier_code'],
                     'qty_ordered'       => $lineItem['qty_ordered'],
                     'qty_fulfilled'     => $lineItem['qty_fulfilled'],
@@ -745,6 +890,174 @@ class Inventory
         return $so;
     }
 
+    public function createSaleOrderFromQuotation(int $quotationId, array $overrides = []): SaleOrder
+    {
+        $quotation = SaleOrder::query()
+            ->with(['items'])
+            ->where('document_type', 'quotation')
+            ->findOrFail($quotationId);
+
+        if ($quotation->status === SaleOrderStatus::CANCELLED) {
+            throw new InvalidTransitionException("Quotation #{$quotation->so_number} has been cancelled and cannot be converted.");
+        }
+
+        $metadata = $this->documentMetadata($quotation);
+        $convertedSaleOrderId = (int) ($metadata['converted_sale_order_id'] ?? 0);
+
+        if ($convertedSaleOrderId > 0) {
+            $existingSaleOrder = SaleOrder::query()
+                ->where('document_type', 'order')
+                ->find($convertedSaleOrderId);
+
+            if ($existingSaleOrder) {
+                return $existingSaleOrder->fresh(['customer', 'items.product']);
+            }
+        }
+
+        $saleOrder = $this->createSaleOrder([
+            'warehouse_id'    => (int) ($overrides['warehouse_id'] ?? $quotation->warehouse_id),
+            'customer_id'     => $overrides['customer_id'] ?? $quotation->customer_id,
+            'price_tier_code' => (string) ($overrides['price_tier_code'] ?? $quotation->price_tier_code),
+            'coupon_code'     => $overrides['coupon_code'] ?? $quotation->coupon_code,
+            'currency'        => (string) ($overrides['currency'] ?? $quotation->currency),
+            'exchange_rate'   => (float) ($overrides['exchange_rate'] ?? $quotation->exchange_rate),
+            'document_type'   => 'order',
+            'ordered_at'      => $overrides['ordered_at'] ?? now(),
+            'notes'           => $overrides['notes'] ?? $this->appendConversionNote($quotation->notes, "Converted from quotation {$quotation->so_number}."),
+            'created_by'      => $overrides['created_by'] ?? $quotation->created_by,
+            'tax_local'       => (float) ($overrides['tax_local'] ?? $quotation->tax_local),
+            'discount_local'  => (float) ($overrides['discount_local'] ?? $quotation->discount_local),
+            'items'           => collect($overrides['items'] ?? $quotation->items)
+                ->map(function ($item): array {
+                    return [
+                        'product_id'       => (int) $item['product_id'],
+                        'variant_id'       => $item['variant_id'] !== null ? (int) $item['variant_id'] : null,
+                        'price_tier_code'  => (string) $item['price_tier_code'],
+                        'qty_ordered'      => (float) $item['qty_ordered'],
+                        'unit_price_local' => (float) $item['unit_price_local'],
+                        'discount_pct'     => (float) $item['discount_pct'],
+                        'notes'            => $item['notes'] ?? null,
+                    ];
+                })
+                ->values()
+                ->all(),
+        ]);
+
+        $this->putDocumentMetadata($quotation, array_merge($metadata, [
+            'converted_sale_order_id'     => $saleOrder->getKey(),
+            'converted_sale_order_number' => $saleOrder->so_number,
+            'converted_sale_order_at'     => now()->toIso8601String(),
+        ]));
+
+        $this->putDocumentMetadata($saleOrder, array_merge($this->documentMetadata($saleOrder), [
+            'source_quotation_id'     => $quotation->getKey(),
+            'source_quotation_number' => $quotation->so_number,
+        ]));
+
+        return $saleOrder;
+    }
+
+    public function resolveCouponDiscount(?string $couponCode, float $subtotalLocal, string $currency, Carbon|string|null $orderedAt = null, ?string $documentType = 'order', ?int $ignoreSaleOrderId = null): array
+    {
+        $normalizedCode = $this->normalizeCouponCode($couponCode);
+
+        if ($normalizedCode === null) {
+            return [
+                'coupon'                 => null,
+                'coupon_id'              => null,
+                'coupon_code'            => null,
+                'coupon_name'            => null,
+                'coupon_discount_type'   => null,
+                'coupon_discount_value'  => 0.0,
+                'coupon_discount_local'  => 0.0,
+                'coupon_discount_amount' => 0.0,
+            ];
+        }
+
+        $orderedAt = $orderedAt instanceof Carbon
+            ? $orderedAt
+            : Carbon::parse($orderedAt ?? now());
+
+        /** @var Coupon|null $coupon */
+        $coupon = Coupon::query()
+            ->whereRaw('UPPER(code) = ?', [$normalizedCode])
+            ->first();
+
+        if (!$coupon || !$coupon->is_active) {
+            throw ValidationException::withMessages([
+                'coupon_code' => 'The selected coupon code is not valid.',
+            ]);
+        }
+
+        if ($coupon->starts_at && $coupon->starts_at->gt($orderedAt)) {
+            throw ValidationException::withMessages([
+                'coupon_code' => 'This coupon is not active yet.',
+            ]);
+        }
+
+        if ($coupon->ends_at && $coupon->ends_at->lt($orderedAt)) {
+            throw ValidationException::withMessages([
+                'coupon_code' => 'This coupon has expired.',
+            ]);
+        }
+
+        $subtotalAmount = round($this->convertToBase($subtotalLocal, $currency, $orderedAt->toDateString()), 4);
+        $minimumSubtotalAmount = (float) ($coupon->minimum_subtotal_amount ?? 0);
+
+        if ($minimumSubtotalAmount > 0 && $subtotalAmount < $minimumSubtotalAmount) {
+            throw ValidationException::withMessages([
+                'coupon_code' => 'This coupon requires a higher order subtotal.',
+            ]);
+        }
+
+        if ($coupon->usage_limit !== null && $documentType !== 'quotation') {
+            $usageCount = SaleOrder::query()
+                ->where('coupon_id', $coupon->getKey())
+                ->where('document_type', '!=', 'quotation')
+                ->when($ignoreSaleOrderId !== null, fn ($query) => $query->whereKeyNot($ignoreSaleOrderId))
+                ->count();
+
+            if ($usageCount >= $coupon->usage_limit) {
+                throw ValidationException::withMessages([
+                    'coupon_code' => 'This coupon has reached its usage limit.',
+                ]);
+            }
+        }
+
+        $discountAmount = match ($coupon->discount_type) {
+            'percent' => round($subtotalAmount * ((float) $coupon->discount_value / 100), 4),
+            'fixed'   => round((float) $coupon->discount_value, 4),
+            default   => throw new \InvalidArgumentException("Unknown coupon discount type [{$coupon->discount_type}]."),
+        };
+
+        $maximumDiscountAmount = (float) ($coupon->maximum_discount_amount ?? 0);
+
+        if ($maximumDiscountAmount > 0) {
+            $discountAmount = min($discountAmount, $maximumDiscountAmount);
+        }
+
+        $discountAmount = min($discountAmount, $subtotalAmount);
+        $discountLocal = round($this->convertFromBase($discountAmount, $currency, $orderedAt->toDateString()), 4);
+
+        return [
+            'coupon'                 => $coupon,
+            'coupon_id'              => $coupon->getKey(),
+            'coupon_code'            => $coupon->code,
+            'coupon_name'            => $coupon->name,
+            'coupon_discount_type'   => $coupon->discount_type,
+            'coupon_discount_value'  => round((float) $coupon->discount_value, 4),
+            'coupon_discount_local'  => $discountLocal,
+            'coupon_discount_amount' => round($discountAmount, 4),
+        ];
+    }
+
+    public function normalizeCouponCode(?string $couponCode): ?string
+    {
+        $couponCode = strtoupper(trim((string) $couponCode));
+
+        return $couponCode !== '' ? $couponCode : null;
+    }
+
     private function normalizePriceTierCode(string $tierCode): string
     {
         $tier = PriceTierCode::tryFrom($tierCode);
@@ -761,7 +1074,7 @@ class Inventory
         return DB::transaction(function () use ($data): SaleReturn {
             $saleOrder = isset($data['sale_order_id']) ? SaleOrder::query()->with('items')->find($data['sale_order_id']) : null;
             $requestedQuantities = collect($data['items'])
-                ->groupBy(fn (array $item): int => (int) $item['product_id'])
+                ->groupBy(fn (array $item): string => (int) $item['product_id'] . ':' . (int) ($item['variant_id'] ?? 0))
                 ->map(fn (Collection $items): float => round((float) $items->sum('qty_returned'), 4))
                 ->all();
 
@@ -783,11 +1096,11 @@ class Inventory
             ]);
 
             foreach ($data['items'] as $item) {
-                $productId = (int) $item['product_id'];
+                [$productId, $variantId] = $this->resolveProductReference($item);
                 $qty = round((float) $item['qty_returned'], 4);
                 $this->ensurePositiveQuantity($qty, 'qty_returned');
-                $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId);
-                $saleOrderItem = $saleOrder?->items->firstWhere('product_id', $productId);
+                $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId, $variantId);
+                $saleOrderItem = $saleOrder?->items->first(fn ($orderItem) => (int) $orderItem->product_id === $productId && (int) ($orderItem->variant_id ?? 0) === (int) ($variantId ?? 0));
 
                 if ($saleOrder) {
                     if (!$saleOrderItem) {
@@ -801,7 +1114,9 @@ class Inventory
                         ->sum('qty_returned');
                     $maxReturnable = max(0.0, round((float) $saleOrderItem->qty_fulfilled - $alreadyReturned, 4));
 
-                    if (($requestedQuantities[$productId] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    $referenceKey = $productId . ':' . (int) ($variantId ?? 0);
+
+                    if (($requestedQuantities[$referenceKey] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
                         throw ValidationException::withMessages([
                             'items' => ["Return quantity for product [{$productId}] exceeds the fulfilled quantity still available to return."],
                         ]);
@@ -819,6 +1134,7 @@ class Inventory
                     'sale_return_id'     => $saleReturn->id,
                     'sale_order_item_id' => $saleOrderItem?->getKey(),
                     'product_id'         => $productId,
+                    'variant_id'         => $variantId,
                     'qty_returned'       => $qty,
                     'unit_price_amount'  => $unitPrice,
                     'unit_cost_amount'   => $unitCost,
@@ -841,7 +1157,7 @@ class Inventory
 
         return DB::transaction(function () use ($saleReturn): SaleReturn {
             foreach ($saleReturn->items as $item) {
-                $warehouseProduct = $this->lockWarehouseProduct($saleReturn->warehouse_id, $item->product_id);
+                $warehouseProduct = $this->lockWarehouseProduct($saleReturn->warehouse_id, $item->product_id, $item->variant_id);
                 $qty = (float) $item->qty_returned;
                 $qtyBefore = (float) $warehouseProduct->qty_on_hand;
                 $qtyAfter = $qtyBefore + $qty;
@@ -855,6 +1171,7 @@ class Inventory
                 $this->writeMovement(
                     $saleReturn->warehouse_id,
                     $item->product_id,
+                    $item->variant_id,
                     MovementType::CUSTOMER_RETURN,
                     $qty,
                     $qtyBefore,
@@ -879,7 +1196,7 @@ class Inventory
         return DB::transaction(function () use ($data): PurchaseReturn {
             $purchaseOrder = isset($data['purchase_order_id']) ? PurchaseOrder::query()->with('items')->find($data['purchase_order_id']) : null;
             $requestedQuantities = collect($data['items'])
-                ->groupBy(fn (array $item): int => (int) $item['product_id'])
+                ->groupBy(fn (array $item): string => (int) $item['product_id'] . ':' . (int) ($item['variant_id'] ?? 0))
                 ->map(fn (Collection $items): float => round((float) $items->sum('qty_returned'), 4))
                 ->all();
 
@@ -901,11 +1218,11 @@ class Inventory
             ]);
 
             foreach ($data['items'] as $item) {
-                $productId = (int) $item['product_id'];
+                [$productId, $variantId] = $this->resolveProductReference($item);
                 $qty = round((float) $item['qty_returned'], 4);
                 $this->ensurePositiveQuantity($qty, 'qty_returned');
-                $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId);
-                $purchaseOrderItem = $purchaseOrder?->items->firstWhere('product_id', $productId);
+                $stock = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId, $variantId);
+                $purchaseOrderItem = $purchaseOrder?->items->first(fn ($orderItem) => (int) $orderItem->product_id === $productId && (int) ($orderItem->variant_id ?? 0) === (int) ($variantId ?? 0));
 
                 if ($purchaseOrder) {
                     if (!$purchaseOrderItem) {
@@ -919,7 +1236,9 @@ class Inventory
                         ->sum('qty_returned');
                     $maxReturnable = max(0.0, round((float) $purchaseOrderItem->qty_received - $alreadyReturned, 4));
 
-                    if (($requestedQuantities[$productId] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    $referenceKey = $productId . ':' . (int) ($variantId ?? 0);
+
+                    if (($requestedQuantities[$referenceKey] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
                         throw ValidationException::withMessages([
                             'items' => ["Return quantity for product [{$productId}] exceeds the received quantity still available to return."],
                         ]);
@@ -934,6 +1253,7 @@ class Inventory
                     'purchase_return_id'     => $purchaseReturn->id,
                     'purchase_order_item_id' => $purchaseOrderItem?->getKey(),
                     'product_id'             => $productId,
+                    'variant_id'             => $variantId,
                     'qty_returned'           => $qty,
                     'unit_cost_amount'       => $unitCost,
                     'line_total_amount'      => round($qty * $unitCost, 4),
@@ -955,7 +1275,7 @@ class Inventory
 
         return DB::transaction(function () use ($purchaseReturn): PurchaseReturn {
             foreach ($purchaseReturn->items as $item) {
-                $warehouseProduct = $this->lockWarehouseProduct($purchaseReturn->warehouse_id, $item->product_id);
+                $warehouseProduct = $this->lockWarehouseProduct($purchaseReturn->warehouse_id, $item->product_id, $item->variant_id);
                 $qty = (float) $item->qty_returned;
                 $qtyBefore = (float) $warehouseProduct->qty_on_hand;
 
@@ -969,6 +1289,7 @@ class Inventory
                 $this->writeMovement(
                     $purchaseReturn->warehouse_id,
                     $item->product_id,
+                    $item->variant_id,
                     MovementType::RETURN_TO_SUPPLIER,
                     $qty,
                     $qtyBefore,
@@ -1011,6 +1332,7 @@ class Inventory
             foreach ($so->items as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                     ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
                     ->lockForUpdate()
                     ->first();
 
@@ -1067,6 +1389,7 @@ class Inventory
 
                 $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                     ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
@@ -1096,7 +1419,7 @@ class Inventory
                     $fullyFulfilled = false;
                 }
 
-                $this->writeMovement($so->warehouse_id, $item->product_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyAfter, $wac, $wac, SaleOrder::class, $so->id);
+                $this->writeMovement($so->warehouse_id, $item->product_id, $item->variant_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyAfter, $wac, $wac, SaleOrder::class, $so->id);
             }
 
             $so->update(['status' => $fullyFulfilled ? SaleOrderStatus::FULFILLED : SaleOrderStatus::PARTIAL, 'cogs_amount' => (float) $so->cogs_amount + $totalCogs]);
@@ -1122,6 +1445,7 @@ class Inventory
                     if ($reserved > 0) {
                         $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                             ->where('product_id', $item->product_id)
+                            ->where('variant_id', $item->variant_id)
                             ->lockForUpdate()
                             ->first();
 
@@ -1198,17 +1522,21 @@ class Inventory
                 $fallbackQtyTotal = 0.0;
 
                 foreach ($boxData['items'] as $item) {
-                    $product = Product::findOrFail($item['product_id']);
+                    [$productId, $variantId] = $this->resolveProductReference($item);
+                    $product = Product::findOrFail($productId);
+                    $variant = $variantId ? ProductVariant::query()->findOrFail($variantId) : null;
                     $qty = round((float) $item['qty_sent'], 4);
                     $this->ensurePositiveQuantity($qty, 'qty_sent');
 
-                    $theoreticalWeight = $product->weight_kg !== null
-                        ? round($qty * (float) $product->weight_kg, 4)
+                    $unitWeightKg = $variant?->weight_kg ?? $product->weight_kg;
+                    $theoreticalWeight = $unitWeightKg !== null
+                        ? round($qty * (float) $unitWeightKg, 4)
                         : 0.0;
-                    $sourceWp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id);
+                    $sourceWp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, $variantId);
 
                     $preparedItems[] = [
                         'product'                 => $product,
+                        'variant_id'              => $variantId,
                         'qty_sent'                => $qty,
                         'theoretical_weight_kg'   => $theoreticalWeight,
                         'source_unit_cost_amount' => (float) $sourceWp->wac_amount,
@@ -1236,6 +1564,7 @@ class Inventory
                     $boxItem = TransferBoxItem::create([
                         'transfer_box_id'           => $box->id,
                         'product_id'                => $preparedItem['product']->id,
+                        'variant_id'                => $preparedItem['variant_id'],
                         'qty_sent'                  => $preparedItem['qty_sent'],
                         'theoretical_weight_kg'     => $preparedItem['theoretical_weight_kg'],
                         'allocated_weight_kg'       => $allocatedWeight,
@@ -1246,17 +1575,21 @@ class Inventory
                         'notes'                     => $preparedItem['notes'],
                     ]);
 
-                    $productId = $preparedItem['product']->id;
-                    $aggregates[$productId] ??= [
+                    $productId = (int) $preparedItem['product']->id;
+                    $variantId = $preparedItem['variant_id'];
+                    $aggregateKey = $productId . ':' . (int) ($variantId ?? 0);
+                    $aggregates[$aggregateKey] ??= [
+                        'product_id'              => $productId,
+                        'variant_id'              => $variantId,
                         'qty_sent'                => 0.0,
                         'weight_kg_total'         => 0.0,
                         'source_cost_total'       => 0.0,
                         'unit_cost_source_amount' => 0.0,
                     ];
-                    $aggregates[$productId]['qty_sent'] += $preparedItem['qty_sent'];
-                    $aggregates[$productId]['weight_kg_total'] += $allocatedWeight;
-                    $aggregates[$productId]['source_cost_total'] += $preparedItem['source_unit_cost_amount'] * $preparedItem['qty_sent'];
-                    $aggregates[$productId]['unit_cost_source_amount'] = $preparedItem['source_unit_cost_amount'];
+                    $aggregates[$aggregateKey]['qty_sent'] += $preparedItem['qty_sent'];
+                    $aggregates[$aggregateKey]['weight_kg_total'] += $allocatedWeight;
+                    $aggregates[$aggregateKey]['source_cost_total'] += $preparedItem['source_unit_cost_amount'] * $preparedItem['qty_sent'];
+                    $aggregates[$aggregateKey]['unit_cost_source_amount'] = $preparedItem['source_unit_cost_amount'];
 
                     $createdBoxItems[] = [
                         'model'                   => $boxItem,
@@ -1285,7 +1618,7 @@ class Inventory
                 ]);
             }
 
-            foreach ($aggregates as $productId => $aggregate) {
+            foreach ($aggregates as $aggregate) {
                 $qtySent = round((float) $aggregate['qty_sent'], 4);
                 $unitCostSourceAmount = $qtySent > 0
                     ? round((float) $aggregate['source_cost_total'] / $qtySent, 4)
@@ -1299,7 +1632,8 @@ class Inventory
 
                 TransferItem::create([
                     'transfer_id'               => $transfer->id,
-                    'product_id'                => $productId,
+                    'product_id'                => $aggregate['product_id'],
+                    'variant_id'                => $aggregate['variant_id'],
                     'qty_sent'                  => $qtySent,
                     'qty_received'              => 0,
                     'unit_cost_source_amount'   => $unitCostSourceAmount,
@@ -1328,6 +1662,7 @@ class Inventory
             foreach ($transfer->items as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $transfer->from_warehouse_id)
                     ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
@@ -1347,7 +1682,7 @@ class Inventory
 
                 $item->update(['wac_source_before_amount' => (float) $wp->wac_amount]);
 
-                $this->writeMovement($transfer->from_warehouse_id, $item->product_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Transfer::class, $transfer->id);
+                $this->writeMovement($transfer->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Transfer::class, $transfer->id);
             }
 
             $transfer->update(['status' => TransferStatus::IN_TRANSIT, 'shipped_at' => now()]);
@@ -1385,7 +1720,7 @@ class Inventory
                     throw new \InvalidArgumentException("Cannot receive {$qtyReceived} units for transfer item [{$item->id}]; only {$remainingQty} remain in transit.");
                 }
 
-                $destWp = $this->lockWarehouseProduct($transfer->to_warehouse_id, $item->product_id);
+                $destWp = $this->lockWarehouseProduct($transfer->to_warehouse_id, $item->product_id, $item->variant_id);
 
                 $destWacBefore = (float) $destWp->wac_amount;
                 $newDestWac = $this->recalculateWac($destWp, $qtyReceived, (float) $item->unit_landed_cost_amount);
@@ -1396,6 +1731,7 @@ class Inventory
 
                 WarehouseProduct::where('warehouse_id', $transfer->from_warehouse_id)
                     ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
                     ->decrement('qty_in_transit', $qtyReceived);
 
                 $totalReceived = (float) $item->qty_received + $qtyReceived;
@@ -1764,9 +2100,349 @@ class Inventory
         ];
     }
 
+    public function salesForecast(
+        int $lookbackDays = 90,
+        int $forecastDays = 90,
+        int $productLimit = 12,
+        int $customerLimit = 10,
+    ): array {
+        $lookbackDays = max(7, $lookbackDays);
+        $forecastDays = max(7, $forecastDays);
+
+        $historyEnd = now()->endOfDay();
+        $historyStart = now()->copy()->subDays($lookbackDays - 1)->startOfDay();
+        $observedDays = max(1, $historyStart->diffInDays($historyEnd) + 1);
+
+        $saleOrders = SaleOrder::query()
+            ->with(['customer', 'items.product'])
+            ->where('document_type', 'order')
+            ->whereIn('status', [
+                SaleOrderStatus::CONFIRMED->value,
+                SaleOrderStatus::PROCESSING->value,
+                SaleOrderStatus::PARTIAL->value,
+                SaleOrderStatus::FULFILLED->value,
+            ])
+            ->whereBetween('ordered_at', [$historyStart, $historyEnd])
+            ->get();
+
+        $items = $saleOrders->flatMap(function (SaleOrder $order): Collection {
+            return $order->items->map(fn (SaleOrderItem $item): array => [
+                'product_id'    => (int) $item->product_id,
+                'product_name'  => $item->product?->name ?? ('#' . $item->product_id),
+                'sku'           => $item->product?->sku ?? null,
+                'customer_id'   => $order->customer_id ? (int) $order->customer_id : null,
+                'customer_name' => $order->customer?->name ?? 'Walk-in',
+                'qty'           => (float) $item->qty_ordered,
+                'fulfilled_qty' => (float) $item->qty_fulfilled,
+                'revenue'       => (float) $item->line_total_local,
+                'ordered_at'    => $order->ordered_at,
+            ]);
+        });
+
+        $productIds = $items->pluck('product_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $stockByProduct = WarehouseProduct::query()
+            ->when($productIds->isNotEmpty(), fn ($query) => $query->whereIn('product_id', $productIds->all()))
+            ->get()
+            ->groupBy('product_id')
+            ->map(function (Collection $rows): array {
+                $qtyOnHand = (float) $rows->sum('qty_on_hand');
+                $qtyReserved = (float) $rows->sum('qty_reserved');
+                $qtyInTransit = (float) $rows->sum('qty_in_transit');
+                $wacValue = (float) $rows->sum(fn (WarehouseProduct $row): float => (float) $row->qty_on_hand * (float) $row->wac_amount);
+
+                return [
+                    'qty_on_hand'    => round($qtyOnHand, 2),
+                    'qty_reserved'   => round($qtyReserved, 2),
+                    'qty_in_transit' => round($qtyInTransit, 2),
+                    'qty_available'  => round($qtyOnHand - $qtyReserved, 2),
+                    'wac_amount'     => $qtyOnHand > 0 ? round($wacValue / $qtyOnHand, 4) : 0.0,
+                ];
+            });
+
+        $pendingSupplyByProduct = PurchaseOrderItem::query()
+            ->with('purchaseOrder')
+            ->when($productIds->isNotEmpty(), fn ($query) => $query->whereIn('product_id', $productIds->all()))
+            ->get()
+            ->filter(function (PurchaseOrderItem $item): bool {
+                $status = $item->purchaseOrder?->status?->value;
+
+                return in_array($status, [
+                    PurchaseOrderStatus::DRAFT->value,
+                    PurchaseOrderStatus::SUBMITTED->value,
+                    PurchaseOrderStatus::CONFIRMED->value,
+                    PurchaseOrderStatus::PARTIAL->value,
+                ], true);
+            })
+            ->groupBy('product_id')
+            ->map(function (Collection $rows): array {
+                $pendingQty = (float) $rows->sum(fn (PurchaseOrderItem $row): float => $row->qtyPending());
+                $pendingValue = (float) $rows->sum(fn (PurchaseOrderItem $row): float => $row->qtyPending() * (float) $row->unit_price_local);
+
+                return [
+                    'qty'      => round($pendingQty, 2),
+                    'avg_cost' => $pendingQty > 0 ? round($pendingValue / $pendingQty, 4) : 0.0,
+                ];
+            });
+
+        $customerCollectionRatio = $this->historicalCustomerCollectionRatio($historyStart, $historyEnd);
+        $supplierPaymentRatio = $this->historicalSupplierPaymentRatio($historyStart, $historyEnd);
+
+        $productForecast = $items
+            ->groupBy('product_id')
+            ->map(function (Collection $rows, int|string $productId) use ($observedDays, $forecastDays, $stockByProduct, $pendingSupplyByProduct): array {
+                $productId = (int) $productId;
+                $historyQty = (float) $rows->sum('qty');
+                $fulfilledQty = (float) $rows->sum('fulfilled_qty');
+                $historyRevenue = (float) $rows->sum('revenue');
+                $activeDays = $rows->pluck('ordered_at')
+                    ->filter()
+                    ->map(fn ($orderedAt) => $orderedAt->toDateString())
+                    ->unique()
+                    ->count();
+
+                $avgDailyQty = $historyQty > 0 ? $historyQty / $observedDays : 0.0;
+                $avgDailyRevenue = $historyRevenue > 0 ? $historyRevenue / $observedDays : 0.0;
+                $forecastQty = round($avgDailyQty * $forecastDays, 2);
+                $forecastRevenue = round($avgDailyRevenue * $forecastDays, 2);
+                $avgSellPrice = $historyQty > 0 ? round($historyRevenue / $historyQty, 4) : 0.0;
+
+                $stock = $stockByProduct->get($productId, [
+                    'qty_on_hand'    => 0.0,
+                    'qty_reserved'   => 0.0,
+                    'qty_in_transit' => 0.0,
+                    'qty_available'  => 0.0,
+                    'wac_amount'     => 0.0,
+                ]);
+                $pendingSupply = $pendingSupplyByProduct->get($productId, [
+                    'qty'      => 0.0,
+                    'avg_cost' => 0.0,
+                ]);
+
+                $availableSoon = (float) $stock['qty_available'] + (float) $stock['qty_in_transit'] + (float) $pendingSupply['qty'];
+                $forecastGapQty = max(0.0, $forecastQty - $availableSoon);
+                $daysOfCover = $avgDailyQty > 0 ? round(max(0.0, (float) $stock['qty_available']) / $avgDailyQty, 1) : null;
+                $stockoutDate = $avgDailyQty > 0 && (float) $stock['qty_available'] > 0
+                    ? now()->copy()->addDays((int) ceil((float) $stock['qty_available'] / $avgDailyQty))->toDateString()
+                    : null;
+                $procurementUnitCost = (float) ($pendingSupply['avg_cost'] > 0 ? $pendingSupply['avg_cost'] : $stock['wac_amount']);
+                $forecastProcurementCost = round($forecastGapQty * $procurementUnitCost, 2);
+
+                return [
+                    'product_id'                => $productId,
+                    'product_name'              => (string) $rows->first()['product_name'],
+                    'sku'                       => $rows->first()['sku'],
+                    'history_qty'               => round($historyQty, 2),
+                    'fulfilled_qty'             => round($fulfilledQty, 2),
+                    'history_revenue'           => round($historyRevenue, 2),
+                    'avg_daily_qty'             => round($avgDailyQty, 4),
+                    'avg_daily_revenue'         => round($avgDailyRevenue, 2),
+                    'forecast_qty'              => $forecastQty,
+                    'forecast_revenue'          => $forecastRevenue,
+                    'avg_sell_price'            => $avgSellPrice,
+                    'qty_available'             => round((float) $stock['qty_available'], 2),
+                    'qty_in_transit'            => round((float) $stock['qty_in_transit'], 2),
+                    'pending_supply_qty'        => round((float) $pendingSupply['qty'], 2),
+                    'available_soon_qty'        => round($availableSoon, 2),
+                    'forecast_gap_qty'          => round($forecastGapQty, 2),
+                    'days_of_cover'             => $daysOfCover,
+                    'stockout_date'             => $stockoutDate,
+                    'active_days'               => $activeDays,
+                    'confidence'                => round(min(100, ($activeDays / $observedDays) * 100), 1),
+                    'forecast_procurement_cost' => $forecastProcurementCost,
+                ];
+            })
+            ->sortByDesc('forecast_revenue')
+            ->values();
+
+        $customerForecast = $saleOrders
+            ->groupBy(fn (SaleOrder $order) => $order->customer_id ?: 'walk-in')
+            ->map(function (Collection $orders, int|string $customerKey) use ($observedDays, $forecastDays): array {
+                $customerId = is_numeric($customerKey) ? (int) $customerKey : null;
+                $ordersCount = $orders->count();
+                $qty = (float) $orders->sum(fn (SaleOrder $order): float => (float) $order->items->sum('qty_ordered'));
+                $revenue = (float) $orders->sum('total_local');
+                $products = $orders->flatMap(fn (SaleOrder $order) => $order->items->pluck('product_id'))
+                    ->filter()
+                    ->unique()
+                    ->count();
+                $avgDailyQty = $qty > 0 ? $qty / $observedDays : 0.0;
+                $avgDailyRevenue = $revenue > 0 ? $revenue / $observedDays : 0.0;
+
+                return [
+                    'customer_id'       => $customerId,
+                    'customer_name'     => $customerId ? ($orders->first()?->customer?->name ?? 'Customer #' . $customerId) : 'Walk-in',
+                    'orders_count'      => $ordersCount,
+                    'products_count'    => $products,
+                    'history_qty'       => round($qty, 2),
+                    'history_revenue'   => round($revenue, 2),
+                    'avg_daily_qty'     => round($avgDailyQty, 4),
+                    'avg_daily_revenue' => round($avgDailyRevenue, 2),
+                    'forecast_qty'      => round($avgDailyQty * $forecastDays, 2),
+                    'forecast_revenue'  => round($avgDailyRevenue * $forecastDays, 2),
+                ];
+            })
+            ->sortByDesc('forecast_revenue')
+            ->values();
+
+        $timeline = $this->buildForecastTimeline(
+            $productForecast,
+            $forecastDays,
+            $customerCollectionRatio,
+            $supplierPaymentRatio,
+        );
+
+        $holisticRequirement = [
+            'products_tracked' => $productForecast->count(),
+            'products_at_risk' => $productForecast
+                ->filter(fn (array $product): bool => (float) $product['forecast_gap_qty'] > 0)
+                ->count(),
+            'forecast_qty'              => round((float) $productForecast->sum('forecast_qty'), 2),
+            'forecast_revenue'          => round((float) $productForecast->sum('forecast_revenue'), 2),
+            'required_qty'              => round((float) $productForecast->sum('forecast_gap_qty'), 2),
+            'required_procurement_cost' => round((float) $productForecast->sum('forecast_procurement_cost'), 2),
+            'collection_ratio'          => round($customerCollectionRatio, 2),
+            'supplier_payment_ratio'    => round($supplierPaymentRatio, 2),
+            'forecast_cash_in'          => round((float) $timeline['totals']['cash_in'], 2),
+            'forecast_cash_out'         => round((float) $timeline['totals']['cash_out'], 2),
+            'forecast_cash_net'         => round((float) $timeline['totals']['cash_net'], 2),
+        ];
+
+        return [
+            'window' => [
+                'history_start' => $historyStart->toDateString(),
+                'history_end'   => $historyEnd->toDateString(),
+                'lookback_days' => $lookbackDays,
+                'forecast_days' => $forecastDays,
+            ],
+            'summary'   => $holisticRequirement,
+            'products'  => $productForecast->take($productLimit)->values(),
+            'customers' => $customerForecast->take($customerLimit)->values(),
+            'timeline'  => $timeline,
+        ];
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private function historicalCustomerCollectionRatio(DateTimeInterface $startDate, DateTimeInterface $endDate): float
+    {
+        $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
+
+        if (!class_exists($invoiceClass)) {
+            return 0.8;
+        }
+
+        $invoices = $invoiceClass::query()
+            ->whereNotNull('inventory_sale_order_id')
+            ->whereDate('invoice_date', '>=', $startDate->toDateString())
+            ->whereDate('invoice_date', '<=', $endDate->toDateString())
+            ->get();
+
+        $total = (float) $invoices->sum('base_total');
+
+        if ($total <= 0) {
+            return 0.8;
+        }
+
+        return max(0.1, min(1.0, round((float) $invoices->sum('base_paid_amount') / $total, 4)));
+    }
+
+    private function historicalSupplierPaymentRatio(DateTimeInterface $startDate, DateTimeInterface $endDate): float
+    {
+        $billClass = \Centrex\Accounting\Models\Bill::class;
+
+        if (!class_exists($billClass)) {
+            return 0.7;
+        }
+
+        $bills = $billClass::query()
+            ->whereNotNull('inventory_purchase_order_id')
+            ->whereDate('bill_date', '>=', $startDate->toDateString())
+            ->whereDate('bill_date', '<=', $endDate->toDateString())
+            ->get();
+
+        $total = (float) $bills->sum('base_total');
+
+        if ($total <= 0) {
+            return 0.7;
+        }
+
+        return max(0.1, min(1.0, round((float) $bills->sum('base_paid_amount') / $total, 4)));
+    }
+
+    private function buildForecastTimeline(
+        Collection $productForecast,
+        int $forecastDays,
+        float $collectionRatio,
+        float $supplierPaymentRatio,
+    ): array {
+        $months = max(3, (int) ceil($forecastDays / 30));
+        $categories = [];
+        $qtySeries = [];
+        $revenueSeries = [];
+        $cashInSeries = [];
+        $cashOutSeries = [];
+        $netSeries = [];
+        $forecastEnd = now()->copy()->addDays($forecastDays);
+
+        for ($offset = 0; $offset < $months; $offset++) {
+            $monthStart = now()->copy()->startOfMonth()->addMonths($offset);
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            $periodEnd = $monthEnd->lessThan($forecastEnd) ? $monthEnd : $forecastEnd;
+            $days = (float) $monthStart->diffInDaysFiltered(
+                fn ($date): bool => $date <= $periodEnd,
+                $monthEnd->copy()->addDay(),
+            );
+
+            if ($days <= 0) {
+                break;
+            }
+
+            $monthQty = round((float) $productForecast->sum(fn (array $product): float => (float) $product['avg_daily_qty'] * $days), 2);
+            $monthRevenue = round((float) $productForecast->sum(fn (array $product): float => (float) $product['avg_daily_revenue'] * $days), 2);
+            $monthOutflow = round((float) $productForecast->sum(function (array $product) use ($forecastDays, $days): float {
+                $gapQty = (float) $product['forecast_gap_qty'];
+
+                if ($gapQty <= 0 || $forecastDays <= 0) {
+                    return 0.0;
+                }
+
+                return ($gapQty / $forecastDays) * $days * ((float) $product['forecast_procurement_cost'] / max(0.0001, $gapQty));
+            }), 2);
+            $monthCashIn = round($monthRevenue * $collectionRatio, 2);
+            $monthCashOut = round($monthOutflow * $supplierPaymentRatio, 2);
+
+            $categories[] = $monthStart->format('M Y');
+            $qtySeries[] = $monthQty;
+            $revenueSeries[] = $monthRevenue;
+            $cashInSeries[] = $monthCashIn;
+            $cashOutSeries[] = $monthCashOut;
+            $netSeries[] = round($monthCashIn - $monthCashOut, 2);
+        }
+
+        return [
+            'categories' => $categories,
+            'series'     => [
+                ['name' => 'Forecast Qty', 'data' => $qtySeries],
+                ['name' => 'Forecast Revenue', 'data' => $revenueSeries],
+                ['name' => 'Cash In', 'data' => $cashInSeries],
+                ['name' => 'Cash Out', 'data' => $cashOutSeries],
+                ['name' => 'Net Cash', 'data' => $netSeries],
+            ],
+            'totals' => [
+                'qty'      => round(array_sum($qtySeries), 2),
+                'revenue'  => round(array_sum($revenueSeries), 2),
+                'cash_in'  => round(array_sum($cashInSeries), 2),
+                'cash_out' => round(array_sum($cashOutSeries), 2),
+                'cash_net' => round(array_sum($netSeries), 2),
+            ],
+        ];
+    }
 
     private function assertTransition(mixed $current, mixed $target, string $subject): void
     {
@@ -1899,5 +2575,46 @@ class Inventory
     private function normalizePurchaseDocumentType(?string $documentType): string
     {
         return $documentType === 'requisition' ? 'requisition' : 'order';
+    }
+
+    private function appendConversionNote(?string $notes, string $line): string
+    {
+        return collect([$notes, $line])
+            ->filter(fn (?string $value): bool => filled($value))
+            ->implode("\n\n");
+    }
+
+    private function modelDataReady(): bool
+    {
+        return class_exists(\Centrex\ModelData\Data::class)
+            && Schema::hasTable('model_datas');
+    }
+
+    private function documentMetadata(Model $model): array
+    {
+        if (!$this->modelDataReady()) {
+            return [];
+        }
+
+        $record = \Centrex\ModelData\Data::query()
+            ->forModel($model)
+            ->first();
+
+        if (!$record) {
+            return [];
+        }
+
+        return is_array($record->data)
+            ? $record->data
+            : (json_decode((string) $record->data, true) ?: []);
+    }
+
+    private function putDocumentMetadata(Model $model, array $metadata): void
+    {
+        if (!$this->modelDataReady()) {
+            return;
+        }
+
+        \Centrex\ModelData\Data::putForModel($model, $metadata);
     }
 }

@@ -26,6 +26,7 @@ class TransferBoxItem extends Model
     protected $fillable = [
         'transfer_box_id',
         'product_id',
+        'variant_id',
         'qty_sent',
         'theoretical_weight_kg',
         'allocated_weight_kg',
@@ -54,5 +55,10 @@ class TransferBoxItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 }

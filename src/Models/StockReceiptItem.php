@@ -24,7 +24,7 @@ class StockReceiptItem extends Model
     }
 
     protected $fillable = [
-        'stock_receipt_id', 'purchase_order_item_id', 'product_id',
+        'stock_receipt_id', 'purchase_order_item_id', 'product_id', 'variant_id',
         'qty_received',
         'unit_cost_local', 'unit_cost_amount', 'exchange_rate',
         'wac_before_amount', 'wac_after_amount', 'notes',
@@ -52,5 +52,10 @@ class StockReceiptItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 }

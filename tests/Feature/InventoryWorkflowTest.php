@@ -3,7 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Customer, Product, PurchaseOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Coupon, Customer, Product, PurchaseOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
 
 it('prevents crossing purchase order items when creating stock receipts', function (): void {
     $inventory = app(Inventory::class);
@@ -179,6 +179,133 @@ it('stores higher-authority credit override details on sale orders', function ()
     expect($saleOrder->credit_override_notes)->toBe('Approved by finance manager.');
     expect($saleOrder->credit_override_approved_at)->not->toBeNull();
 });
+
+it('applies percent coupons to sale orders and stores a coupon snapshot', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-COUPON-1',
+        'name'         => 'Coupon Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-COUPON-1',
+        'name'         => 'Air Cooler',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+    $coupon = Coupon::create([
+        'code'           => 'SAVE10',
+        'name'           => 'Save Ten',
+        'discount_type'  => 'percent',
+        'discount_value' => 10,
+        'is_active'      => true,
+    ]);
+
+    $saleOrder = $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'coupon_code'     => 'save10',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 500,
+        ]],
+    ]);
+
+    expect($saleOrder->coupon_id)->toBe($coupon->id);
+    expect($saleOrder->coupon_code)->toBe('SAVE10');
+    expect($saleOrder->coupon_discount_type)->toBe('percent');
+    expect((float) $saleOrder->coupon_discount_value)->toBe(10.0);
+    expect((float) $saleOrder->coupon_discount_local)->toBe(100.0);
+    expect((float) $saleOrder->coupon_discount_amount)->toBe(100.0);
+    expect((float) $saleOrder->total_local)->toBe(900.0);
+});
+
+it('rejects expired coupons on sale orders', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-COUPON-2',
+        'name'         => 'Expired Coupon Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-COUPON-2',
+        'name'         => 'Monitor',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    Coupon::create([
+        'code'           => 'OLD25',
+        'discount_type'  => 'percent',
+        'discount_value' => 25,
+        'is_active'      => true,
+        'ends_at'        => now()->subDay(),
+    ]);
+
+    $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'coupon_code'     => 'OLD25',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 1,
+            'unit_price_local' => 800,
+        ]],
+    ]);
+})->throws(Illuminate\Validation\ValidationException::class);
+
+it('enforces coupon usage limits across sale orders', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-COUPON-3',
+        'name'         => 'Usage Limit Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-COUPON-3',
+        'name'         => 'Printer',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    Coupon::create([
+        'code'           => 'ONCEONLY',
+        'discount_type'  => 'fixed',
+        'discount_value' => 100,
+        'usage_limit'    => 1,
+        'is_active'      => true,
+    ]);
+
+    $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'coupon_code'     => 'ONCEONLY',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 1,
+            'unit_price_local' => 900,
+        ]],
+    ]);
+
+    $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'coupon_code'     => 'ONCEONLY',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 1,
+            'unit_price_local' => 900,
+        ]],
+    ]);
+})->throws(Illuminate\Validation\ValidationException::class);
 
 it('prevents over receiving transferred stock on repeated calls', function (): void {
     $inventory = app(Inventory::class);
@@ -440,6 +567,95 @@ it('can confirm and cancel a quotation without reserving stock', function (): vo
         ->where('warehouse_id', $warehouse->id)
         ->where('product_id', $product->id)
         ->value('qty_reserved'))->toBe(0.0);
+});
+
+it('can create a regular sale order from a quotation', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-QT-CONVERT',
+        'name'         => 'Quotation Conversion Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'                => 'C-QT-CONVERT',
+        'name'                => 'Quotation Customer',
+        'currency'            => 'BDT',
+        'credit_limit_amount' => 999999,
+        'is_active'           => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-QT-CONVERT',
+        'name'         => 'Convertible Product',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    $quotation = $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'currency'        => 'BDT',
+        'document_type'   => 'quotation',
+        'price_tier_code' => 'b2b_retail',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 120,
+        ]],
+    ]);
+
+    $quotation = $inventory->confirmSaleOrder($quotation->id);
+    $saleOrder = $inventory->createSaleOrderFromQuotation($quotation->id);
+
+    expect($saleOrder->document_type)->toBe('order');
+    expect($saleOrder->customer_id)->toBe($customer->id);
+    expect($saleOrder->items)->toHaveCount(1);
+    expect((float) $saleOrder->items->first()->qty_ordered)->toBe(2.0);
+    expect((float) $saleOrder->items->first()->unit_price_local)->toBe(120.0);
+});
+
+it('can create a purchase order from a requisition', function (): void {
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-REQ-CONVERT',
+        'name'         => 'Requisition Conversion Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $supplier = Supplier::create([
+        'code'      => 'SUP-REQ-CONVERT',
+        'name'      => 'Conversion Supplier',
+        'currency'  => 'BDT',
+        'is_active' => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-REQ-CONVERT',
+        'name'         => 'Procurement Product',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    $requisition = $inventory->createPurchaseOrder([
+        'warehouse_id'  => $warehouse->id,
+        'supplier_id'   => $supplier->id,
+        'currency'      => 'BDT',
+        'document_type' => 'requisition',
+        'items'         => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 4,
+            'unit_price_local' => 80,
+        ]],
+    ]);
+
+    $requisition = $inventory->submitPurchaseOrder($requisition->id);
+    $requisition = $inventory->confirmPurchaseOrder($requisition->id);
+    $purchaseOrder = $inventory->createPurchaseOrderFromRequisition($requisition->id);
+
+    expect($purchaseOrder->document_type)->toBe('order');
+    expect($purchaseOrder->supplier_id)->toBe($supplier->id);
+    expect($purchaseOrder->items)->toHaveCount(1);
+    expect((float) $purchaseOrder->items->first()->qty_ordered)->toBe(4.0);
+    expect((float) $purchaseOrder->items->first()->unit_price_local)->toBe(80.0);
 });
 
 it('exposes inventory api routes', function (): void {

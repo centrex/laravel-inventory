@@ -279,6 +279,7 @@ class InventoryWorkflowController extends Controller
             'exchange_rate'               => ['nullable', 'numeric', 'gt:0'],
             'tax_local'                   => ['nullable', 'numeric'],
             'discount_local'              => ['nullable', 'numeric'],
+            'coupon_code'                 => ['nullable', 'string', 'max:50'],
             'ordered_at'                  => ['nullable', 'date'],
             'notes'                       => ['nullable', 'string'],
             'created_by'                  => ['nullable', 'integer'],

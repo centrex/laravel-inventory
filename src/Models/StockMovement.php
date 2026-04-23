@@ -27,7 +27,7 @@ class StockMovement extends Model
     }
 
     protected $fillable = [
-        'warehouse_id', 'product_id',
+        'warehouse_id', 'product_id', 'variant_id',
         'movement_type', 'direction',
         'qty', 'qty_before', 'qty_after',
         'unit_cost_amount', 'wac_amount',
@@ -53,6 +53,11 @@ class StockMovement extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
     public function reference(): MorphTo

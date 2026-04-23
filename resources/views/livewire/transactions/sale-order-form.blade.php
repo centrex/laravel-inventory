@@ -39,12 +39,27 @@
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Customer">
-                <x-tallui-select name="customer_id" wire:model="customer_id">
-                    <option value="">Walk-in / none</option>
-                    @foreach ($customers as $customer)
-                        <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                    @endforeach
-                </x-tallui-select>
+                <div class="flex items-start gap-2">
+                    <div class="flex-1">
+                        <x-tallui-select
+                            name="customer_id"
+                            wire:model="customer_id"
+                            searchable
+                            placeholder="Search customer or leave empty for walk-in"
+                            :options="$selectedCustomerOptions"
+                            :search-url="route('inventory.async-select', ['resource' => 'customers'])"
+                        />
+                    </div>
+                    @if ($customer_id)
+                        <x-tallui-button
+                            type="button"
+                            icon="o-x-mark"
+                            class="btn-ghost btn-sm mt-0.5"
+                            wire:click="$set('customer_id', null)"
+                            :tooltip="'Clear customer'"
+                        />
+                    @endif
+                </div>
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Default Price Tier">
@@ -69,6 +84,10 @@
 
             <x-tallui-form-group label="Discount (Local)">
                 <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Coupon Code" :error="$errors->first('coupon_code')">
+                <x-tallui-input name="coupon_code" wire:model="coupon_code" placeholder="SAVE10" />
             </x-tallui-form-group>
 
             <div class="md:col-span-2 lg:col-span-3">
@@ -159,12 +178,17 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="so-item-{{ $index }}" class="hover:bg-base-50">
                             <td class="pl-5 py-2">
-                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model.live="items.{{ $index }}.product_id" class="select-sm w-full">
-                                    <option value="">Select product…</option>
-                                    @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
-                                    @endforeach
-                                </x-tallui-select>
+                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}">
+                                    <x-tallui-select
+                                        name="items.{{ $index }}.product_id"
+                                        wire:model.live="items.{{ $index }}.product_id"
+                                        searchable
+                                        placeholder="Search product…"
+                                        :options="isset($selectedProductOptions[$item['product_id'] ?? 0]) ? [($item['product_id'] ?? 0) => $selectedProductOptions[$item['product_id'] ?? 0]] : []"
+                                        :search-url="route('inventory.async-select', ['resource' => 'sale-products', 'warehouse_id' => $warehouse_id])"
+                                        class="select-sm w-full"
+                                    />
+                                </div>
                             </td>
                             <td class="py-2">
                                 <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="0.0001" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" />

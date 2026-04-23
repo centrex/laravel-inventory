@@ -57,6 +57,11 @@ class Product extends Model implements HasMedia
         return $this->hasMany(WarehouseProduct::class);
     }
 
+    public function variants(): HasMany
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
+
     public function prices(): HasMany
     {
         return $this->hasMany(ProductPrice::class);

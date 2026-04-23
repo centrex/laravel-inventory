@@ -17,6 +17,9 @@
         @if ($canConfirm)
             <x-tallui-button label="{{ $documentLabel === 'Quotation' ? 'Confirm Quote' : 'Confirm Order' }}" icon="o-check-circle" class="btn-primary btn-sm" wire:click="confirm" wire:confirm="Confirm this {{ strtolower($documentLabel) }}?" />
         @endif
+        @if ($canCreateSaleOrder)
+            <x-tallui-button label="Create Sale Order" icon="o-document-duplicate" class="btn-secondary btn-sm" wire:click="createSaleOrder" wire:confirm="Create a regular sale order from this quotation?" />
+        @endif
         @if ($canReserve)
             <x-tallui-button label="Reserve Stock" icon="o-archive-box-arrow-down" class="btn-warning btn-sm" wire:click="reserve" wire:confirm="Reserve stock for this sale order?" />
         @endif
@@ -44,6 +47,7 @@
                 <div><span class="text-base-content/50">Warehouse</span><div class="font-medium">{{ $record->warehouse?->name ?? '—' }}</div></div>
                 <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $record->status?->label() ?? '—' }}</div></div>
                 <div><span class="text-base-content/50">Price Tier</span><div class="font-medium">{{ $record->price_tier_name ?? '—' }}</div></div>
+                <div><span class="text-base-content/50">Coupon</span><div class="font-medium">{{ $record->coupon_code ?: '—' }}</div></div>
                 <div><span class="text-base-content/50">Ordered At</span><div class="font-medium">{{ $record->ordered_at?->format('M d, Y h:i A') ?? '—' }}</div></div>
                 <div><span class="text-base-content/50">Notes</span><div class="font-medium whitespace-pre-line">{{ $record->notes ?: '—' }}</div></div>
             </div>
@@ -132,6 +136,14 @@
                         class="btn-success btn-sm"
                     />
                 @endif
+                @if ($linkedSaleOrder)
+                    <x-tallui-button
+                        label="View Sale Order"
+                        icon="o-arrow-top-right-on-square"
+                        :link="route('inventory.sale-orders.show', ['recordId' => $linkedSaleOrder['id']])"
+                        class="btn-ghost btn-sm"
+                    />
+                @endif
                 @if (Route::has('accounting.journal'))
                     <x-tallui-button
                         label="Create Journal"
@@ -176,6 +188,7 @@
             <div class="flex justify-between"><span class="text-base-content/60">Subtotal</span><strong>{{ number_format((float) $record->subtotal_local, 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Tax</span><strong>{{ number_format((float) $record->tax_local, 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Discount</span><strong>{{ number_format((float) $record->discount_local, 2) }}</strong></div>
+            <div class="flex justify-between"><span class="text-base-content/60">Coupon Discount</span><strong>{{ number_format((float) $record->coupon_discount_local, 2) }}</strong></div>
             <div class="flex justify-between text-base font-semibold"><span>Total</span><strong>{{ number_format((float) $record->total_local, 2) }}</strong></div>
         </div>
     </x-tallui-card>

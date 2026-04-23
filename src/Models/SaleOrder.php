@@ -26,11 +26,13 @@ class SaleOrder extends Model
     }
 
     protected $fillable = [
-        'so_number', 'document_type', 'warehouse_id', 'customer_id', 'price_tier_code',
+        'so_number', 'document_type', 'warehouse_id', 'customer_id', 'coupon_id', 'price_tier_code',
+        'coupon_code', 'coupon_name', 'coupon_discount_type', 'coupon_discount_value',
         'currency', 'exchange_rate',
         'subtotal_local', 'subtotal_amount',
         'tax_local', 'tax_amount',
         'discount_local', 'discount_amount',
+        'coupon_discount_local', 'coupon_discount_amount',
         'total_local', 'total_amount', 'credit_limit_amount',
         'credit_exposure_before_amount', 'credit_exposure_after_amount',
         'credit_override_required', 'credit_override_approved_by',
@@ -48,6 +50,9 @@ class SaleOrder extends Model
         'tax_amount'                    => 'decimal:4',
         'discount_local'                => 'decimal:4',
         'discount_amount'               => 'decimal:4',
+        'coupon_discount_value'         => 'decimal:4',
+        'coupon_discount_local'         => 'decimal:4',
+        'coupon_discount_amount'        => 'decimal:4',
         'total_local'                   => 'decimal:4',
         'total_amount'                  => 'decimal:4',
         'credit_limit_amount'           => 'decimal:4',
@@ -67,6 +72,11 @@ class SaleOrder extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function items(): HasMany

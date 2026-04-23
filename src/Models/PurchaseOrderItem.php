@@ -24,7 +24,7 @@ class PurchaseOrderItem extends Model
     }
 
     protected $fillable = [
-        'purchase_order_id', 'product_id',
+        'purchase_order_id', 'product_id', 'variant_id',
         'qty_ordered', 'qty_received',
         'unit_price_local', 'unit_price_amount',
         'line_total_local', 'line_total_amount',
@@ -48,6 +48,11 @@ class PurchaseOrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
     public function stockReceiptItems(): HasMany

@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Models\{Customer, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Coupon, Customer, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -114,6 +114,30 @@ class InventoryEntityRegistry
                     self::field('currency', 'text', ['required', 'string', 'size:3'], 'BDT'),
                     self::field('credit_limit_amount', 'number', ['nullable', 'numeric', 'min:0'], 0),
                     self::field('price_tier_code', 'select', ['nullable', 'string', Rule::in(PriceTierCode::values())], null, null, null, PriceTierCode::options()),
+                    self::field('is_active', 'checkbox', ['boolean'], true),
+                    self::field('meta', 'json', ['nullable', 'array'], []),
+                ],
+            ],
+            'coupons' => [
+                'label'         => 'Coupons',
+                'singular'      => 'Coupon',
+                'model'         => Coupon::class,
+                'search'        => ['code', 'name', 'description'],
+                'index_columns' => ['code', 'name', 'discount_type', 'discount_value', 'minimum_subtotal_amount', 'maximum_discount_amount', 'usage_limit', 'starts_at', 'ends_at', 'is_active'],
+                'form_fields'   => [
+                    self::field('code', 'text', ['required', 'string', 'max:50']),
+                    self::field('name', 'text', ['nullable', 'string', 'max:150']),
+                    self::field('description', 'textarea', ['nullable', 'string']),
+                    self::field('discount_type', 'select', ['required', 'string', Rule::in(['fixed', 'percent'])], null, null, null, [
+                        ['code' => 'fixed', 'name' => 'Fixed amount'],
+                        ['code' => 'percent', 'name' => 'Percentage'],
+                    ]),
+                    self::field('discount_value', 'number', ['required', 'numeric', 'gt:0']),
+                    self::field('minimum_subtotal_amount', 'number', ['nullable', 'numeric', 'min:0']),
+                    self::field('maximum_discount_amount', 'number', ['nullable', 'numeric', 'min:0']),
+                    self::field('usage_limit', 'number', ['nullable', 'integer', 'min:1']),
+                    self::field('starts_at', 'date', ['nullable', 'date']),
+                    self::field('ends_at', 'date', ['nullable', 'date', 'after_or_equal:starts_at']),
                     self::field('is_active', 'checkbox', ['boolean'], true),
                     self::field('meta', 'json', ['nullable', 'array'], []),
                 ],

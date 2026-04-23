@@ -25,7 +25,7 @@ class ProductPrice extends Model
     }
 
     protected $fillable = [
-        'product_id', 'price_tier_code', 'warehouse_id',
+        'product_id', 'variant_id', 'price_tier_code', 'warehouse_id',
         'price_amount', 'cost_price', 'moq', 'preorder_moq',
         'price_local', 'currency',
         'effective_from', 'effective_to', 'is_active',
@@ -50,6 +50,11 @@ class ProductPrice extends Model
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
     public function getPriceTierNameAttribute(): ?string

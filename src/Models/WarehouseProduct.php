@@ -24,7 +24,7 @@ class WarehouseProduct extends Model
     }
 
     protected $fillable = [
-        'warehouse_id', 'product_id',
+        'warehouse_id', 'product_id', 'variant_id',
         'qty_on_hand', 'qty_reserved', 'qty_in_transit',
         'wac_amount', 'reorder_point', 'reorder_qty', 'bin_location',
     ];
@@ -46,6 +46,11 @@ class WarehouseProduct extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
     public function qtyAvailable(): float

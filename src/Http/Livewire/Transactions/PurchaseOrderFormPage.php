@@ -105,17 +105,30 @@ class PurchaseOrderFormPage extends Component
 
     public function render(): View
     {
+        $selectedProductIds = collect($this->items)->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->all();
         $onHandStock = $this->warehouse_id
             ? WarehouseProduct::query()
                 ->where('warehouse_id', $this->warehouse_id)
                 ->get()
                 ->keyBy('product_id')
             : collect();
+        $selectedProducts = $selectedProductIds === []
+            ? collect()
+            : Product::query()
+                ->whereIn('id', $selectedProductIds)
+                ->orderBy('name')
+                ->get()
+                ->keyBy('id');
+        $selectedSupplier = $this->supplier_id ? Supplier::query()->find($this->supplier_id) : null;
 
         return view('inventory::livewire.transactions.purchase-order-form', [
-            'warehouses'    => Warehouse::query()->orderBy('id')->get(),
-            'suppliers'     => Supplier::query()->orderBy('name')->get(),
-            'products'      => Product::query()->where('is_active', true)->orderBy('name')->get(),
+            'warehouses'              => Warehouse::query()->orderBy('id')->get(),
+            'selectedSupplierOptions' => $selectedSupplier
+                ? [$selectedSupplier->id => $selectedSupplier->name]
+                : [],
+            'selectedProductOptions' => $selectedProducts->mapWithKeys(
+                fn (Product $product): array => [$product->id => $product->name],
+            )->all(),
             'onHandStock'   => $onHandStock,
             'isEditing'     => $this->recordId !== null,
             'editable'      => $this->canEdit(),

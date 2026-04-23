@@ -24,7 +24,7 @@ class AdjustmentItem extends Model
     }
 
     protected $fillable = [
-        'adjustment_id', 'product_id',
+        'adjustment_id', 'product_id', 'variant_id',
         'qty_system', 'qty_actual', 'qty_delta',
         'unit_cost_amount', 'notes',
     ];
@@ -44,5 +44,10 @@ class AdjustmentItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 }

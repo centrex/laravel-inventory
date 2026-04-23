@@ -31,6 +31,8 @@ class PosTerminalPage extends Component
 
     public array $tabCustomers = [0 => null];
 
+    public array $tabCouponCodes = [0 => ''];
+
     public array $tabSearches = [0 => ''];
 
     // Manual product-add form (shared, not per-tab)
@@ -128,6 +130,7 @@ class PosTerminalPage extends Component
         $this->tabIds[] = $id;
         $this->tabLabels[$id] = 'Tab ' . ($id + 1);
         $this->tabCustomers[$id] = null;
+        $this->tabCouponCodes[$id] = '';
         $this->tabSearches[$id] = '';
         $this->activeTabId = $id;
         $this->errorMessage = null;
@@ -145,7 +148,7 @@ class PosTerminalPage extends Component
         }
 
         $this->tabIds = array_values(array_filter($this->tabIds, fn ($t) => $t !== $id));
-        unset($this->tabLabels[$id], $this->tabCustomers[$id], $this->tabSearches[$id]);
+        unset($this->tabLabels[$id], $this->tabCustomers[$id], $this->tabCouponCodes[$id], $this->tabSearches[$id]);
 
         if ($this->activeTabId === $id) {
             $this->activeTabId = $this->tabIds[0];
@@ -392,12 +395,14 @@ class PosTerminalPage extends Component
         }
 
         $customerId = $this->tabCustomers[$this->activeTabId] ?? null;
+        $couponCode = $this->tabCouponCodes[$this->activeTabId] ?? null;
 
         $saleOrder = app(\Centrex\Cart\Services\CartCheckoutService::class)->checkout([
             'warehouse_id'    => (int) $this->warehouse_id,
             'customer_id'     => $customerId ? (int) $customerId : null,
             'price_tier_code' => $this->price_tier_code,
             'currency'        => $this->currency,
+            'coupon_code'     => $couponCode,
             'cart_instance'   => $this->cartInstance(),
             'confirm'         => true,
             'reserve'         => true,
@@ -408,6 +413,7 @@ class PosTerminalPage extends Component
         ], 'pos');
 
         $this->tabCustomers[$this->activeTabId] = null;
+        $this->tabCouponCodes[$this->activeTabId] = '';
         $this->dispatch('notify', type: 'success', message: "Sale {$saleOrder->so_number} completed!");
         $this->dispatch('focus-search');
     }

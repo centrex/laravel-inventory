@@ -45,18 +45,34 @@ class SaleReturnFormPage extends Component
     public function save()
     {
         $validated = $this->validate([
-            'sale_order_id'             => ['nullable', 'integer'],
-            'warehouse_id'              => ['required', 'integer'],
-            'customer_id'               => ['nullable', 'integer'],
-            'returned_at'               => ['nullable', 'date'],
-            'notes'                     => ['nullable', 'string'],
-            'items'                     => ['required', 'array', 'min:1'],
-            'items.*.product_id'        => ['required', 'integer'],
-            'items.*.qty_returned'      => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_price_amount' => ['nullable', 'numeric', 'min:0'],
-            'items.*.unit_cost_amount'  => ['nullable', 'numeric', 'min:0'],
-            'items.*.notes'             => ['nullable', 'string'],
+            'sale_order_id'              => ['nullable', 'integer'],
+            'warehouse_id'               => ['required', 'integer'],
+            'customer_id'                => ['nullable', 'integer'],
+            'returned_at'                => ['nullable', 'date'],
+            'notes'                      => ['nullable', 'string'],
+            'items'                      => ['required', 'array', 'min:1'],
+            'items.*.sale_order_item_id' => ['nullable', 'integer'],
+            'items.*.product_id'         => ['required', 'integer'],
+            'items.*.variant_id'         => ['nullable', 'integer'],
+            'items.*.qty_returned'       => ['required', 'numeric', 'gt:0'],
+            'items.*.unit_price_amount'  => ['nullable', 'numeric', 'min:0'],
+            'items.*.unit_cost_amount'   => ['nullable', 'numeric', 'min:0'],
+            'items.*.notes'              => ['nullable', 'string'],
         ]);
+
+        $validated['items'] = collect($validated['items'])
+            ->map(function (array $item): array {
+                $sourceItemId = (int) ($item['sale_order_item_id'] ?? 0);
+                $sourceItem = $sourceItemId > 0 ? ($this->availableProducts()[$sourceItemId] ?? null) : null;
+
+                if ($sourceItem) {
+                    $item['product_id'] = $sourceItem['product_id'];
+                    $item['variant_id'] = $sourceItem['variant_id'];
+                }
+
+                return $item;
+            })
+            ->all();
 
         try {
             $saleReturn = app(Inventory::class)->createSaleReturn($validated);
@@ -107,7 +123,7 @@ class SaleReturnFormPage extends Component
             return;
         }
 
-        if ($field === 'product_id') {
+        if (in_array($field, ['product_id', 'sale_order_item_id'], true)) {
             $this->hydrateItemFromSourceOrder($index);
 
             return;
@@ -121,11 +137,13 @@ class SaleReturnFormPage extends Component
     private function blankItem(): array
     {
         return [
-            'product_id'        => null,
-            'qty_returned'      => 1,
-            'unit_price_amount' => null,
-            'unit_cost_amount'  => null,
-            'notes'             => '',
+            'sale_order_item_id' => null,
+            'product_id'         => null,
+            'variant_id'         => null,
+            'qty_returned'       => 1,
+            'unit_price_amount'  => null,
+            'unit_cost_amount'   => null,
+            'notes'              => '',
         ];
     }
 
@@ -136,7 +154,7 @@ class SaleReturnFormPage extends Component
         }
 
         return SaleOrder::query()
-            ->with(['customer', 'warehouse', 'items.product'])
+            ->with(['customer', 'warehouse', 'items.product', 'items.variant'])
             ->where('document_type', 'order')
             ->find($this->sale_order_id);
     }
@@ -162,9 +180,15 @@ class SaleReturnFormPage extends Component
                     4,
                 ));
 
+                $productLabel = $item->variant
+                    ? ($item->variant->display_name ?: ($item->product?->name ?? 'Product'))
+                    : ($item->product?->name ?? 'Product');
+
                 return [
-                    'id'                => (int) $item->product_id,
-                    'name'              => $item->product?->name ?? 'Product',
+                    'id'                => (int) $item->getKey(),
+                    'product_id'        => (int) $item->product_id,
+                    'variant_id'        => $item->variant_id !== null ? (int) $item->variant_id : null,
+                    'name'              => $productLabel,
                     'max_qty'           => $maxQty,
                     'unit_price_amount' => (float) $item->unit_price_amount,
                     'unit_cost_amount'  => (float) $item->unit_cost_amount,
@@ -177,17 +201,23 @@ class SaleReturnFormPage extends Component
 
     private function hydrateItemFromSourceOrder(int $index): void
     {
-        $productId = (int) ($this->items[$index]['product_id'] ?? 0);
-        $product = $this->availableProducts()[$productId] ?? null;
+        $sourceItemId = (int) ($this->items[$index]['sale_order_item_id'] ?? 0);
+        $product = $this->selectedSaleOrder()
+            ? ($this->availableProducts()[$sourceItemId] ?? null)
+            : ($this->availableProducts()[(int) ($this->items[$index]['product_id'] ?? 0)] ?? null);
 
         if (!$product) {
+            $this->items[$index]['sale_order_item_id'] = null;
             $this->items[$index]['product_id'] = null;
+            $this->items[$index]['variant_id'] = null;
             $this->items[$index]['unit_price_amount'] = null;
             $this->items[$index]['unit_cost_amount'] = null;
 
             return;
         }
 
+        $this->items[$index]['product_id'] = $product['product_id'] ?? (int) ($this->items[$index]['product_id'] ?? 0);
+        $this->items[$index]['variant_id'] = $product['variant_id'] ?? null;
         $this->items[$index]['unit_price_amount'] = $product['unit_price_amount'];
         $this->items[$index]['unit_cost_amount'] = $product['unit_cost_amount'];
         $this->items[$index]['qty_returned'] = min((float) ($this->items[$index]['qty_returned'] ?? 1), $product['max_qty']);
@@ -195,8 +225,10 @@ class SaleReturnFormPage extends Component
 
     private function clampItemQuantity(int $index): void
     {
-        $productId = (int) ($this->items[$index]['product_id'] ?? 0);
-        $product = $this->availableProducts()[$productId] ?? null;
+        $selectedKey = $this->selectedSaleOrder()
+            ? (int) ($this->items[$index]['sale_order_item_id'] ?? 0)
+            : (int) ($this->items[$index]['product_id'] ?? 0);
+        $product = $this->availableProducts()[$selectedKey] ?? null;
 
         if (!$product) {
             return;

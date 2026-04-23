@@ -8,12 +8,15 @@ use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\Warehouse;
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 
 class DashboardController
 {
     public function __invoke(): View
     {
         $inventory = app(Inventory::class);
+        $canViewForecast = Gate::allows('inventory.reports.view');
+        $forecast = $canViewForecast ? $inventory->salesForecast() : null;
         $warehouseStockValues = Warehouse::query()
             ->orderBy('name')
             ->get()
@@ -28,6 +31,8 @@ class DashboardController
             'entities'             => InventoryEntityRegistry::entities(),
             'warehouseStockValues' => $warehouseStockValues,
             'totalStockValue'      => $warehouseStockValues->sum('stock_value'),
+            'forecast'             => $forecast,
+            'canViewForecast'      => $canViewForecast,
         ]);
     }
 }

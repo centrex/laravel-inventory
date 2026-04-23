@@ -24,7 +24,7 @@ class TransferItem extends Model
     }
 
     protected $fillable = [
-        'transfer_id', 'product_id',
+        'transfer_id', 'product_id', 'variant_id',
         'qty_sent', 'qty_received',
         'unit_cost_source_amount', 'weight_kg_total',
         'shipping_allocated_amount', 'unit_landed_cost_amount',
@@ -52,5 +52,10 @@ class TransferItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function variant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 }

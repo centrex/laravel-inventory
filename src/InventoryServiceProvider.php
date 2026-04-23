@@ -111,21 +111,50 @@ class InventoryServiceProvider extends ServiceProvider
 
         foreach ($abilities as $ability) {
             if (!Gate::has($ability)) {
-                Gate::define($ability, static function ($user): bool {
+                Gate::define($ability, static function ($user) use ($ability): bool {
                     if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
                         return true;
+                    }
+
+                    if (method_exists($user, 'allTeams') && method_exists($user, 'hasTeamPermission')) {
+                        try {
+                            if ($user->allTeams()->contains(
+                                fn ($team): bool => $user->hasTeamPermission($team, $ability),
+                            )) {
+                                return true;
+                            }
+                        } catch (\Throwable) {
+                            // Fall through to role-based fallback.
+                        }
                     }
 
                     $roleAttribute = config('inventory.admin_role_attribute');
 
                     if ($roleAttribute && method_exists($user, 'hasRole')) {
-                        return $user->hasRole(config('inventory.admin_roles', []));
+                        return $user->hasRole($this->normalizeAdminRoles(config('inventory.admin_roles', [])));
+                    }
+
+                    if (method_exists($user, 'hasRole')) {
+                        return $user->hasRole($this->normalizeAdminRoles(config('inventory.admin_roles', [])));
                     }
 
                     return false;
                 });
             }
         }
+    }
+
+    private function normalizeAdminRoles(array|string|null $roles): array
+    {
+        if (is_array($roles)) {
+            return array_values(array_filter(array_map('strval', $roles)));
+        }
+
+        if (!is_string($roles) || trim($roles) === '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', $roles))));
     }
 
     private function registerViteDirective(): void

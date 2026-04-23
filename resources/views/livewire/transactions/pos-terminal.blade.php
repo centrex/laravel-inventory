@@ -166,12 +166,12 @@
                         @endif
                     </div>
                 @else
-                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
                         @foreach ($products as $product)
                             <button
                                 wire:click="tapProduct({{ $product->id }})"
                                 wire:key="product-{{ $product->id }}"
-                                class="card card-compact bg-base-200 hover:bg-base-300 active:scale-95 transition-all text-left overflow-hidden touch-manipulation select-none border border-transparent hover:border-primary/30 focus:outline-none focus:border-primary rounded-xl"
+                                class="card card-compact bg-base-200 hover:bg-base-300 active:scale-95 transition-all text-left overflow-hidden touch-manipulation select-none border border-transparent hover:border-primary/30 focus:outline-none focus:border-primary rounded-xl max-w-sm"
                             >
                                 {{-- Image --}}
                                 <figure class="aspect-square bg-base-300 overflow-hidden">
@@ -190,8 +190,8 @@
                                 </figure>
 
                                 {{-- Info --}}
-                                <div class="p-2 space-y-0.5">
-                                    <p class="text-sm font-semibold leading-tight line-clamp-2">{{ $product->name }}</p>
+                                <div class="p-2.5 space-y-1">
+                                    <p class="text-sm font-semibold leading-snug line-clamp-2">{{ $product->name }}</p>
                                     <p class="text-xs text-base-content/40 font-mono">{{ $product->sku }}</p>
                                     @php
                                         // Warehouse-specific tier price → global tier price → meta fallback
@@ -202,14 +202,14 @@
                                             : (float) ($product->meta['default_price'] ?? 0);
                                     @endphp
                                     @if ($displayPrice > 0)
-                                        <p class="text-sm font-bold text-primary font-mono pt-0.5">
+                                        <p class="text-sm font-bold text-primary font-mono pt-1">
                                             {{ $currency }} {{ number_format($displayPrice, 2) }}
                                         </p>
                                     @endif
                                     @if ($product->is_stockable)
                                         @php $stock = $product->warehouseProducts->first(); $qty = $stock?->qtyAvailable() ?? 0; @endphp
                                         <p @class([
-                                            'text-xs font-mono mt-0.5',
+                                            'text-xs font-mono pt-0.5',
                                             'text-success' => $qty > 10,
                                             'text-warning' => $qty > 0 && $qty <= 10,
                                         ])>
@@ -254,6 +254,13 @@
                         <option value="{{ $c->id }}">{{ $c->name }}</option>
                     @endforeach
                 </select>
+
+                <input
+                    wire:model.blur="tabCouponCodes.{{ $activeTabId }}"
+                    class="input input-sm input-bordered w-full font-mono uppercase"
+                    placeholder="Coupon code"
+                    maxlength="50"
+                />
             </div>
 
             {{-- Cart items --}}

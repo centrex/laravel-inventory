@@ -15,6 +15,7 @@ Full multi-warehouse inventory management for Laravel. Supports weighted average
 - [Exchange Rates](#exchange-rates)
 - [Warehouses & Products](#warehouses--products)
 - [Price Tiers & Pricing](#price-tiers--pricing)
+- [Coupons](#coupons)
 - [Purchase Orders & GRNs](#purchase-orders--grns)
 - [Sale Orders](#sale-orders)
 - [Inter-Warehouse Transfers](#inter-warehouse-transfers)
@@ -200,6 +201,60 @@ $sheet = Inventory::getPriceSheet($product->id, $wh_china->id);
 //   ['tier_code' => 'fcom',         'price_amount' => 6800.00, 'source' => 'global'],
 // ]
 ```
+
+---
+
+## Coupons
+
+Coupons apply at the sale-order level and are stored as order snapshots so historic orders do not change if the coupon is later edited.
+
+- Coupon amounts are stored in the inventory base currency.
+- `fixed` coupons are converted into the order currency at checkout time.
+- `percent` coupons use the order subtotal before tax and before manual order-level discount.
+- Manual `discount_local` and coupon discounts can both be used on the same order.
+
+### Create coupons
+
+Coupons can be managed from the Inventory master-data UI under `Coupons`, or created directly:
+
+```php
+use Centrex\Inventory\Models\Coupon;
+
+Coupon::create([
+    'code'                    => 'SAVE10',
+    'name'                    => 'Save 10%',
+    'discount_type'           => 'percent', // percent|fixed
+    'discount_value'          => 10,
+    'minimum_subtotal_amount' => 1000,      // base currency amount
+    'maximum_discount_amount' => 500,       // optional cap, base currency amount
+    'usage_limit'             => 100,
+    'starts_at'               => now(),
+    'ends_at'                 => now()->addMonth(),
+    'is_active'               => true,
+]);
+```
+
+### Apply coupons to sale orders
+
+```php
+$saleOrder = Inventory::createSaleOrder([
+    'warehouse_id'    => $warehouse->id,
+    'customer_id'     => $customer->id,
+    'currency'        => 'BDT',
+    'price_tier_code' => 'b2c_retail',
+    'coupon_code'     => 'SAVE10',
+    'items'           => [[
+        'product_id'       => $product->id,
+        'qty_ordered'      => 2,
+        'unit_price_local' => 500,
+    ]],
+]);
+
+echo $saleOrder->coupon_discount_local; // 100.00
+echo $saleOrder->total_local;           // 900.00
+```
+
+The sale-order form and POS terminal also accept coupon codes.
 
 ---
 

@@ -20,6 +20,8 @@ class SaleOrderShowPage extends Component
 
     public ?array $financeDocument = null;
 
+    public ?array $linkedSaleOrder = null;
+
     public function mount(int $recordId, string $documentType = 'order'): void
     {
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
@@ -29,6 +31,7 @@ class SaleOrderShowPage extends Component
             ->findOrFail($recordId);
 
         $this->financeDocument = $this->resolveFinanceDocument();
+        $this->linkedSaleOrder = $this->resolveLinkedSaleOrder();
     }
 
     public function render(): View
@@ -36,16 +39,20 @@ class SaleOrderShowPage extends Component
         $this->record->loadMissing(['customer', 'warehouse', 'items.product']);
 
         return view('inventory::livewire.transactions.sale-order-show', [
-            'record'           => $this->record,
-            'financeDocument'  => $this->financeDocument,
-            'documentLabel'    => $this->documentType === 'quotation' ? 'Quotation' : 'Sale Order',
-            'routeBase'        => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
-            'statusValue'      => $this->record->status?->value,
-            'canConfirm'       => in_array($this->record->status?->value, ['draft'], true),
-            'canReserve'       => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
-            'canFulfill'       => $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
-            'canCancel'        => in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
-            'canCreateInvoice' => $this->documentType === 'order' && $this->financeDocument === null,
+            'record'             => $this->record,
+            'financeDocument'    => $this->financeDocument,
+            'documentLabel'      => $this->documentType === 'quotation' ? 'Quotation' : 'Sale Order',
+            'routeBase'          => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
+            'statusValue'        => $this->record->status?->value,
+            'canConfirm'         => in_array($this->record->status?->value, ['draft'], true),
+            'canReserve'         => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
+            'canFulfill'         => $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
+            'canCancel'          => in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
+            'canCreateInvoice'   => $this->documentType === 'order' && $this->financeDocument === null,
+            'canCreateSaleOrder' => $this->documentType === 'quotation'
+                && $this->record->status?->value === 'confirmed'
+                && $this->linkedSaleOrder === null,
+            'linkedSaleOrder' => $this->linkedSaleOrder,
         ]);
     }
 
@@ -100,6 +107,20 @@ class SaleOrderShowPage extends Component
             session()->flash('inventory.status', "Invoice created for {$this->record->so_number}.");
         } catch (\Throwable $exception) {
             session()->flash('inventory.error', $exception->getMessage());
+        }
+    }
+
+    public function createSaleOrder(): mixed
+    {
+        try {
+            $saleOrder = app(Inventory::class)->createSaleOrderFromQuotation((int) $this->record->getKey());
+            session()->flash('inventory.status', "Sale order {$saleOrder->so_number} created from {$this->record->so_number}.");
+
+            return redirect()->route('inventory.sale-orders.show', ['recordId' => $saleOrder->getKey()]);
+        } catch (\Throwable $exception) {
+            session()->flash('inventory.error', $exception->getMessage());
+
+            return null;
         }
     }
 
@@ -170,5 +191,47 @@ class SaleOrderShowPage extends Component
             ->findOrFail($this->record->getKey());
 
         $this->financeDocument = $this->resolveFinanceDocument();
+        $this->linkedSaleOrder = $this->resolveLinkedSaleOrder();
+    }
+
+    private function resolveLinkedSaleOrder(): ?array
+    {
+        $saleOrderId = (int) ($this->documentMetadata()['converted_sale_order_id'] ?? 0);
+
+        if ($saleOrderId <= 0) {
+            return null;
+        }
+
+        $saleOrder = SaleOrder::query()
+            ->where('document_type', 'order')
+            ->find($saleOrderId);
+
+        if (!$saleOrder) {
+            return null;
+        }
+
+        return [
+            'id'     => (int) $saleOrder->getKey(),
+            'number' => (string) $saleOrder->so_number,
+        ];
+    }
+
+    private function documentMetadata(): array
+    {
+        if (!class_exists(\Centrex\ModelData\Data::class)) {
+            return [];
+        }
+
+        $record = \Centrex\ModelData\Data::query()
+            ->forModel($this->record)
+            ->first();
+
+        if (!$record) {
+            return [];
+        }
+
+        return is_array($record->data)
+            ? $record->data
+            : (json_decode((string) $record->data, true) ?: []);
     }
 }

@@ -20,6 +20,9 @@
         @if ($canConfirm)
             <x-tallui-button label="{{ $documentLabel === 'Requisition' ? 'Approve Requisition' : 'Confirm Order' }}" icon="o-check-circle" class="btn-warning btn-sm" wire:click="confirm" wire:confirm="Confirm this {{ strtolower($documentLabel) }}?" />
         @endif
+        @if ($canCreatePurchaseOrder)
+            <x-tallui-button label="Create Purchase Order" icon="o-document-duplicate" class="btn-secondary btn-sm" wire:click="createPurchaseOrder" wire:confirm="Create a purchase order from this requisition?" />
+        @endif
         @if ($canReceive)
             <x-tallui-button label="Receive Remaining" icon="o-inbox-arrow-down" class="btn-success btn-sm" wire:click="receive" wire:confirm="Receive all remaining quantities for this purchase order?" />
         @endif
@@ -130,6 +133,14 @@
                         icon="o-banknotes"
                         :link="route('accounting.bills', ['search' => $financeDocument['number'], 'bill' => $financeDocument['id'], 'action' => 'pay'])"
                         class="btn-warning btn-sm"
+                    />
+                @endif
+                @if ($linkedPurchaseOrder)
+                    <x-tallui-button
+                        label="View Purchase Order"
+                        icon="o-arrow-top-right-on-square"
+                        :link="route('inventory.purchase-orders.show', ['recordId' => $linkedPurchaseOrder['id']])"
+                        class="btn-ghost btn-sm"
                     />
                 @endif
                 @if (Route::has('accounting.journal'))

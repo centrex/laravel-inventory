@@ -4,9 +4,11 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{PurchaseOrder, SaleOrder};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -19,12 +21,14 @@ class InventoryReportsPage extends Component
 
     public function mount(): void
     {
+        Gate::authorize('inventory.reports.view');
         $this->endDate = now()->toDateString();
         $this->startDate = now()->subDays(29)->toDateString();
     }
 
     public function render(): View
     {
+        $inventory = app(Inventory::class);
         $purchaseOrders = PurchaseOrder::query()
             ->with(['supplier', 'warehouse'])
             ->where('document_type', 'order')
@@ -48,6 +52,10 @@ class InventoryReportsPage extends Component
         $salesMetrics = $this->buildSalesMetrics($saleOrders);
         $purchaseMetrics = $this->buildPurchaseMetrics($purchaseOrders);
         $paymentMetrics = $this->buildPaymentMetrics($this->startDate, $this->endDate);
+        $forecast = $inventory->salesForecast(
+            lookbackDays: $this->forecastLookbackDays(),
+            forecastDays: $this->forecastHorizonDays(),
+        );
 
         return view('inventory::livewire.transactions.inventory-reports', [
             'purchaseOrders'  => $purchaseOrders,
@@ -55,6 +63,7 @@ class InventoryReportsPage extends Component
             'salesMetrics'    => $salesMetrics,
             'purchaseMetrics' => $purchaseMetrics,
             'paymentMetrics'  => $paymentMetrics,
+            'forecast'        => $forecast,
         ]);
     }
 
@@ -171,5 +180,21 @@ class InventoryReportsPage extends Component
             'paid' => round((float) $bills->sum('base_paid_amount'), 2),
             'due'  => round((float) $bills->sum('base_balance'), 2),
         ];
+    }
+
+    private function forecastLookbackDays(): int
+    {
+        if ($this->startDate === '' || $this->endDate === '') {
+            return 90;
+        }
+
+        $days = now()->parse($this->startDate)->diffInDays(now()->parse($this->endDate)) + 1;
+
+        return max(30, $days);
+    }
+
+    private function forecastHorizonDays(): int
+    {
+        return 90;
     }
 }
