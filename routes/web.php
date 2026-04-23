@@ -2,8 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Controllers\Web\DashboardController;
-use Centrex\Inventory\Http\Controllers\Web\AsyncSelectController;
+use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController};
 use Centrex\Inventory\Http\Livewire\Entities\{EntityFormPage, EntityIndexPage};
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;

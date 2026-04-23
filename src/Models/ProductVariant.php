@@ -29,10 +29,10 @@ class ProductVariant extends Model
     ];
 
     protected $casts = [
-        'weight_kg'   => 'decimal:4',
-        'is_active'   => 'boolean',
-        'attributes'  => 'array',
-        'meta'        => 'array',
+        'weight_kg'  => 'decimal:4',
+        'is_active'  => 'boolean',
+        'attributes' => 'array',
+        'meta'       => 'array',
     ];
 
     protected $appends = [
