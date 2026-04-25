@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Support\InventoryEntityRegistry;
+use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Layout;
@@ -69,6 +69,9 @@ class EntityFormPage extends Component
             'customerCreditSnapshot' => $this->entity === 'customers' && $this->recordId
                 ? app(Inventory::class)->customerCreditSnapshot($this->recordId)
                 : null,
+            'customerAnalytics' => $this->entity === 'customers' && $this->recordId
+                ? app(Inventory::class)->customerAnalytics($this->recordId)
+                : null,
         ]);
     }
 
@@ -80,6 +83,10 @@ class EntityFormPage extends Component
 
         $model = InventoryEntityRegistry::makeModel($this->entity);
         $query = $model->newQuery();
+
+        if ($this->entity === 'customers') {
+            CommercialTeamAccess::applySalesScope($query);
+        }
 
         return $failIfMissing
             ? $query->findOrFail($this->recordId)

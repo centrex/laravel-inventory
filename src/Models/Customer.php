@@ -7,7 +7,7 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
 use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
-use Illuminate\Database\Eloquent\Relations\{HasMany, MorphTo};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphTo};
 use Spatie\MediaLibrary\HasMedia;
 
 class Customer extends Model implements HasMedia
@@ -28,14 +28,15 @@ class Customer extends Model implements HasMedia
     }
 
     protected $fillable = [
-        'code', 'name', 'email', 'phone', 'currency', 'credit_limit_amount',
-        'price_tier_code', 'is_active',
+        'code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment', 'demographic_data', 'currency', 'credit_limit_amount',
+        'price_tier_code', 'sales_owner_id', 'sales_owner_designation', 'sales_manager_id', 'sales_assistant_manager_id', 'sales_executive_id', 'is_active',
         'modelable_type', 'modelable_id', 'accounting_customer_id', 'meta',
     ];
 
     protected $casts = [
         'credit_limit_amount' => 'decimal:4',
         'is_active'           => 'boolean',
+        'demographic_data'    => 'array',
         'meta'                => 'array',
     ];
 
@@ -46,6 +47,26 @@ class Customer extends Model implements HasMedia
     public function saleOrders(): HasMany
     {
         return $this->hasMany(SaleOrder::class);
+    }
+
+    public function salesManager(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_manager_id');
+    }
+
+    public function salesOwner(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_owner_id');
+    }
+
+    public function salesAssistantManager(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_assistant_manager_id');
+    }
+
+    public function salesExecutive(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_executive_id');
     }
 
     public function modelable(): MorphTo

@@ -33,7 +33,9 @@ class PurchaseOrder extends Model
         'shipping_local', 'shipping_amount',
         'other_charges_amount',
         'total_local', 'total_amount',
-        'status', 'ordered_at', 'expected_at', 'notes', 'created_by', 'accounting_bill_id',
+        'status', 'ordered_at', 'expected_at', 'notes', 'created_by',
+        'purchase_manager_id', 'purchase_assistant_manager_id', 'purchase_executive_id',
+        'accounting_bill_id',
     ];
 
     protected $casts = [
@@ -61,6 +63,21 @@ class PurchaseOrder extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function purchaseManager(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'purchase_manager_id');
+    }
+
+    public function purchaseAssistantManager(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'purchase_assistant_manager_id');
+    }
+
+    public function purchaseExecutive(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'purchase_executive_id');
     }
 
     public function items(): HasMany

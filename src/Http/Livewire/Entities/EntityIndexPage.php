@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
-use Centrex\Inventory\Support\InventoryEntityRegistry;
+use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -34,7 +34,10 @@ class EntityIndexPage extends Component
     public function delete(int $recordId): void
     {
         $model = InventoryEntityRegistry::makeModel($this->entity);
-        $model->newQuery()->findOrFail($recordId)->delete();
+        $query = $model->newQuery();
+        $this->applyEntityScope($query);
+
+        $query->findOrFail($recordId)->delete();
 
         session()->flash('inventory.status', 'Record deleted.');
         $this->resetPage();
@@ -45,6 +48,7 @@ class EntityIndexPage extends Component
         $definition = InventoryEntityRegistry::definition($this->entity);
         $model = InventoryEntityRegistry::makeModel($this->entity);
         $query = $model->newQuery()->latest($model->getKeyName());
+        $this->applyEntityScope($query);
         $fieldDefinitions = collect($definition['form_fields'])
             ->keyBy('name')
             ->all();
@@ -88,5 +92,12 @@ class EntityIndexPage extends Component
         return method_exists(InventoryEntityRegistry::makeModel($this->entity), $relation)
             ? $relation
             : null;
+    }
+
+    private function applyEntityScope($query): void
+    {
+        if ($this->entity === 'customers') {
+            CommercialTeamAccess::applySalesScope($query);
+        }
     }
 }

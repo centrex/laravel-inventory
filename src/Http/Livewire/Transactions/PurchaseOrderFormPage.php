@@ -7,7 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Enums\{PriceTierCode, PurchaseOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\ErpIntegration;
+use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -191,7 +191,9 @@ class PurchaseOrderFormPage extends Component
 
     private function loadOrder(int $recordId): void
     {
-        $order = PurchaseOrder::query()->with('items')->findOrFail($recordId);
+        $query = PurchaseOrder::query()->with('items');
+        CommercialTeamAccess::applyPurchaseScope($query);
+        $order = $query->findOrFail($recordId);
 
         $this->recordId = $order->getKey();
         $this->warehouse_id = $order->warehouse_id;
@@ -225,7 +227,9 @@ class PurchaseOrderFormPage extends Component
 
     private function updateOrder(array $validated): PurchaseOrder
     {
-        $purchaseOrder = PurchaseOrder::query()->with('items')->findOrFail($this->recordId);
+        $query = PurchaseOrder::query()->with('items');
+        CommercialTeamAccess::applyPurchaseScope($query);
+        $purchaseOrder = $query->findOrFail($this->recordId);
 
         abort_unless($this->canEdit(), 403, 'This purchase order can no longer be edited.');
 

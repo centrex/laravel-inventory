@@ -6,6 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{PurchaseOrder, SaleOrder};
+use Centrex\Inventory\Support\CommercialTeamAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -29,25 +30,31 @@ class InventoryReportsPage extends Component
     public function render(): View
     {
         $inventory = app(Inventory::class);
-        $purchaseOrders = PurchaseOrder::query()
+        $purchaseQuery = PurchaseOrder::query()
             ->with(['supplier', 'warehouse'])
             ->where('document_type', 'order')
             ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
             ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
             ->latest('ordered_at')
             ->latest('id')
-            ->limit(25)
-            ->get();
+            ->limit(25);
 
-        $saleOrders = SaleOrder::query()
+        CommercialTeamAccess::applyPurchaseScope($purchaseQuery);
+
+        $purchaseOrders = $purchaseQuery->get();
+
+        $salesQuery = SaleOrder::query()
             ->with(['customer', 'warehouse'])
             ->where('document_type', 'order')
             ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
             ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
             ->latest('ordered_at')
             ->latest('id')
-            ->limit(25)
-            ->get();
+            ->limit(25);
+
+        CommercialTeamAccess::applySalesScope($salesQuery);
+
+        $saleOrders = $salesQuery->get();
 
         $salesMetrics = $this->buildSalesMetrics($saleOrders);
         $purchaseMetrics = $this->buildPurchaseMetrics($purchaseOrders);

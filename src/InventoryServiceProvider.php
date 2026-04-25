@@ -73,6 +73,8 @@ class InventoryServiceProvider extends ServiceProvider
 
             // Reports
             'inventory.reports.view',
+            'inventory.logistics.view',
+            'inventory.commercial-teams.manage',
 
             // Purchase orders
             'inventory.purchase-orders.view',

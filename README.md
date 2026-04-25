@@ -5,7 +5,7 @@
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/centrex/laravel-inventory/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/centrex/laravel-inventory/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/centrex/laravel-inventory?style=flat-square)](https://packagist.org/packages/centrex/laravel-inventory)
 
-Full multi-warehouse inventory management for Laravel. Supports weighted average costing (WAC), multi-currency purchasing and selling, inter-warehouse transfers with per-kg shipping costs, and five configurable sell price tiers per product per warehouse.
+Full multi-warehouse inventory management for Laravel. Supports weighted average costing (WAC), multi-currency purchasing and selling, inter-warehouse transfers with per-kg shipping costs, seven configurable sell price tiers per product per warehouse, and optional ERP integration with `laravel-accounting` for automatic journal entries.
 
 ## Contents
 
@@ -16,11 +16,17 @@ Full multi-warehouse inventory management for Laravel. Supports weighted average
 - [Warehouses & Products](#warehouses--products)
 - [Price Tiers & Pricing](#price-tiers--pricing)
 - [Coupons](#coupons)
+- [Customers & Suppliers](#customers--suppliers)
 - [Purchase Orders & GRNs](#purchase-orders--grns)
 - [Sale Orders](#sale-orders)
+- [Returns](#returns)
 - [Inter-Warehouse Transfers](#inter-warehouse-transfers)
 - [Stock Adjustments](#stock-adjustments)
 - [Stock Queries & Reports](#stock-queries--reports)
+- [Sales Forecast](#sales-forecast)
+- [Authorization Gates](#authorization-gates)
+- [Web UI](#web-ui)
+- [REST API](#rest-api)
 - [Exceptions](#exceptions)
 - [Environment Variables](#environment-variables)
 - [Testing](#testing)
@@ -556,6 +562,323 @@ foreach ($movements as $m) {
        . "| WAC: {$m->wac_amount} BDT\n";
 }
 ```
+
+---
+
+## Customers & Suppliers
+
+### Customer management
+
+```php
+use Centrex\Inventory\Facades\Inventory;
+
+// Create a customer
+$customer = Inventory::createCustomer([
+    'code'                => 'CUST-001',
+    'name'                => 'Rahman Brothers Ltd',
+    'email'               => 'accounts@rahman.com',
+    'phone'               => '+880 1711-000000',
+    'currency'            => 'BDT',
+    'credit_limit_amount' => 500000,        // 0 = no limit
+    'price_tier_code'     => 'b2b_wholesale',
+    'is_active'           => true,
+]);
+
+Inventory::updateCustomer($customer->id, ['credit_limit_amount' => 750000]);
+Inventory::deleteCustomer($customer->id);   // soft-delete
+
+// Link customer to any Eloquent model (User, Contact, etc.)
+$customer = Inventory::findCustomerForModel(App\Models\User::class, $userId);
+
+// Credit limit snapshot — real-time exposure across open orders
+$credit = Inventory::customerCreditSnapshot($customer->id);
+// returns:
+// [
+//   'credit_limit_amount'   => 500000.0,
+//   'outstanding_exposure'  => 123400.0,  // sum of open SO totals in base currency
+//   'available_credit'      => 376600.0,
+// ]
+
+// Recent order history
+$history = Inventory::customerHistory($customer->id, limit: 10);
+```
+
+### Credit limit enforcement
+
+When a sale order is created and the customer would exceed their credit limit, the order is flagged and requires explicit override approval:
+
+```php
+$so = Inventory::createSaleOrder([
+    'customer_id'     => $customer->id,
+    'warehouse_id'    => $wh->id,
+    'price_tier_code' => 'b2b_wholesale',
+    'currency'        => 'BDT',
+    'items'           => [...],
+]);
+
+if ($so->credit_override_required) {
+    // $so->credit_exposure_before_amount — exposure before this order
+    // $so->credit_exposure_after_amount  — exposure if approved
+    // Approve via the gate inventory.sale-orders.approve-credit
+}
+```
+
+### Supplier management
+
+```php
+use Centrex\Inventory\Models\Supplier;
+
+$supplier = Supplier::create([
+    'code'          => 'SUP-CN-001',
+    'name'          => 'Shenzhen Electronics Co.',
+    'country_code'  => 'CN',
+    'currency'      => 'CNY',
+    'contact_name'  => 'Li Wei',
+    'contact_email' => 'liwei@szcorp.cn',
+    'contact_phone' => '+86 ...',
+    'is_active'     => true,
+]);
+```
+
+---
+
+## Returns
+
+### Sale returns (customer returns)
+
+```php
+use Centrex\Inventory\Facades\Inventory;
+
+$return = Inventory::createSaleReturn([
+    'sale_order_id' => $so->id,
+    'warehouse_id'  => $wh_dhaka->id,
+    'customer_id'   => $customer->id,
+    'returned_at'   => today(),
+    'notes'         => 'Screen defect — customer complaint',
+    'created_by'    => auth()->id(),
+    'items' => [
+        [
+            'sale_order_item_id' => $so->items->first()->id,
+            'qty_returned'       => 2,
+            'unit_price_amount'  => 6500.00,  // selling price at time of sale
+            'unit_cost_amount'   => 3105.25,  // WAC at time of fulfillment
+        ],
+    ],
+]);
+
+// Post: restores qty_on_hand (CUSTOMER_RETURN movement), reverses COGS JE in accounting
+Inventory::postSaleReturn($return->id);
+```
+
+### Purchase returns (return to supplier)
+
+```php
+$return = Inventory::createPurchaseReturn([
+    'purchase_order_id' => $po->id,
+    'warehouse_id'      => $wh_dhaka->id,
+    'supplier_id'       => $supplier->id,
+    'returned_at'       => today(),
+    'notes'             => 'Wrong SKU delivered',
+    'created_by'        => auth()->id(),
+    'items' => [
+        [
+            'purchase_order_item_id' => $po->items->first()->id,
+            'qty_returned'           => 5,
+            'unit_cost_amount'       => 2970.00,  // cost at receipt
+        ],
+    ],
+]);
+
+// Post: decrements qty_on_hand (RETURN_TO_SUPPLIER movement), recalculates WAC
+Inventory::postPurchaseReturn($return->id);
+```
+
+---
+
+## Sales Forecast
+
+The forecast analyses historical sales patterns and projects future demand, procurement needs, and cash flow.
+
+```php
+use Centrex\Inventory\Facades\Inventory;
+
+$forecast = Inventory::salesForecast(
+    lookbackDays:  90,   // historical window to analyse
+    forecastDays:  90,   // future projection window
+    productLimit:  50,   // top N products by volume
+    customerLimit: 25,   // top N customers by revenue
+);
+
+// $forecast['window']
+// ['history_start', 'history_end', 'lookback_days', 'forecast_days']
+
+// $forecast['summary']
+// [
+//   'products_tracked'          => 47,
+//   'products_at_risk'          => 6,     // forecasted stockout within window
+//   'forecast_qty'              => 2840,
+//   'forecast_revenue'          => 18460000.0,
+//   'required_procurement_cost' => 12200000.0,
+//   'forecast_cash_in'          => 18460000.0,
+//   'forecast_cash_out'         => 12200000.0,
+//   'forecast_cash_net'         => 6260000.0,
+// ]
+
+// $forecast['products'] — per-product projection
+foreach ($forecast['products'] as $p) {
+    echo $p['product_name'];
+    echo $p['history_qty'];         // units sold in lookback window
+    echo $p['forecast_qty'];        // projected units in forecast window
+    echo $p['avg_daily_qty'];       // average units/day
+    echo $p['days_of_cover'];       // days until stockout at current rate
+    echo $p['stockout_date'];       // projected date (null if not at risk)
+    echo $p['pending_supply_qty'];  // qty already on confirmed POs
+    echo $p['confidence'];          // high | medium | low
+}
+
+// $forecast['timeline'] — daily/weekly series for charts
+// ['categories', 'series' => ['qty', 'revenue', 'cash_in', 'cash_out', 'net'], 'totals']
+```
+
+---
+
+## Authorization Gates
+
+All gates fall back to the `inventory-admin` super-gate. Configure via `INVENTORY_ADMIN_ROLES` or override in `AppServiceProvider`:
+
+```php
+Gate::define('inventory-admin', fn ($user) => $user->hasRole(['admin', 'inventory-manager']));
+
+// Or override individual abilities
+Gate::define('inventory.sale-orders.approve-credit', fn ($user) => $user->hasRole('finance-manager'));
+Gate::define('inventory.adjustments.post',           fn ($user) => $user->hasRole('warehouse-manager'));
+```
+
+| Gate | Description |
+|---|---|
+| `inventory.master-data.view` | View warehouses, products, categories, brands, coupons |
+| `inventory.master-data.manage` | Create, edit, delete master data records |
+| `inventory.exchange-rates.view` | View exchange rates |
+| `inventory.exchange-rates.manage` | Set exchange rates |
+| `inventory.pricing.view` | View product prices |
+| `inventory.pricing.manage` | Set and update product prices |
+| `inventory.reports.view` | View stock valuation, movement history, forecast |
+| `inventory.purchase-orders.view` | View purchase orders |
+| `inventory.purchase-orders.create` | Create purchase orders |
+| `inventory.purchase-orders.submit` | Submit PO for confirmation |
+| `inventory.purchase-orders.confirm` | Confirm a submitted PO |
+| `inventory.stock-receipts.create` | Create GRNs |
+| `inventory.stock-receipts.post` | Post GRNs to inventory |
+| `inventory.stock-receipts.void` | Void a posted GRN |
+| `inventory.sale-orders.view` | View sale orders |
+| `inventory.sale-orders.create` | Create sale orders |
+| `inventory.sale-orders.confirm` | Confirm a sale order |
+| `inventory.sale-orders.reserve` | Reserve stock for a sale order |
+| `inventory.sale-orders.fulfill` | Fulfill a sale order |
+| `inventory.sale-orders.cancel` | Cancel a sale order |
+| `inventory.sale-orders.approve-credit` | Override customer credit limit |
+| `inventory.channels.checkout` | POS terminal / e-commerce checkout |
+| `inventory.transfers.view` | View transfers |
+| `inventory.transfers.create` | Create transfers |
+| `inventory.transfers.dispatch` | Dispatch a transfer |
+| `inventory.transfers.receive` | Receive a transfer |
+| `inventory.adjustments.view` | View adjustments |
+| `inventory.adjustments.create` | Create adjustments |
+| `inventory.adjustments.post` | Post adjustments to inventory |
+
+---
+
+## Web UI
+
+The package ships a full Livewire UI enabled by default. Set `INVENTORY_WEB_ENABLED=false` to disable. All routes are under the `web_prefix` (default `inventory`), protected by `web_middleware` (default `['web', 'auth']`).
+
+| URL | Description |
+|---|---|
+| `/inventory/dashboard` | Overview: stock values per warehouse, low-stock alerts |
+| `/inventory/master-data/warehouses` | Warehouse management |
+| `/inventory/master-data/products` | Product catalog |
+| `/inventory/master-data/product-categories` | Category tree |
+| `/inventory/master-data/product-brands` | Brand list |
+| `/inventory/master-data/customers` | Customer management |
+| `/inventory/master-data/suppliers` | Supplier management |
+| `/inventory/master-data/coupons` | Coupon management |
+| `/inventory/purchase-orders` | Purchase order list |
+| `/inventory/purchase-orders/create` | New purchase order / requisition |
+| `/inventory/purchase-orders/{id}` | PO detail: items, GRN history, status actions |
+| `/inventory/sale-orders` | Sale order list |
+| `/inventory/sale-orders/create` | New sale order / quotation |
+| `/inventory/sale-orders/{id}` | SO detail: items, fulfillment, credit status |
+| `/inventory/returns/sale` | Sale return list |
+| `/inventory/returns/purchase` | Purchase return list |
+| `/inventory/transfers` | Transfer list |
+| `/inventory/transfers/create` | New transfer |
+| `/inventory/transfers/{id}` | Transfer detail: boxes, items, receive actions |
+| `/inventory/adjustments/create` | New stock adjustment |
+| `/inventory/reports` | Valuation, movement history, forecast |
+| `/inventory/pos` | Point-of-sale terminal |
+
+---
+
+## REST API
+
+Set `INVENTORY_API_ENABLED=false` to disable. Base prefix: `api/inventory`. Default middleware: `['api', 'auth:sanctum']`.
+
+### Exchange rates & pricing
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/inventory/exchange-rates/set` | Set exchange rate |
+| GET | `/api/inventory/exchange-rates/convert-to-bdt` | Convert amount to base currency |
+| POST | `/api/inventory/pricing` | Set product price for a tier |
+| GET | `/api/inventory/pricing/resolve` | Resolve effective price |
+| GET | `/api/inventory/pricing/sheet` | Full price sheet for all tiers |
+
+### Master data (CRUD)
+
+All entities support: `GET /api/inventory/{entity}` (list), `POST` (create), `GET /{id}` (show), `PUT /{id}` (update), `DELETE /{id}` (delete).
+
+Entities: `warehouses`, `product-categories`, `product-brands`, `products`, `suppliers`, `customers`, `coupons`, `product-prices`, `warehouse-products`.
+
+### Purchase orders
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/inventory/purchase-orders` | Create PO |
+| POST | `/api/inventory/purchase-orders/{id}/submit` | Submit PO |
+| POST | `/api/inventory/purchase-orders/{id}/confirm` | Confirm PO |
+| POST | `/api/inventory/purchase-orders/{id}/receive` | Receive items (partial or full) |
+| POST | `/api/inventory/purchase-orders/{id}/cancel` | Cancel PO |
+| POST | `/api/inventory/stock-receipts` | Create GRN |
+| POST | `/api/inventory/stock-receipts/{id}/post` | Post GRN |
+| POST | `/api/inventory/stock-receipts/{id}/void` | Void GRN |
+
+### Sale orders
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/inventory/sale-orders` | Create SO |
+| POST | `/api/inventory/sale-orders/{id}/confirm` | Confirm SO |
+| POST | `/api/inventory/sale-orders/{id}/reserve` | Reserve stock |
+| POST | `/api/inventory/sale-orders/{id}/fulfill` | Fulfill SO |
+| POST | `/api/inventory/sale-orders/{id}/cancel` | Cancel SO |
+
+### Transfers & adjustments
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/inventory/transfers` | Create transfer |
+| POST | `/api/inventory/transfers/{id}/dispatch` | Dispatch transfer |
+| POST | `/api/inventory/transfers/{id}/receive` | Receive transfer |
+| POST | `/api/inventory/adjustments` | Create adjustment |
+| POST | `/api/inventory/adjustments/{id}/post` | Post adjustment |
+
+### Reports
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/inventory/reports/stock-valuation` | Valuation report (optional `?warehouse_id=`) |
+| GET | `/api/inventory/reports/movements` | Movement history (`?product_id=&warehouse_id=&from=&to=`) |
+| GET | `/api/inventory/reports/forecast` | Sales forecast (`?lookback_days=&forecast_days=`) |
 
 ---
 

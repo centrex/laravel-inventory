@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Models\PurchaseOrder;
+use Centrex\Inventory\Support\CommercialTeamAccess;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
@@ -42,6 +43,8 @@ class PurchaseOrderIndexPage extends Component
             ->where('document_type', $this->documentType)
             ->latest('ordered_at')
             ->latest('id');
+
+        CommercialTeamAccess::applyPurchaseScope($query);
 
         if ($this->search !== '') {
             $search = $this->search;

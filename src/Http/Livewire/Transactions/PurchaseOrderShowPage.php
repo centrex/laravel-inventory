@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\PurchaseOrder;
-use Centrex\Inventory\Support\ErpIntegration;
+use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -25,10 +25,13 @@ class PurchaseOrderShowPage extends Component
     public function mount(int $recordId, string $documentType = 'order'): void
     {
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
-        $this->record = PurchaseOrder::query()
+        $query = PurchaseOrder::query()
             ->with(['supplier', 'warehouse', 'items.product'])
-            ->where('document_type', $this->documentType)
-            ->findOrFail($recordId);
+            ->where('document_type', $this->documentType);
+
+        CommercialTeamAccess::applyPurchaseScope($query);
+
+        $this->record = $query->findOrFail($recordId);
 
         $this->financeDocument = $this->resolveFinanceDocument();
         $this->linkedPurchaseOrder = $this->resolveLinkedPurchaseOrder();

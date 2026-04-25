@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Models\{Coupon, Customer, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{CommercialTeamMember, Coupon, Customer, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -85,18 +85,23 @@ class InventoryEntityRegistry
                 'label'         => 'Suppliers',
                 'singular'      => 'Supplier',
                 'model'         => Supplier::class,
-                'search'        => ['code', 'name', 'contact_email', 'contact_phone'],
-                'index_columns' => ['code', 'name', 'country_code', 'currency', 'contact_email', 'is_active'],
+                'search'        => ['code', 'name', 'country_code', 'demographic_segment', 'contact_email', 'contact_phone'],
+                'index_columns' => ['code', 'name', 'country_code', 'demographic_segment', 'currency', 'contact_email', 'purchase_manager_id', 'purchase_executive_id', 'is_active'],
                 'form_fields'   => [
                     self::field('code', 'text', ['required', 'string', 'max:30']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('country_code', 'text', ['nullable', 'string', 'size:2']),
+                    self::field('demographic_segment', 'text', ['nullable', 'string', 'max:120']),
+                    self::field('demographic_data', 'json', ['nullable', 'array'], []),
                     self::field('currency', 'text', ['required', 'string', 'size:3'], 'BDT'),
                     self::field('contact_name', 'text', ['nullable', 'string', 'max:200']),
                     self::field('contact_email', 'email', ['nullable', 'email', 'max:200']),
                     self::field('contact_phone', 'text', ['nullable', 'string', 'max:50']),
                     self::field('address', 'textarea', ['nullable', 'string']),
                     self::field('is_active', 'checkbox', ['boolean'], true),
+                    self::field('purchase_manager_id', 'select', ['nullable', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
+                    self::field('purchase_assistant_manager_id', 'select', ['nullable', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
+                    self::field('purchase_executive_id', 'select', ['nullable', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
                     self::field('meta', 'json', ['nullable', 'array'], []),
                 ],
             ],
@@ -104,16 +109,38 @@ class InventoryEntityRegistry
                 'label'         => 'Customers',
                 'singular'      => 'Customer',
                 'model'         => Customer::class,
-                'search'        => ['code', 'name', 'email', 'phone'],
-                'index_columns' => ['code', 'name', 'email', 'phone', 'currency', 'credit_limit_amount', 'price_tier_code', 'is_active'],
+                'search'        => ['code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment'],
+                'index_columns' => ['code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment', 'currency', 'credit_limit_amount', 'price_tier_code', 'sales_owner_id', 'sales_owner_designation', 'is_active'],
                 'form_fields'   => [
                     self::field('code', 'text', ['required', 'string', 'max:30']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
+                    self::field('organization_name', 'text', ['nullable', 'string', 'max:300']),
                     self::field('email', 'email', ['nullable', 'email', 'max:200']),
                     self::field('phone', 'text', ['nullable', 'string', 'max:50']),
+                    self::field('zone', 'text', ['nullable', 'string', 'max:120']),
+                    self::field('area', 'text', ['nullable', 'string', 'max:120']),
+                    self::field('demographic_segment', 'text', ['nullable', 'string', 'max:120']),
+                    self::field('demographic_data', 'json', ['nullable', 'array'], []),
                     self::field('currency', 'text', ['required', 'string', 'size:3'], 'BDT'),
                     self::field('credit_limit_amount', 'number', ['nullable', 'numeric', 'min:0'], 0),
                     self::field('price_tier_code', 'select', ['nullable', 'string', Rule::in(PriceTierCode::values())], null, null, null, PriceTierCode::options()),
+                    self::field('is_active', 'checkbox', ['boolean'], true),
+                    self::field('sales_owner_id', 'select', ['nullable', 'required_with:sales_owner_designation', 'integer', 'exists:users,id'], null, self::userModel(), 'name', null, 'Sales owner'),
+                    self::field('sales_owner_designation', 'select', ['nullable', 'required_with:sales_owner_id', 'string', Rule::in(['manager', 'assistant_manager', 'executive'])], null, null, null, CommercialTeamAccess::roleOptions(), 'Sales owner designation'),
+                    self::field('meta', 'json', ['nullable', 'array'], []),
+                ],
+            ],
+            'commercial-team-members' => [
+                'label'         => 'Commercial Team Members',
+                'singular'      => 'Commercial Team Member',
+                'model'         => CommercialTeamMember::class,
+                'search'        => ['workflow', 'role'],
+                'index_columns' => ['workflow', 'user_id', 'manager_user_id', 'role', 'is_active'],
+                'form_fields'   => [
+                    self::field('workflow', 'select', ['required', 'string', Rule::in(['sales', 'purchase'])], 'sales', null, null, CommercialTeamAccess::workflowOptions()),
+                    self::field('user_id', 'select', ['required', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
+                    self::field('manager_user_id', 'select', ['nullable', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
+                    self::field('role', 'select', ['required', 'string', Rule::in(['manager', 'assistant_manager', 'executive'])], 'executive', null, null, CommercialTeamAccess::roleOptions()),
                     self::field('is_active', 'checkbox', ['boolean'], true),
                     self::field('meta', 'json', ['nullable', 'array'], []),
                 ],
@@ -226,7 +253,21 @@ class InventoryEntityRegistry
                 $fieldRules[] = Rule::unique($table, $field['name'])->ignore($record?->getKey());
             }
 
+            if ($entity === 'customers' && $field['name'] === 'sales_owner_id') {
+                $visibleSalesUsers = CommercialTeamAccess::visibleUserIds('sales');
+
+                if ($visibleSalesUsers !== null) {
+                    $fieldRules[] = Rule::in($visibleSalesUsers);
+                }
+            }
+
             $rules[$field['name']] = $fieldRules;
+        }
+
+        if ($entity === 'customers') {
+            $rules['sales_manager_id'] = ['nullable', 'integer', 'exists:users,id'];
+            $rules['sales_assistant_manager_id'] = ['nullable', 'integer', 'exists:users,id'];
+            $rules['sales_executive_id'] = ['nullable', 'integer', 'exists:users,id'];
         }
 
         return $rules;
@@ -263,6 +304,17 @@ class InventoryEntityRegistry
             }
 
             $output[$name] = $value;
+        }
+
+        if ($entity === 'customers') {
+            $output = [
+                ...$output,
+                ...CommercialTeamAccess::assignmentForUserDesignation(
+                    'sales',
+                    isset($output['sales_owner_id']) ? (int) $output['sales_owner_id'] : null,
+                    $output['sales_owner_designation'] ?? null,
+                ),
+            ];
         }
 
         return $output;
@@ -318,7 +370,17 @@ class InventoryEntityRegistry
             }
 
             $related = new $field['related_model']();
-            $options[$field['name']] = $related->newQuery()
+            $query = $related->newQuery();
+
+            if ($entity === 'customers' && $field['name'] === 'sales_owner_id') {
+                $visibleSalesUsers = CommercialTeamAccess::visibleUserIds('sales');
+
+                if ($visibleSalesUsers !== null) {
+                    $query->whereIn($related->getKeyName(), $visibleSalesUsers);
+                }
+            }
+
+            $options[$field['name']] = $query
                 ->orderBy($field['related_label'])
                 ->get(['id', $field['related_label']])
                 ->map(fn (Model $model) => [
@@ -349,10 +411,11 @@ class InventoryEntityRegistry
         ?string $relatedModel = null,
         ?string $relatedLabel = null,
         ?array $options = null,
+        ?string $label = null,
     ): array {
         return [
             'name'          => $name,
-            'label'         => Str::of($name)->replace('_', ' ')->title()->toString(),
+            'label'         => $label ?: Str::of($name)->replace('_', ' ')->title()->toString(),
             'type'          => $type,
             'rules'         => $rules,
             'default'       => $default,
@@ -360,5 +423,10 @@ class InventoryEntityRegistry
             'related_label' => $relatedLabel,
             'options'       => $options,
         ];
+    }
+
+    private static function userModel(): string
+    {
+        return (string) config('auth.providers.users.model', 'App\\Models\\User');
     }
 }

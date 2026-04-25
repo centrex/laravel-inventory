@@ -7,7 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, SaleOrder, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\ErpIntegration;
+use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -196,7 +196,9 @@ class SaleOrderFormPage extends Component
 
     private function loadOrder(int $recordId): void
     {
-        $order = SaleOrder::query()->with('items')->findOrFail($recordId);
+        $query = SaleOrder::query()->with('items');
+        CommercialTeamAccess::applySalesScope($query);
+        $order = $query->findOrFail($recordId);
 
         $this->recordId = $order->getKey();
         $this->warehouse_id = $order->warehouse_id;
@@ -234,7 +236,9 @@ class SaleOrderFormPage extends Component
 
     private function updateOrder(array $validated): SaleOrder
     {
-        $saleOrder = SaleOrder::query()->with('items')->findOrFail($this->recordId);
+        $query = SaleOrder::query()->with('items');
+        CommercialTeamAccess::applySalesScope($query);
+        $saleOrder = $query->findOrFail($this->recordId);
 
         abort_unless($this->canEdit(), 403, 'This sale order can no longer be edited.');
 

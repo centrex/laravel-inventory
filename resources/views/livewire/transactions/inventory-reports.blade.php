@@ -215,6 +215,10 @@
                 <thead>
                     <tr class="bg-base-50 text-xs uppercase text-base-content/50">
                         <th>Customer</th>
+                        <th>Zone</th>
+                        <th>Area</th>
+                        <th>Demography</th>
+                        <th>Segment</th>
                         <th>Orders</th>
                         <th>Products</th>
                         <th>Forecast Qty</th>
@@ -225,6 +229,10 @@
                     @forelse (data_get($forecast, 'customers', []) as $customer)
                         <tr>
                             <td>{{ $customer['customer_name'] }}</td>
+                            <td>{{ $customer['zone'] ?? 'Unassigned' }}</td>
+                            <td>{{ $customer['area'] ?? 'Unassigned' }}</td>
+                            <td>{{ $customer['demographic'] ?? 'Unassigned' }}</td>
+                            <td>{{ $customer['segment'] ?? 'New' }}</td>
                             <td>{{ $customer['orders_count'] }}</td>
                             <td>{{ $customer['products_count'] }}</td>
                             <td>{{ number_format((float) $customer['forecast_qty'], 2) }}</td>
@@ -232,7 +240,108 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-sm text-base-content/60">No customer forecast data available.</td>
+                            <td colspan="9" class="text-sm text-base-content/60">No customer forecast data available.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-tallui-card>
+</div>
+
+<div class="grid grid-cols-1 gap-4 xl:grid-cols-3 mt-6">
+    <x-tallui-card title="Zone Forecast" subtitle="Zone-wise customer segment, demand, and revenue projection." icon="o-map" :shadow="true">
+        <div class="overflow-x-auto">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                        <th>Zone</th>
+                        <th>Segment</th>
+                        <th>Customers</th>
+                        <th>Orders</th>
+                        <th>Forecast Qty</th>
+                        <th>Forecast Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse (data_get($forecast, 'zones', []) as $zone)
+                        <tr>
+                            <td>{{ $zone['zone'] ?? 'Unassigned' }}</td>
+                            <td>{{ $zone['segment'] ?? 'New' }}</td>
+                            <td>{{ $zone['customers_count'] }}</td>
+                            <td>{{ $zone['orders_count'] }}</td>
+                            <td>{{ number_format((float) $zone['forecast_qty'], 2) }}</td>
+                            <td>{{ number_format((float) $zone['forecast_revenue'], 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-sm text-base-content/60">No zone forecast data available.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-tallui-card>
+
+    <x-tallui-card title="Area Forecast" subtitle="Area-wise customer segment, demand, and revenue projection." icon="o-map-pin" :shadow="true">
+        <div class="overflow-x-auto">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                        <th>Area</th>
+                        <th>Segment</th>
+                        <th>Customers</th>
+                        <th>Orders</th>
+                        <th>Forecast Qty</th>
+                        <th>Forecast Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse (data_get($forecast, 'areas', []) as $area)
+                        <tr>
+                            <td>{{ $area['area'] ?? 'Unassigned' }}</td>
+                            <td>{{ $area['segment'] ?? 'New' }}</td>
+                            <td>{{ $area['customers_count'] }}</td>
+                            <td>{{ $area['orders_count'] }}</td>
+                            <td>{{ number_format((float) $area['forecast_qty'], 2) }}</td>
+                            <td>{{ number_format((float) $area['forecast_revenue'], 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-sm text-base-content/60">No area forecast data available.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-tallui-card>
+
+    <x-tallui-card title="Demography Forecast" subtitle="Demography-wise customer segment, demand, and revenue projection." icon="o-identification" :shadow="true">
+        <div class="overflow-x-auto">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                        <th>Demography</th>
+                        <th>Segment</th>
+                        <th>Customers</th>
+                        <th>Orders</th>
+                        <th>Forecast Qty</th>
+                        <th>Forecast Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse (data_get($forecast, 'demographics', []) as $demographic)
+                        <tr>
+                            <td>{{ $demographic['demographic_segment'] ?? 'Unassigned' }}</td>
+                            <td>{{ $demographic['segment'] ?? 'New' }}</td>
+                            <td>{{ $demographic['customers_count'] }}</td>
+                            <td>{{ $demographic['orders_count'] }}</td>
+                            <td>{{ number_format((float) $demographic['forecast_qty'], 2) }}</td>
+                            <td>{{ number_format((float) $demographic['forecast_revenue'], 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-sm text-base-content/60">No demographic forecast data available.</td>
                         </tr>
                     @endforelse
                 </tbody>

@@ -184,6 +184,7 @@
                             <div class="flex items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-100 p-3">
                                 <div>
                                     <div class="font-medium">{{ $customer['customer_name'] }}</div>
+                                    <div class="text-xs text-base-content/60">{{ $customer['zone'] ?? 'Unassigned' }} · {{ $customer['area'] ?? 'Unassigned' }} · {{ $customer['demographic'] ?? 'Unassigned' }} · {{ $customer['segment'] ?? 'New' }}</div>
                                     <div class="text-xs text-base-content/60">{{ $customer['orders_count'] }} orders · {{ $customer['products_count'] }} products</div>
                                 </div>
                                 <div class="text-right">

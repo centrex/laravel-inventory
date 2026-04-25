@@ -137,6 +137,50 @@
         </x-tallui-card>
 
         <x-tallui-card
+            title="Customer Analytics"
+            subtitle="Segment, buying history, and projected demand for this customer."
+            icon="o-presentation-chart-line"
+            :shadow="true"
+        >
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-7">
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Segment</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $customerAnalytics['segment'] ?? 'New' }}</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Demography</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $customerAnalytics['demographic'] ?? 'Unassigned' }}</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Zone</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $customerAnalytics['zone'] ?? 'Unassigned' }}</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Area</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $customerAnalytics['area'] ?? 'Unassigned' }}</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Revenue History</div>
+                    <div class="mt-1 text-lg font-semibold">{{ number_format((float) ($customerAnalytics['history_revenue'] ?? 0), 2) }} BDT</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Projected Revenue</div>
+                    <div class="mt-1 text-lg font-semibold">{{ number_format((float) ($customerAnalytics['forecast_revenue'] ?? 0), 2) }} BDT</div>
+                </div>
+                <div class="rounded-2xl border border-base-200 bg-base-50 p-4">
+                    <div class="text-xs uppercase text-base-content/50">Last Order</div>
+                    <div class="mt-1 text-lg font-semibold">{{ $customerAnalytics['last_order_at'] ?? '—' }}</div>
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                <div><span class="text-base-content/50">Orders</span><div class="font-semibold">{{ $customerAnalytics['orders_count'] ?? 0 }}</div></div>
+                <div><span class="text-base-content/50">Products</span><div class="font-semibold">{{ $customerAnalytics['distinct_products'] ?? 0 }}</div></div>
+                <div><span class="text-base-content/50">Avg Order</span><div class="font-semibold">{{ number_format((float) ($customerAnalytics['avg_order_value'] ?? 0), 2) }}</div></div>
+                <div><span class="text-base-content/50">Projected Qty</span><div class="font-semibold">{{ number_format((float) ($customerAnalytics['forecast_qty'] ?? 0), 2) }}</div></div>
+            </div>
+        </x-tallui-card>
+
+        <x-tallui-card
             title="Customer History"
             subtitle="Recent sale orders for quick review."
             icon="o-clock"

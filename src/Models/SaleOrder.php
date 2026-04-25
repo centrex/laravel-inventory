@@ -37,7 +37,9 @@ class SaleOrder extends Model
         'credit_exposure_before_amount', 'credit_exposure_after_amount',
         'credit_override_required', 'credit_override_approved_by',
         'credit_override_approved_at', 'credit_override_notes',
-        'cogs_amount', 'status', 'ordered_at', 'notes', 'created_by', 'accounting_invoice_id',
+        'cogs_amount', 'status', 'ordered_at', 'notes', 'created_by',
+        'sales_manager_id', 'sales_assistant_manager_id', 'sales_executive_id',
+        'accounting_invoice_id',
     ];
 
     protected $casts = [
@@ -72,6 +74,21 @@ class SaleOrder extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function salesManager(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_manager_id');
+    }
+
+    public function salesAssistantManager(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_assistant_manager_id');
+    }
+
+    public function salesExecutive(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_executive_id');
     }
 
     public function coupon(): BelongsTo

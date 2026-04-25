@@ -8,7 +8,7 @@ use Carbon\Carbon;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Product, ProductCategory, ProductPrice, ProductVariant, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\ErpIntegration;
+use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -417,18 +417,22 @@ class Inventory
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $shippingLocal = (float) ($data['shipping_local'] ?? 0);
 
+            $createdBy = $this->currentUserId() ?? ($data['created_by'] ?? null);
+            $assignment = $this->purchaseAssignment($data, $createdBy);
+
             $po = PurchaseOrder::create([
-                'po_number'            => $this->nextNumber($documentType === 'requisition' ? 'REQ' : 'PO', PurchaseOrder::class, 'po_number'),
-                'document_type'        => $documentType,
-                'warehouse_id'         => $data['warehouse_id'],
-                'supplier_id'          => $data['supplier_id'],
-                'currency'             => strtoupper($data['currency']),
-                'exchange_rate'        => $rate,
-                'status'               => PurchaseOrderStatus::DRAFT,
-                'ordered_at'           => $data['ordered_at'] ?? null,
-                'expected_at'          => $data['expected_at'] ?? null,
-                'notes'                => $data['notes'] ?? null,
-                'created_by'           => $data['created_by'] ?? null,
+                'po_number'     => $this->nextNumber($documentType === 'requisition' ? 'REQ' : 'PO', PurchaseOrder::class, 'po_number'),
+                'document_type' => $documentType,
+                'warehouse_id'  => $data['warehouse_id'],
+                'supplier_id'   => $data['supplier_id'],
+                'currency'      => strtoupper($data['currency']),
+                'exchange_rate' => $rate,
+                'status'        => PurchaseOrderStatus::DRAFT,
+                'ordered_at'    => $data['ordered_at'] ?? null,
+                'expected_at'   => $data['expected_at'] ?? null,
+                'notes'         => $data['notes'] ?? null,
+                'created_by'    => $createdBy,
+                ...$assignment,
                 'tax_local'            => $taxLocal,
                 'tax_amount'           => round($taxLocal * $rate, 4),
                 'shipping_local'       => $shippingLocal,
@@ -547,6 +551,7 @@ class Inventory
     public function submitPurchaseOrder(int $poId): PurchaseOrder
     {
         $po = PurchaseOrder::findOrFail($poId);
+        $this->assertPurchaseOrderAccess($po);
         $this->assertTransition($po->status, PurchaseOrderStatus::SUBMITTED, "purchase order #{$poId}");
         $po->update(['status' => PurchaseOrderStatus::SUBMITTED, 'ordered_at' => $po->ordered_at ?? now()]);
 
@@ -556,6 +561,7 @@ class Inventory
     public function confirmPurchaseOrder(int $poId): PurchaseOrder
     {
         $po = PurchaseOrder::findOrFail($poId);
+        $this->assertPurchaseOrderAccess($po);
         $this->assertTransition($po->status, PurchaseOrderStatus::CONFIRMED, "purchase order #{$poId}");
         $po->update(['status' => PurchaseOrderStatus::CONFIRMED]);
         $this->erp()->syncPurchaseOrderDocument($po->fresh(['supplier', 'items.product']));
@@ -566,6 +572,7 @@ class Inventory
     public function receivePurchaseOrder(int $poId, array $receivedQtys = [], array $options = []): PurchaseOrder
     {
         $po = PurchaseOrder::with('items')->findOrFail($poId);
+        $this->assertPurchaseOrderAccess($po);
 
         if (!in_array($po->status, [PurchaseOrderStatus::CONFIRMED, PurchaseOrderStatus::PARTIAL], true)) {
             throw new InvalidTransitionException("Purchase order #{$poId} cannot be received from status [{$po->status->value}].");
@@ -608,6 +615,7 @@ class Inventory
     public function cancelPurchaseOrder(int $poId): PurchaseOrder
     {
         $po = PurchaseOrder::findOrFail($poId);
+        $this->assertPurchaseOrderAccess($po);
         $this->assertTransition($po->status, PurchaseOrderStatus::CANCELLED, "purchase order #{$poId}");
         $po->update(['status' => PurchaseOrderStatus::CANCELLED]);
 
@@ -827,23 +835,27 @@ class Inventory
             $totalBdt = $subtotalBdt + round($taxLocal * $rate, 4) - round($discountLocal * $rate, 4) - $coupon['coupon_discount_amount'];
             $credit = $this->resolveCreditOverride($customer, $totalBdt, $data);
 
+            $createdBy = $this->currentUserId() ?? ($data['created_by'] ?? null);
+            $assignment = $this->salesAssignment($data, $customer, $createdBy);
+
             $so = SaleOrder::create([
-                'so_number'                     => $this->nextNumber($documentType === 'quotation' ? 'QT' : 'SO', SaleOrder::class, 'so_number'),
-                'document_type'                 => $documentType,
-                'warehouse_id'                  => $data['warehouse_id'],
-                'customer_id'                   => $data['customer_id'] ?? null,
-                'coupon_id'                     => $coupon['coupon_id'],
-                'price_tier_code'               => $tierCode,
-                'coupon_code'                   => $coupon['coupon_code'],
-                'coupon_name'                   => $coupon['coupon_name'],
-                'coupon_discount_type'          => $coupon['coupon_discount_type'],
-                'coupon_discount_value'         => $coupon['coupon_discount_value'],
-                'currency'                      => strtoupper($data['currency']),
-                'exchange_rate'                 => $rate,
-                'status'                        => SaleOrderStatus::DRAFT,
-                'ordered_at'                    => $orderedAt,
-                'notes'                         => $data['notes'] ?? null,
-                'created_by'                    => $data['created_by'] ?? null,
+                'so_number'             => $this->nextNumber($documentType === 'quotation' ? 'QT' : 'SO', SaleOrder::class, 'so_number'),
+                'document_type'         => $documentType,
+                'warehouse_id'          => $data['warehouse_id'],
+                'customer_id'           => $data['customer_id'] ?? null,
+                'coupon_id'             => $coupon['coupon_id'],
+                'price_tier_code'       => $tierCode,
+                'coupon_code'           => $coupon['coupon_code'],
+                'coupon_name'           => $coupon['coupon_name'],
+                'coupon_discount_type'  => $coupon['coupon_discount_type'],
+                'coupon_discount_value' => $coupon['coupon_discount_value'],
+                'currency'              => strtoupper($data['currency']),
+                'exchange_rate'         => $rate,
+                'status'                => SaleOrderStatus::DRAFT,
+                'ordered_at'            => $orderedAt,
+                'notes'                 => $data['notes'] ?? null,
+                'created_by'            => $createdBy,
+                ...$assignment,
                 'tax_local'                     => $taxLocal,
                 'tax_amount'                    => round($taxLocal * $rate, 4),
                 'discount_local'                => $discountLocal,
@@ -1312,6 +1324,7 @@ class Inventory
     public function confirmSaleOrder(int $soId): SaleOrder
     {
         $so = SaleOrder::findOrFail($soId);
+        $this->assertSaleOrderAccess($so);
         $this->assertTransition($so->status, SaleOrderStatus::CONFIRMED, "sale order #{$soId}");
         $so->update(['status' => SaleOrderStatus::CONFIRMED]);
         $this->erp()->syncSaleOrderDocument($so->fresh(['customer', 'items.product']));
@@ -1323,6 +1336,7 @@ class Inventory
     public function reserveStock(int $soId): SaleOrder
     {
         $so = SaleOrder::with('items')->findOrFail($soId);
+        $this->assertSaleOrderAccess($so);
 
         if (!in_array($so->status, [SaleOrderStatus::CONFIRMED, SaleOrderStatus::PROCESSING])) {
             throw new InvalidTransitionException("Cannot reserve stock for sale order in status [{$so->status->value}].");
@@ -1362,6 +1376,7 @@ class Inventory
     public function fulfillSaleOrder(int $soId, array $fulfilledQtys = []): SaleOrder
     {
         $so = SaleOrder::with('items')->findOrFail($soId);
+        $this->assertSaleOrderAccess($so);
 
         if (!in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL])) {
             throw new InvalidTransitionException("Sale order #{$soId} cannot be fulfilled from status [{$so->status->value}].");
@@ -1435,6 +1450,7 @@ class Inventory
     public function cancelSaleOrder(int $soId): SaleOrder
     {
         $so = SaleOrder::with('items')->findOrFail($soId);
+        $this->assertSaleOrderAccess($so);
         $this->assertTransition($so->status, SaleOrderStatus::CANCELLED, "sale order #{$soId}");
 
         return DB::transaction(function () use ($so): SaleOrder {
@@ -2111,9 +2127,9 @@ class Inventory
 
         $historyEnd = now()->endOfDay();
         $historyStart = now()->copy()->subDays($lookbackDays - 1)->startOfDay();
-        $observedDays = max(1, $historyStart->diffInDays($historyEnd) + 1);
+        $observedDays = max(1, (int) floor($historyStart->diffInDays($historyEnd)) + 1);
 
-        $saleOrders = SaleOrder::query()
+        $saleOrdersQuery = SaleOrder::query()
             ->with(['customer', 'items.product'])
             ->where('document_type', 'order')
             ->whereIn('status', [
@@ -2122,8 +2138,11 @@ class Inventory
                 SaleOrderStatus::PARTIAL->value,
                 SaleOrderStatus::FULFILLED->value,
             ])
-            ->whereBetween('ordered_at', [$historyStart, $historyEnd])
-            ->get();
+            ->whereBetween('ordered_at', [$historyStart, $historyEnd]);
+
+        CommercialTeamAccess::applySalesScope($saleOrdersQuery);
+
+        $saleOrders = $saleOrdersQuery->get();
 
         $items = $saleOrders->flatMap(function (SaleOrder $order): Collection {
             return $order->items->map(fn (SaleOrderItem $item): array => [
@@ -2132,6 +2151,9 @@ class Inventory
                 'sku'           => $item->product?->sku ?? null,
                 'customer_id'   => $order->customer_id ? (int) $order->customer_id : null,
                 'customer_name' => $order->customer?->name ?? 'Walk-in',
+                'zone'          => $order->customer?->zone ?: 'Unassigned',
+                'area'          => $order->customer?->area ?: 'Unassigned',
+                'demographic'   => $order->customer?->demographic_segment ?: 'Unassigned',
                 'qty'           => (float) $item->qty_ordered,
                 'fulfilled_qty' => (float) $item->qty_fulfilled,
                 'revenue'       => (float) $item->line_total_local,
@@ -2275,6 +2297,10 @@ class Inventory
                 return [
                     'customer_id'       => $customerId,
                     'customer_name'     => $customerId ? ($orders->first()?->customer?->name ?? 'Customer #' . $customerId) : 'Walk-in',
+                    'zone'              => $orders->first()?->customer?->zone ?: 'Unassigned',
+                    'area'              => $orders->first()?->customer?->area ?: 'Unassigned',
+                    'demographic'       => $orders->first()?->customer?->demographic_segment ?: 'Unassigned',
+                    'segment'           => $this->customerSegment($revenue, $ordersCount),
                     'orders_count'      => $ordersCount,
                     'products_count'    => $products,
                     'history_qty'       => round($qty, 2),
@@ -2287,6 +2313,10 @@ class Inventory
             })
             ->sortByDesc('forecast_revenue')
             ->values();
+
+        $zoneForecast = $this->geographicCustomerForecast($saleOrders, $observedDays, $forecastDays, 'zone');
+        $areaForecast = $this->geographicCustomerForecast($saleOrders, $observedDays, $forecastDays, 'area');
+        $demographicForecast = $this->geographicCustomerForecast($saleOrders, $observedDays, $forecastDays, 'demographic_segment');
 
         $timeline = $this->buildForecastTimeline(
             $productForecast,
@@ -2318,11 +2348,89 @@ class Inventory
                 'lookback_days' => $lookbackDays,
                 'forecast_days' => $forecastDays,
             ],
-            'summary'   => $holisticRequirement,
-            'products'  => $productForecast->take($productLimit)->values(),
-            'customers' => $customerForecast->take($customerLimit)->values(),
-            'timeline'  => $timeline,
+            'summary'      => $holisticRequirement,
+            'products'     => $productForecast->take($productLimit)->values(),
+            'customers'    => $customerForecast->take($customerLimit)->values(),
+            'zones'        => $zoneForecast,
+            'areas'        => $areaForecast,
+            'demographics' => $demographicForecast,
+            'timeline'     => $timeline,
         ];
+    }
+
+    public function customerAnalytics(int $customerId, int $lookbackDays = 180, int $forecastDays = 90): array
+    {
+        $lookbackDays = max(7, $lookbackDays);
+        $forecastDays = max(7, $forecastDays);
+        $historyEnd = now()->endOfDay();
+        $historyStart = now()->copy()->subDays($lookbackDays - 1)->startOfDay();
+        $observedDays = max(1, (int) floor($historyStart->diffInDays($historyEnd)) + 1);
+
+        $ordersQuery = SaleOrder::query()
+            ->with('items.product')
+            ->where('document_type', 'order')
+            ->where('customer_id', $customerId)
+            ->whereBetween('ordered_at', [$historyStart, $historyEnd])
+            ->whereNotIn('status', [
+                SaleOrderStatus::CANCELLED->value,
+                SaleOrderStatus::RETURNED->value,
+            ]);
+
+        CommercialTeamAccess::applySalesScope($ordersQuery);
+
+        $orders = $ordersQuery->get();
+        $customer = $orders->first()?->customer ?? Customer::query()->find($customerId);
+        $qty = (float) $orders->sum(fn (SaleOrder $order): float => (float) $order->items->sum('qty_ordered'));
+        $revenue = (float) $orders->sum('total_local');
+        $avgDailyRevenue = $revenue > 0 ? $revenue / $observedDays : 0.0;
+        $avgDailyQty = $qty > 0 ? $qty / $observedDays : 0.0;
+        $lastOrder = $orders->sortByDesc(fn (SaleOrder $order) => $order->ordered_at?->getTimestamp() ?? 0)->first();
+
+        return [
+            'segment'           => $this->customerSegment($revenue, $orders->count()),
+            'zone'              => $customer?->zone ?: 'Unassigned',
+            'area'              => $customer?->area ?: 'Unassigned',
+            'demographic'       => $customer?->demographic_segment ?: 'Unassigned',
+            'demographic_data'  => $customer?->demographic_data ?: [],
+            'orders_count'      => $orders->count(),
+            'history_qty'       => round($qty, 2),
+            'history_revenue'   => round($revenue, 2),
+            'avg_order_value'   => $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0,
+            'forecast_qty'      => round($avgDailyQty * $forecastDays, 2),
+            'forecast_revenue'  => round($avgDailyRevenue * $forecastDays, 2),
+            'last_order_at'     => $lastOrder?->ordered_at?->toDateString(),
+            'days_since_order'  => $lastOrder?->ordered_at ? $lastOrder->ordered_at->diffInDays(now()) : null,
+            'distinct_products' => $orders->flatMap(fn (SaleOrder $order) => $order->items->pluck('product_id'))->filter()->unique()->count(),
+            'forecast_days'     => $forecastDays,
+            'lookback_days'     => $lookbackDays,
+        ];
+    }
+
+    private function geographicCustomerForecast(Collection $saleOrders, int $observedDays, int $forecastDays, string $field): Collection
+    {
+        return $saleOrders
+            ->groupBy(fn (SaleOrder $order): string => (string) ($order->customer?->{$field} ?: 'Unassigned'))
+            ->map(function (Collection $orders, string $name) use ($observedDays, $forecastDays, $field): array {
+                $ordersCount = $orders->count();
+                $qty = (float) $orders->sum(fn (SaleOrder $order): float => (float) $order->items->sum('qty_ordered'));
+                $revenue = (float) $orders->sum('total_local');
+                $customerCount = $orders->pluck('customer_id')->filter()->unique()->count();
+                $avgDailyQty = $qty > 0 ? $qty / $observedDays : 0.0;
+                $avgDailyRevenue = $revenue > 0 ? $revenue / $observedDays : 0.0;
+
+                return [
+                    $field             => $name,
+                    'segment'          => $this->customerSegment($revenue, $ordersCount),
+                    'customers_count'  => $customerCount,
+                    'orders_count'     => $ordersCount,
+                    'history_qty'      => round($qty, 2),
+                    'history_revenue'  => round($revenue, 2),
+                    'forecast_qty'     => round($avgDailyQty * $forecastDays, 2),
+                    'forecast_revenue' => round($avgDailyRevenue * $forecastDays, 2),
+                ];
+            })
+            ->sortByDesc('forecast_revenue')
+            ->values();
     }
 
     // -------------------------------------------------------------------------
@@ -2565,6 +2673,77 @@ class Inventory
         }
 
         return (int) $user->getAuthIdentifier();
+    }
+
+    private function salesAssignment(array $data, ?Customer $customer, ?int $createdBy): array
+    {
+        $assignment = CommercialTeamAccess::assignmentFor('sales', $createdBy);
+        $explicit = array_filter([
+            'sales_manager_id'           => $data['sales_manager_id'] ?? $customer?->sales_manager_id ?? null,
+            'sales_assistant_manager_id' => $data['sales_assistant_manager_id'] ?? $customer?->sales_assistant_manager_id ?? null,
+            'sales_executive_id'         => $data['sales_executive_id'] ?? $customer?->sales_executive_id ?? null,
+        ], fn ($value): bool => $value !== null);
+
+        return array_replace($assignment, $explicit);
+    }
+
+    private function purchaseAssignment(array $data, ?int $createdBy): array
+    {
+        $supplier = isset($data['supplier_id']) ? Supplier::query()->find((int) $data['supplier_id']) : null;
+        $assignment = CommercialTeamAccess::assignmentFor('purchase', $createdBy);
+        $explicit = array_filter([
+            'purchase_manager_id'           => $data['purchase_manager_id'] ?? $supplier?->purchase_manager_id ?? null,
+            'purchase_assistant_manager_id' => $data['purchase_assistant_manager_id'] ?? $supplier?->purchase_assistant_manager_id ?? null,
+            'purchase_executive_id'         => $data['purchase_executive_id'] ?? $supplier?->purchase_executive_id ?? null,
+        ], fn ($value): bool => $value !== null);
+
+        return array_replace($assignment, $explicit);
+    }
+
+    private function customerSegment(float $revenue, int $ordersCount): string
+    {
+        return match (true) {
+            $revenue >= 500000 || $ordersCount >= 20 => 'Strategic',
+            $revenue >= 100000 || $ordersCount >= 6  => 'Growth',
+            $ordersCount > 1                         => 'Repeat',
+            default                                  => 'New',
+        };
+    }
+
+    private function assertSaleOrderAccess(SaleOrder $saleOrder): void
+    {
+        $visibleUserIds = CommercialTeamAccess::visibleUserIds('sales');
+
+        if ($visibleUserIds === null) {
+            return;
+        }
+
+        $ownerIds = collect([
+            $saleOrder->created_by,
+            $saleOrder->sales_manager_id,
+            $saleOrder->sales_assistant_manager_id,
+            $saleOrder->sales_executive_id,
+        ])->filter()->map(fn ($id): int => (int) $id)->all();
+
+        abort_unless(count(array_intersect($visibleUserIds, $ownerIds)) > 0, 403);
+    }
+
+    private function assertPurchaseOrderAccess(PurchaseOrder $purchaseOrder): void
+    {
+        $visibleUserIds = CommercialTeamAccess::visibleUserIds('purchase');
+
+        if ($visibleUserIds === null) {
+            return;
+        }
+
+        $ownerIds = collect([
+            $purchaseOrder->created_by,
+            $purchaseOrder->purchase_manager_id,
+            $purchaseOrder->purchase_assistant_manager_id,
+            $purchaseOrder->purchase_executive_id,
+        ])->filter()->map(fn ($id): int => (int) $id)->all();
+
+        abort_unless(count(array_intersect($visibleUserIds, $ownerIds)) > 0, 403);
     }
 
     private function normalizeSaleDocumentType(?string $documentType): string
