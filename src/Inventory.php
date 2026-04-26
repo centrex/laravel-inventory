@@ -7,7 +7,7 @@ namespace Centrex\Inventory;
 use Carbon\Carbon;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Product, ProductCategory, ProductPrice, ProductVariant, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Product, ProductCategory, ProductPrice, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use DateTimeInterface;
@@ -384,12 +384,12 @@ class Inventory
         $product = Product::query()->find($productId);
 
         if ($variantId === null) {
-            return $product?->name ?? ('#' . $productId);
+            return $product?->display_name ?? ('#' . $productId);
         }
 
         $variant = ProductVariant::query()->find($variantId);
 
-        return $variant?->display_name ?? (($product?->name ?? ('#' . $productId)) . ' / #' . $variantId);
+        return $variant?->display_name ?? (($product?->display_name ?? ('#' . $productId)) . ' / #' . $variantId);
     }
 
     private function ensurePositiveQuantity(float $qty, string $field): void
@@ -411,11 +411,15 @@ class Inventory
     public function createPurchaseOrder(array $data): PurchaseOrder
     {
         $po = DB::transaction(function () use ($data): PurchaseOrder {
-            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($data['currency']));
+            $currency = strtoupper($data['currency'] ?? config('inventory.purchase_defaults.currency', 'GBP'));
+            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
             $documentType = $this->normalizePurchaseDocumentType($data['document_type'] ?? null);
+
+            $warehouseId = $data['warehouse_id'] ?? $this->defaultPurchaseWarehouseId();
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $shippingLocal = (float) ($data['shipping_local'] ?? 0);
+            $discountLocal = (float) ($data['discount_local'] ?? 0);
 
             $createdBy = $this->currentUserId() ?? ($data['created_by'] ?? null);
             $assignment = $this->purchaseAssignment($data, $createdBy);
@@ -423,9 +427,9 @@ class Inventory
             $po = PurchaseOrder::create([
                 'po_number'     => $this->nextNumber($documentType === 'requisition' ? 'REQ' : 'PO', PurchaseOrder::class, 'po_number'),
                 'document_type' => $documentType,
-                'warehouse_id'  => $data['warehouse_id'],
+                'warehouse_id'  => $warehouseId,
                 'supplier_id'   => $data['supplier_id'],
-                'currency'      => strtoupper($data['currency']),
+                'currency'      => $currency,
                 'exchange_rate' => $rate,
                 'status'        => PurchaseOrderStatus::DRAFT,
                 'ordered_at'    => $data['ordered_at'] ?? null,
@@ -435,6 +439,8 @@ class Inventory
                 ...$assignment,
                 'tax_local'            => $taxLocal,
                 'tax_amount'           => round($taxLocal * $rate, 4),
+                'discount_local'       => $discountLocal,
+                'discount_amount'      => round($discountLocal * $rate, 4),
                 'shipping_local'       => $shippingLocal,
                 'shipping_amount'      => round($shippingLocal * $rate, 4),
                 'other_charges_amount' => (float) ($data['other_charges_amount'] ?? 0),
@@ -470,8 +476,8 @@ class Inventory
             }
 
             $subtotalBdt = round($subtotalLocal * $rate, 4);
-            $totalLocal = $subtotalLocal + (float) $po->tax_local + (float) $po->shipping_local;
-            $totalBdt = $subtotalBdt + (float) $po->tax_amount + (float) $po->shipping_amount + (float) $po->other_charges_amount;
+            $totalLocal = $subtotalLocal + (float) $po->tax_local - (float) $po->discount_local + (float) $po->shipping_local;
+            $totalBdt = $subtotalBdt + (float) $po->tax_amount - (float) $po->discount_amount + (float) $po->shipping_amount + (float) $po->other_charges_amount;
 
             $po->update(['subtotal_local' => $subtotalLocal, 'subtotal_amount' => $subtotalBdt, 'total_local' => $totalLocal, 'total_amount' => $totalBdt]);
 
@@ -518,6 +524,7 @@ class Inventory
             'notes'                => $overrides['notes'] ?? $this->appendConversionNote($requisition->notes, "Converted from requisition {$requisition->po_number}."),
             'created_by'           => $overrides['created_by'] ?? $requisition->created_by,
             'tax_local'            => (float) ($overrides['tax_local'] ?? $requisition->tax_local),
+            'discount_local'       => (float) ($overrides['discount_local'] ?? $requisition->discount_local),
             'shipping_local'       => (float) ($overrides['shipping_local'] ?? $requisition->shipping_local),
             'other_charges_amount' => (float) ($overrides['other_charges_amount'] ?? $requisition->other_charges_amount),
             'items'                => collect($overrides['items'] ?? $requisition->items)
@@ -779,14 +786,16 @@ class Inventory
     {
         $so = DB::transaction(function () use ($data): SaleOrder {
             $tierCode = $this->normalizePriceTierCode($data['price_tier_code'] ?? PriceTierCode::B2B_RETAIL->value);
-            $currency = strtoupper((string) $data['currency']);
+            $currency = strtoupper($data['currency'] ?? config('inventory.sale_defaults.currency', 'GBP'));
             $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
+            $warehouseId = $data['warehouse_id'] ?? $this->defaultSaleWarehouseId();
             $customer = isset($data['customer_id']) ? Customer::findOrFail($data['customer_id']) : null;
             $documentType = $this->normalizeSaleDocumentType($data['document_type'] ?? null);
             $orderedAt = Carbon::parse($data['ordered_at'] ?? now());
 
             $taxLocal = (float) ($data['tax_local'] ?? 0);
             $discountLocal = (float) ($data['discount_local'] ?? 0);
+            $shippingLocal = (float) ($data['shipping_local'] ?? 0);
             $lineItems = [];
             $subtotalLocal = 0.0;
 
@@ -798,7 +807,7 @@ class Inventory
 
                 $unitPriceBdt = isset($item['unit_price_local'])
                     ? round((float) $item['unit_price_local'] * $rate, 4)
-                    : (float) $this->resolvePrice($productId, $itemTierCode, $data['warehouse_id'], null, $variantId)->price_amount;
+                    : (float) $this->resolvePrice($productId, $itemTierCode, $warehouseId, null, $variantId)->price_amount;
 
                 $unitPriceLocal = round($unitPriceBdt / ($rate ?: 1), 4);
                 $qty = (float) $item['qty_ordered'];
@@ -831,8 +840,9 @@ class Inventory
                 $orderedAt,
                 $documentType,
             );
-            $totalLocal = $subtotalLocal + $taxLocal - $discountLocal - $coupon['coupon_discount_local'];
-            $totalBdt = $subtotalBdt + round($taxLocal * $rate, 4) - round($discountLocal * $rate, 4) - $coupon['coupon_discount_amount'];
+            $shippingAmount = round($shippingLocal * $rate, 4);
+            $totalLocal = $subtotalLocal + $taxLocal + $shippingLocal - $discountLocal - $coupon['coupon_discount_local'];
+            $totalBdt = $subtotalBdt + round($taxLocal * $rate, 4) + $shippingAmount - round($discountLocal * $rate, 4) - $coupon['coupon_discount_amount'];
             $credit = $this->resolveCreditOverride($customer, $totalBdt, $data);
 
             $createdBy = $this->currentUserId() ?? ($data['created_by'] ?? null);
@@ -841,7 +851,7 @@ class Inventory
             $so = SaleOrder::create([
                 'so_number'             => $this->nextNumber($documentType === 'quotation' ? 'QT' : 'SO', SaleOrder::class, 'so_number'),
                 'document_type'         => $documentType,
-                'warehouse_id'          => $data['warehouse_id'],
+                'warehouse_id'          => $warehouseId,
                 'customer_id'           => $data['customer_id'] ?? null,
                 'coupon_id'             => $coupon['coupon_id'],
                 'price_tier_code'       => $tierCode,
@@ -849,7 +859,7 @@ class Inventory
                 'coupon_name'           => $coupon['coupon_name'],
                 'coupon_discount_type'  => $coupon['coupon_discount_type'],
                 'coupon_discount_value' => $coupon['coupon_discount_value'],
-                'currency'              => strtoupper($data['currency']),
+                'currency'              => $currency,
                 'exchange_rate'         => $rate,
                 'status'                => SaleOrderStatus::DRAFT,
                 'ordered_at'            => $orderedAt,
@@ -860,6 +870,8 @@ class Inventory
                 'tax_amount'                    => round($taxLocal * $rate, 4),
                 'discount_local'                => $discountLocal,
                 'discount_amount'               => round($discountLocal * $rate, 4),
+                'shipping_local'                => $shippingLocal,
+                'shipping_amount'               => $shippingAmount,
                 'coupon_discount_local'         => $coupon['coupon_discount_local'],
                 'coupon_discount_amount'        => $coupon['coupon_discount_amount'],
                 'subtotal_local'                => $subtotalLocal,
@@ -939,6 +951,7 @@ class Inventory
             'created_by'      => $overrides['created_by'] ?? $quotation->created_by,
             'tax_local'       => (float) ($overrides['tax_local'] ?? $quotation->tax_local),
             'discount_local'  => (float) ($overrides['discount_local'] ?? $quotation->discount_local),
+            'shipping_local'  => (float) ($overrides['shipping_local'] ?? $quotation->shipping_local),
             'items'           => collect($overrides['items'] ?? $quotation->items)
                 ->map(function ($item): array {
                     return [
@@ -1946,8 +1959,190 @@ class Inventory
     public function findProduct(int $id): ?Product
     {
         return Product::query()
-            ->with(['category', 'brand', 'warehouseProducts', 'prices'])
+            ->with(['category', 'brand', 'warehouseProducts', 'prices', 'variants'])
             ->find($id);
+    }
+
+    // ── Variant management ────────────────────────────────────────────────────
+
+    /**
+     * List all variants for a product, optionally filtered to active-only.
+     */
+    public function listVariants(int $productId, bool $activeOnly = false): Collection
+    {
+        return ProductVariant::query()
+            ->with(['attributeValues.attributeType', 'warehouseProducts'])
+            ->forProduct($productId)
+            ->when($activeOnly, fn ($q) => $q->active())
+            ->ordered()
+            ->get();
+    }
+
+    /**
+     * Find a single variant with its relations.
+     */
+    public function findVariant(int $variantId): ?ProductVariant
+    {
+        return ProductVariant::query()
+            ->with(['product', 'attributeValues.attributeType', 'warehouseProducts'])
+            ->find($variantId);
+    }
+
+    /**
+     * Create a new variant for an existing product.
+     *
+     * $data keys: sku, name, barcode?, weight_kg?, sort_order?, is_active?, attributes?, meta?
+     *
+     * Optionally pass 'attribute_values' => [[attribute_type_id, attribute_value_id], ...]
+     * to populate the normalised pivot at the same time.
+     */
+    public function createVariant(int $productId, array $data): ProductVariant
+    {
+        $product = Product::query()->findOrFail($productId);
+
+        return DB::transaction(function () use ($product, $data): ProductVariant {
+            $variant = ProductVariant::create([
+                'product_id' => $product->getKey(),
+                'sku'        => $data['sku'],
+                'name'       => $data['name'],
+                'barcode'    => $data['barcode'] ?? null,
+                'weight_kg'  => $data['weight_kg'] ?? null,
+                'sort_order' => $data['sort_order'] ?? 0,
+                'is_active'  => $data['is_active'] ?? true,
+                'attributes' => $data['attributes'] ?? null,
+                'meta'       => $data['meta'] ?? null,
+            ]);
+
+            if (!empty($data['attribute_values'])) {
+                $this->syncVariantAttributeValues($variant, $data['attribute_values']);
+            }
+
+            return $variant->load(['attributeValues.attributeType']);
+        });
+    }
+
+    /**
+     * Update an existing variant's fields.
+     *
+     * Passing 'attribute_values' replaces the normalised pivot entries completely.
+     */
+    public function updateVariant(int $variantId, array $data): ProductVariant
+    {
+        $variant = ProductVariant::query()->findOrFail($variantId);
+
+        return DB::transaction(function () use ($variant, $data): ProductVariant {
+            $fillable = array_intersect_key($data, array_flip([
+                'sku', 'name', 'barcode', 'weight_kg', 'sort_order', 'is_active', 'attributes', 'meta',
+            ]));
+
+            $variant->fill($fillable)->save();
+
+            if (array_key_exists('attribute_values', $data)) {
+                $this->syncVariantAttributeValues($variant, $data['attribute_values']);
+            }
+
+            return $variant->load(['attributeValues.attributeType']);
+        });
+    }
+
+    /**
+     * Soft-delete a variant.  Blocked if the variant has any committed
+     * transaction lines (purchase/sale order items or stock movements).
+     */
+    public function deleteVariant(int $variantId): void
+    {
+        $variant = ProductVariant::query()->findOrFail($variantId);
+
+        if ($variant->hasTransactionHistory()) {
+            throw new \RuntimeException(
+                "Variant [{$variantId}] cannot be deleted because it has transaction history. Deactivate it instead.",
+            );
+        }
+
+        DB::transaction(function () use ($variant): void {
+            $variant->warehouseProducts()->delete();
+            $variant->prices()->delete();
+            $variant->delete();
+        });
+    }
+
+    /**
+     * Deactivate a variant without deleting it (safe for variants with history).
+     */
+    public function deactivateVariant(int $variantId): ProductVariant
+    {
+        $variant = ProductVariant::query()->findOrFail($variantId);
+        $variant->update(['is_active' => false]);
+
+        return $variant;
+    }
+
+    /**
+     * Duplicate an existing variant under the same (or different) product.
+     * The duplicate always gets a new SKU; all other fields can be overridden.
+     */
+    public function duplicateVariant(int $variantId, array $overrides = []): ProductVariant
+    {
+        $source = ProductVariant::query()
+            ->with('attributeValues')
+            ->findOrFail($variantId);
+
+        $data = array_merge([
+            'sku'        => $source->sku . '-copy',
+            'name'       => $source->name . ' (copy)',
+            'barcode'    => null,
+            'weight_kg'  => $source->weight_kg,
+            'sort_order' => $source->sort_order,
+            'is_active'  => false,
+            'attributes' => $source->attributes,
+            'meta'       => $source->meta,
+        ], $overrides);
+
+        $productId = (int) ($overrides['product_id'] ?? $source->product_id);
+
+        return $this->createVariant($productId, $data);
+    }
+
+    // ── Attribute type / value management ────────────────────────────────────
+
+    /**
+     * Upsert an attribute type (e.g. Color, Size).
+     */
+    public function upsertAttributeType(string $slug, string $name, int $sortOrder = 0): ProductVariantAttributeType
+    {
+        return ProductVariantAttributeType::updateOrCreate(
+            ['slug' => $slug],
+            ['name' => $name, 'sort_order' => $sortOrder],
+        );
+    }
+
+    /**
+     * Upsert an attribute value (e.g. Color → Red).
+     */
+    public function upsertAttributeValue(int $attributeTypeId, string $value, array $extra = []): ProductVariantAttributeValue
+    {
+        return ProductVariantAttributeValue::updateOrCreate(
+            ['attribute_type_id' => $attributeTypeId, 'value' => $value],
+            array_merge(['sort_order' => 0], $extra),
+        );
+    }
+
+    /**
+     * Sync the normalised pivot rows for a variant.
+     *
+     * $rows: [[attribute_type_id => int, attribute_value_id => int], ...]
+     */
+    private function syncVariantAttributeValues(ProductVariant $variant, array $rows): void
+    {
+        $sync = [];
+
+        foreach ($rows as $row) {
+            $sync[(int) $row['attribute_value_id']] = [
+                'attribute_type_id' => (int) $row['attribute_type_id'],
+            ];
+        }
+
+        $variant->attributeValues()->sync($sync);
     }
 
     /**
@@ -2673,6 +2868,32 @@ class Inventory
         }
 
         return (int) $user->getAuthIdentifier();
+    }
+
+    private function defaultPurchaseWarehouseId(): int
+    {
+        $name = (string) config('inventory.purchase_defaults.warehouse_name', 'UK');
+
+        $warehouse = Warehouse::query()->where('name', $name)->first();
+
+        if (!$warehouse) {
+            throw new \RuntimeException("Default purchase warehouse [{$name}] not found.");
+        }
+
+        return (int) $warehouse->id;
+    }
+
+    private function defaultSaleWarehouseId(): int
+    {
+        $name = (string) config('inventory.sale_defaults.warehouse_name', 'UK');
+
+        $warehouse = Warehouse::query()->where('name', $name)->first();
+
+        if (!$warehouse) {
+            throw new \RuntimeException("Default sale warehouse [{$name}] not found.");
+        }
+
+        return (int) $warehouse->id;
     }
 
     private function salesAssignment(array $data, ?Customer $customer, ?int $createdBy): array

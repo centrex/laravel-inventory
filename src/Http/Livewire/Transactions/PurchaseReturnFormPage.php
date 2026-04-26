@@ -66,7 +66,7 @@ class PurchaseReturnFormPage extends Component
             return null;
         }
 
-        session()->flash('inventory.status', "Purchase return {$purchaseReturn->return_number} posted.");
+        $this->dispatch('notify', type: 'success', message: "Purchase return {$purchaseReturn->return_number} posted.");
 
         return redirect()->route('inventory.purchase-returns.show', ['recordId' => $purchaseReturn->getKey()]);
     }

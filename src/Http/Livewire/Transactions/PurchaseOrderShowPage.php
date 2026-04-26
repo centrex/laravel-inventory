@@ -107,9 +107,9 @@ class PurchaseOrderShowPage extends Component
             }
 
             $this->refreshRecord();
-            session()->flash('inventory.status', "Bill created for {$this->record->po_number}.");
+            $this->dispatch('notify', type: 'success', message: "Bill created for {$this->record->po_number}.");
         } catch (\Throwable $exception) {
-            session()->flash('inventory.error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
         }
     }
 
@@ -117,11 +117,11 @@ class PurchaseOrderShowPage extends Component
     {
         try {
             $purchaseOrder = app(Inventory::class)->createPurchaseOrderFromRequisition((int) $this->record->getKey());
-            session()->flash('inventory.status', "Purchase order {$purchaseOrder->po_number} created from {$this->record->po_number}.");
+            $this->dispatch('notify', type: 'success', message: "Purchase order {$purchaseOrder->po_number} created from {$this->record->po_number}.");
 
             return redirect()->route('inventory.purchase-orders.show', ['recordId' => $purchaseOrder->getKey()]);
         } catch (\Throwable $exception) {
-            session()->flash('inventory.error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
 
             return null;
         }
@@ -180,9 +180,9 @@ class PurchaseOrderShowPage extends Component
         try {
             $callback(app(Inventory::class));
             $this->refreshRecord();
-            session()->flash('inventory.status', $successMessage);
+            $this->dispatch('notify', type: 'success', message: $successMessage);
         } catch (\Throwable $exception) {
-            session()->flash('inventory.error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
         }
     }
 

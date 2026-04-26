@@ -56,7 +56,7 @@ class AdjustmentFormPage extends Component
         ]);
 
         $adjustment = app(Inventory::class)->createAdjustment($validated);
-        session()->flash('inventory.status', "Adjustment {$adjustment->adjustment_number} created.");
+        $this->dispatch('notify', type: 'success', message: "Adjustment {$adjustment->adjustment_number} created.");
 
         return redirect()->route('inventory.adjustments.create');
     }

@@ -27,7 +27,7 @@ class InventoryServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
         }
 
-        $this->registerLivewireComponents();
+        $this->app->booted(fn (): mixed => $this->registerLivewireComponents());
         $this->registerGates();
 
         if ((bool) config('inventory.erp.accounting.enabled', false)) {
@@ -179,7 +179,7 @@ class InventoryServiceProvider extends ServiceProvider
 
     private function registerLivewireComponents(): void
     {
-        if (!class_exists(Livewire::class)) {
+        if (!class_exists(Livewire::class) || !$this->app->bound('livewire.finder')) {
             return;
         }
 

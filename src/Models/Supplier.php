@@ -35,7 +35,7 @@ class Supplier extends Model implements HasMedia
 
     protected $casts = [
         'is_active'        => 'boolean',
-        'demographic_data' => 'array',
+        'geo'              => 'array',
         'meta'             => 'array',
     ];
 
@@ -66,5 +66,65 @@ class Supplier extends Model implements HasMedia
     public function modelable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function getDemographicSegmentAttribute(): ?string
+    {
+        return $this->geoValue('demographic_segment')
+            ?? $this->geoValue('segment');
+    }
+
+    public function setDemographicSegmentAttribute(mixed $value): void
+    {
+        $this->setGeoValue('demographic_segment', $value);
+    }
+
+    public function getDemographicDataAttribute(): array
+    {
+        $value = $this->geoValue('demographic_data');
+
+        return is_array($value) ? $value : [];
+    }
+
+    public function setDemographicDataAttribute(mixed $value): void
+    {
+        $this->setGeoValue('demographic_data', is_array($value) ? $value : null);
+    }
+
+    private function geoValue(string $key): mixed
+    {
+        $geo = $this->geoArray();
+
+        return $geo[$key] ?? null;
+    }
+
+    private function setGeoValue(string $key, mixed $value): void
+    {
+        $geo = $this->geoArray();
+
+        if ($value === null || $value === '') {
+            unset($geo[$key]);
+        } else {
+            $geo[$key] = $value;
+        }
+
+        $this->attributes['geo'] = $geo === [] ? null : json_encode($geo, JSON_THROW_ON_ERROR);
+    }
+
+    private function geoArray(): array
+    {
+        $geo = $this->attributes['geo'] ?? null;
+
+        if (is_array($geo)) {
+            return $geo;
+        }
+
+        if (is_string($geo) && $geo !== '') {
+            $decoded = json_decode($geo, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 }

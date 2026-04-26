@@ -55,7 +55,6 @@ return new class() extends Migration
         });
 
         // ── Products ──────────────────────────────────────────────────────────
-        // variants JSON stores inline variant data: [{key, sku, name, barcode?, weight_kg?, is_active, attributes}]
         Schema::connection($c)->create($p . 'products', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('category_id')->nullable()->constrained($p . 'product_categories')->nullOnDelete();
@@ -66,12 +65,85 @@ return new class() extends Migration
             $table->string('unit', 30)->default('pcs');
             $table->decimal('weight_kg', 10, 4)->nullable();
             $table->string('barcode', 100)->nullable()->unique();
-            $table->json('variants')->nullable();
             $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_stockable')->default(true);
+            $table->text('variant_names')->nullable(); // JSON object of variant dimension key→value pairs, e.g. {"size":"Large","color":"Red"}
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
+        });
+
+        // ── Product Variant Attribute Types ───────────────────────────────────
+        // Defines variation axes (Color, Size, Material, etc.) for a product family.
+        Schema::connection($c)->create($p . 'product_variant_attribute_types', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name', 100);
+            $table->string('slug', 100)->unique();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->timestamps();
+        });
+
+        // ── Product Variant Attribute Values ──────────────────────────────────
+        // Valid values per type (e.g. Color → Red, Blue; Size → S, M, L, XL).
+        Schema::connection($c)->create($p . 'product_variant_attribute_values', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('attribute_type_id')
+                ->constrained($p . 'product_variant_attribute_types')
+                ->cascadeOnDelete();
+            $table->string('value', 150);
+            $table->string('display_value', 150)->nullable();
+            $table->string('color_hex', 7)->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->timestamps();
+
+            $table->unique(['attribute_type_id', 'value'], $p . 'pvav_type_value_unique');
+            $table->index('attribute_type_id');
+        });
+
+        // ── Product Variants ──────────────────────────────────────────────────
+        // One row per sellable SKU variant of a product (e.g. Red / L, Blue / M).
+        // Structured attributes stored as JSON object keyed by attribute-type slug:
+        //   {"color":"red","size":"l"}
+        // The normalised pivot below links variants to attribute-value rows for UI.
+        Schema::connection($c)->create($p . 'product_variants', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('product_id')
+                ->constrained($p . 'products')
+                ->restrictOnDelete();
+            $table->string('sku', 100)->unique();
+            $table->string('name', 300);
+            $table->string('barcode', 100)->nullable()->unique();
+            $table->decimal('weight_kg', 10, 4)->nullable();
+            $table->unsignedSmallInteger('sort_order')->default(0);
+            $table->boolean('is_active')->default(true)->index();
+            $table->json('attributes')->nullable();
+            $table->json('meta')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['product_id', 'is_active'], $p . 'product_variants_product_active_idx');
+            $table->index('product_id');
+        });
+
+        // ── Variant ↔ Attribute-Value pivot ───────────────────────────────────
+        // Normalised link between a variant and its per-axis attribute values.
+        Schema::connection($c)->create($p . 'product_variant_attributes', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('variant_id')
+                ->constrained($p . 'product_variants')
+                ->cascadeOnDelete();
+            $table->foreignId('attribute_type_id')
+                ->constrained($p . 'product_variant_attribute_types')
+                ->cascadeOnDelete();
+            $table->foreignId('attribute_value_id')
+                ->constrained($p . 'product_variant_attribute_values')
+                ->cascadeOnDelete();
+
+            $table->unique(
+                ['variant_id', 'attribute_type_id'],
+                $p . 'product_variant_attributes_unique',
+            );
+            $table->index('variant_id');
         });
 
         // ── Suppliers ─────────────────────────────────────────────────────────
@@ -166,11 +238,10 @@ return new class() extends Migration
         });
 
         // ── Product Prices ────────────────────────────────────────────────────
-        // variant_key references products.variants[].key (no FK — inline variants)
         Schema::connection($c)->create($p . 'product_prices', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('product_id')->constrained($p . 'products')->cascadeOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->string('price_tier_code', 30)->index();
             $table->foreignId('warehouse_id')->nullable()->constrained($p . 'warehouses')->cascadeOnDelete();
             $table->decimal('price_amount', 18, 4);
@@ -186,17 +257,17 @@ return new class() extends Migration
 
             $table->index(['product_id', 'price_tier_code']);
             $table->index('warehouse_id');
-            $table->index(['product_id', 'variant_key', 'price_tier_code'], $p . 'product_prices_variant_lookup_idx');
+            $table->index(['product_id', 'variant_id', 'price_tier_code'], $p . 'product_prices_variant_lookup_idx');
             $table->index(['product_id', 'price_tier_code', 'warehouse_id', 'is_active'], $p . 'product_prices_lookup_idx');
         });
 
         // ── Warehouse-Product Stock Ledger ────────────────────────────────────
-        // variant_key='' means no variant; unique on (warehouse_id, product_id, variant_key)
+        // variant_id=NULL means base product (no variant); unique on (warehouse_id, product_id, variant_id)
         Schema::connection($c)->create($p . 'warehouse_products', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->default('');
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_on_hand', 18, 4)->default(0);
             $table->decimal('qty_reserved', 18, 4)->default(0);
             $table->decimal('qty_in_transit', 18, 4)->default(0);
@@ -206,7 +277,7 @@ return new class() extends Migration
             $table->string('bin_location', 100)->nullable();
             $table->timestamps();
 
-            $table->unique(['warehouse_id', 'product_id', 'variant_key'], $p . 'warehouse_products_variant_lookup_idx');
+            $table->unique(['warehouse_id', 'product_id', 'variant_id'], $p . 'warehouse_products_variant_lookup_idx');
             $table->index('warehouse_id', $p . 'warehouse_products_warehouse_fk_idx');
             $table->index('product_id', $p . 'warehouse_products_product_fk_idx');
         });
@@ -224,6 +295,8 @@ return new class() extends Migration
             $table->decimal('subtotal_amount', 18, 4)->default(0);
             $table->decimal('tax_local', 18, 4)->default(0);
             $table->decimal('tax_amount', 18, 4)->default(0);
+            $table->decimal('discount_local', 18, 4)->default(0);
+            $table->decimal('discount_amount', 18, 4)->default(0);
             $table->decimal('shipping_local', 18, 4)->default(0);
             $table->decimal('shipping_amount', 18, 4)->default(0);
             $table->decimal('other_charges_amount', 18, 4)->default(0);
@@ -257,7 +330,7 @@ return new class() extends Migration
             $table->id();
             $table->foreignId('purchase_order_id')->constrained($p . 'purchase_orders')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable()->index();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_ordered', 18, 4);
             $table->decimal('qty_received', 18, 4)->default(0);
             $table->decimal('unit_price_local', 18, 4);
@@ -268,7 +341,7 @@ return new class() extends Migration
             $table->timestamps();
 
             $table->index('purchase_order_id');
-            $table->index(['product_id', 'variant_key'], $p . 'purchase_order_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'purchase_order_items_product_variant_idx');
         });
 
         // ── Stock Receipts (GRN) ──────────────────────────────────────────────
@@ -300,7 +373,7 @@ return new class() extends Migration
             $table->foreignId('stock_receipt_id')->constrained($p . 'stock_receipts')->cascadeOnDelete();
             $table->foreignId('purchase_order_item_id')->nullable()->constrained($p . 'purchase_order_items')->nullOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_received', 18, 4);
             $table->decimal('unit_cost_local', 18, 4);
             $table->decimal('unit_cost_amount', 18, 4);
@@ -311,7 +384,7 @@ return new class() extends Migration
             $table->timestamps();
 
             $table->index('stock_receipt_id');
-            $table->index(['product_id', 'variant_key'], $p . 'stock_receipt_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'stock_receipt_items_product_variant_idx');
         });
 
         // ── Sale Orders ───────────────────────────────────────────────────────
@@ -335,6 +408,8 @@ return new class() extends Migration
             $table->decimal('tax_amount', 18, 4)->default(0);
             $table->decimal('discount_local', 18, 4)->default(0);
             $table->decimal('discount_amount', 18, 4)->default(0);
+            $table->decimal('shipping_local', 18, 4)->default(0);
+            $table->decimal('shipping_amount', 18, 4)->default(0);
             $table->decimal('coupon_discount_local', 18, 4)->default(0);
             $table->decimal('coupon_discount_amount', 18, 4)->default(0);
             $table->decimal('total_local', 18, 4)->default(0);
@@ -377,7 +452,7 @@ return new class() extends Migration
             $table->id();
             $table->foreignId('sale_order_id')->constrained($p . 'sale_orders')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->string('price_tier_code', 30)->nullable()->index();
             $table->decimal('qty_ordered', 18, 4);
             $table->decimal('qty_fulfilled', 18, 4)->default(0);
@@ -391,7 +466,7 @@ return new class() extends Migration
             $table->timestamps();
 
             $table->index('sale_order_id');
-            $table->index(['product_id', 'variant_key'], $p . 'sale_order_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'sale_order_items_product_variant_idx');
         });
 
         // ── Inter-Warehouse Transfers ─────────────────────────────────────────
@@ -426,7 +501,7 @@ return new class() extends Migration
             $table->id();
             $table->foreignId('transfer_id')->constrained($p . 'transfers')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_sent', 18, 4);
             $table->decimal('qty_received', 18, 4)->default(0);
             $table->decimal('unit_cost_source_amount', 18, 4);
@@ -440,7 +515,7 @@ return new class() extends Migration
             $table->timestamps();
 
             $table->index('transfer_id');
-            $table->index(['product_id', 'variant_key'], $p . 'transfer_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'transfer_items_product_variant_idx');
         });
 
         // ── Transfer Boxes ────────────────────────────────────────────────────
@@ -460,7 +535,7 @@ return new class() extends Migration
             $table->id();
             $table->foreignId('transfer_box_id')->constrained($p . 'transfer_boxes')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_sent', 18, 4);
             $table->decimal('theoretical_weight_kg', 18, 4)->default(0);
             $table->decimal('allocated_weight_kg', 18, 4)->default(0);
@@ -472,7 +547,7 @@ return new class() extends Migration
             $table->timestamps();
 
             $table->index('transfer_box_id');
-            $table->index(['product_id', 'variant_key'], $p . 'transfer_box_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'transfer_box_items_product_variant_idx');
         });
 
         // ── Sale Returns ──────────────────────────────────────────────────────
@@ -504,7 +579,7 @@ return new class() extends Migration
             $table->foreignId('sale_return_id')->constrained($p . 'sale_returns')->cascadeOnDelete();
             $table->foreignId('sale_order_item_id')->nullable()->constrained($p . 'sale_order_items')->nullOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_returned', 18, 4);
             $table->decimal('unit_price_amount', 18, 4)->default(0);
             $table->decimal('unit_cost_amount', 18, 4)->default(0);
@@ -512,7 +587,7 @@ return new class() extends Migration
             $table->string('notes', 500)->nullable();
             $table->timestamps();
 
-            $table->index(['product_id', 'variant_key'], $p . 'sale_return_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'sale_return_items_product_variant_idx');
         });
 
         // ── Purchase Returns ──────────────────────────────────────────────────
@@ -544,14 +619,14 @@ return new class() extends Migration
             $table->foreignId('purchase_return_id')->constrained($p . 'purchase_returns')->cascadeOnDelete();
             $table->foreignId('purchase_order_item_id')->nullable()->constrained($p . 'purchase_order_items')->nullOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_returned', 18, 4);
             $table->decimal('unit_cost_amount', 18, 4)->default(0);
             $table->decimal('line_total_amount', 18, 4)->default(0);
             $table->string('notes', 500)->nullable();
             $table->timestamps();
 
-            $table->index(['product_id', 'variant_key'], $p . 'purchase_return_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'purchase_return_items_product_variant_idx');
         });
 
         // ── Adjustments ───────────────────────────────────────────────────────
@@ -581,7 +656,7 @@ return new class() extends Migration
             $table->id();
             $table->foreignId('adjustment_id')->constrained($p . 'adjustments')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_system', 18, 4);
             $table->decimal('qty_actual', 18, 4);
             $table->decimal('qty_delta', 18, 4);
@@ -590,7 +665,7 @@ return new class() extends Migration
             $table->timestamps();
 
             $table->index('adjustment_id');
-            $table->index(['product_id', 'variant_key'], $p . 'adjustment_items_product_variant_idx');
+            $table->index(['product_id', 'variant_id'], $p . 'adjustment_items_product_variant_idx');
         });
 
         // ── Stock Movements (append-only audit log) ───────────────────────────
@@ -598,7 +673,7 @@ return new class() extends Migration
             $table->id();
             $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
-            $table->string('variant_key', 100)->nullable();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->string('movement_type', 30);
             $table->enum('direction', ['in', 'out']);
             $table->decimal('qty', 18, 4);
@@ -613,7 +688,7 @@ return new class() extends Migration
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamp('created_at')->nullable();
 
-            $table->index(['warehouse_id', 'product_id', 'variant_key'], $p . 'stock_movements_product_variant_idx');
+            $table->index(['warehouse_id', 'product_id', 'variant_id'], $p . 'stock_movements_product_variant_idx');
             $table->index('movement_type');
             $table->index(['reference_type', 'reference_id']);
             $table->index('moved_at');
@@ -642,6 +717,10 @@ return new class() extends Migration
             'warehouse_products', 'product_prices',
             'commercial_team_members', 'coupons',
             'customers', 'suppliers',
+            'product_variant_attributes',
+            'product_variants',
+            'product_variant_attribute_values',
+            'product_variant_attribute_types',
             'products', 'product_brands', 'product_categories', 'warehouses',
         ];
 

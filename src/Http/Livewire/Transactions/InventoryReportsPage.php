@@ -83,6 +83,7 @@ class InventoryReportsPage extends Component
             'gross_subtotal'  => round((float) $saleOrders->sum('subtotal_local'), 2),
             'discount'        => round((float) $saleOrders->sum('discount_local'), 2),
             'tax'             => round((float) $saleOrders->sum('tax_local'), 2),
+            'shipping'        => round((float) $saleOrders->sum('shipping_local'), 2),
             'net_total'       => round((float) $saleOrders->sum('total_local'), 2),
             'fulfilled_total' => round((float) $saleOrders
                 ->filter(fn (SaleOrder $order) => in_array($order->status?->value, ['fulfilled', 'partial'], true))

@@ -22,6 +22,8 @@ class PurchaseOrderResource extends JsonResource
             'subtotal_amount'      => $this->subtotal_amount,
             'tax_local'            => $this->tax_local,
             'tax_amount'           => $this->tax_amount,
+            'discount_local'       => $this->discount_local,
+            'discount_amount'      => $this->discount_amount,
             'shipping_local'       => $this->shipping_local,
             'shipping_amount'      => $this->shipping_amount,
             'other_charges_amount' => $this->other_charges_amount,

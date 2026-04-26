@@ -86,6 +86,10 @@
                 <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" />
             </x-tallui-form-group>
 
+            <x-tallui-form-group label="Shipping (Local)">
+                <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
             <x-tallui-form-group label="Coupon Code" :error="$errors->first('coupon_code')">
                 <x-tallui-input name="coupon_code" wire:model="coupon_code" placeholder="SAVE10" />
             </x-tallui-form-group>

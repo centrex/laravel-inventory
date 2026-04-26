@@ -92,13 +92,13 @@ class PurchaseOrderFormPage extends Component
 
         if ($this->recordId) {
             $purchaseOrder = $this->updateOrder($validated);
-            session()->flash('inventory.status', "{$this->documentLabel()} {$purchaseOrder->po_number} updated.");
+            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$purchaseOrder->po_number} updated.");
 
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $purchaseOrder->getKey()]);
         }
 
         $purchaseOrder = app(Inventory::class)->createPurchaseOrder($validated);
-        session()->flash('inventory.status', "{$this->documentLabel()} {$purchaseOrder->po_number} created.");
+        $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$purchaseOrder->po_number} created.");
 
         return redirect()->route($this->routeBase() . '.edit', ['recordId' => $purchaseOrder->getKey()]);
     }

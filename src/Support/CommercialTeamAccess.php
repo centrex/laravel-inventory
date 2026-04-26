@@ -165,7 +165,7 @@ final class CommercialTeamAccess
     {
         $userId ??= self::currentUserId();
 
-        if (!$userId || self::isPrivilegedUser($userId) || !self::tableReady()) {
+        if (!$userId || self::isPrivilegedUser($userId) || !self::tableReady() || !self::workflowHasActiveMembers($workflow)) {
             return null;
         }
 
@@ -260,7 +260,30 @@ final class CommercialTeamAccess
             return true;
         }
 
-        return method_exists($user, 'hasRole') && $user->hasRole(['admin', 'administrator']);
+        return method_exists($user, 'hasRole') && $user->hasRole(self::adminRoles());
+    }
+
+    private static function workflowHasActiveMembers(string $workflow): bool
+    {
+        return CommercialTeamMember::query()
+            ->where('workflow', $workflow)
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    private static function adminRoles(): array
+    {
+        $roles = config('inventory.admin_roles', []);
+
+        if (is_array($roles)) {
+            return array_values(array_filter(array_map('strval', $roles)));
+        }
+
+        if (!is_string($roles) || trim($roles) === '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', $roles))));
     }
 
     private static function normalizeRole(mixed $role): ?string

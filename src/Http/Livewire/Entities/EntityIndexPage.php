@@ -39,7 +39,7 @@ class EntityIndexPage extends Component
 
         $query->findOrFail($recordId)->delete();
 
-        session()->flash('inventory.status', 'Record deleted.');
+        $this->dispatch('notify', type: 'success', message: 'Record deleted.');
         $this->resetPage();
     }
 

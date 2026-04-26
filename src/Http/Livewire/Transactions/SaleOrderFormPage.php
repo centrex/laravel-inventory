@@ -27,13 +27,15 @@ class SaleOrderFormPage extends Component
 
     public string $price_tier_code = 'b2b_retail';
 
-    public string $currency = 'BDT';
+    public string $currency = '';
 
     public ?float $exchange_rate = null;
 
     public float $tax_local = 0;
 
     public float $discount_local = 0;
+
+    public float $shipping_local = 0;
 
     public string $coupon_code = '';
 
@@ -56,10 +58,14 @@ class SaleOrderFormPage extends Component
         if ($recordId !== null) {
             $this->loadOrder($recordId);
         } else {
-            $first = Warehouse::query()->orderBy('id')->first();
+            $this->currency = strtoupper((string) config('inventory.sale_defaults.currency', 'GBP'));
 
-            if ($first) {
-                $this->warehouse_id = $first->id;
+            $defaultName = (string) config('inventory.sale_defaults.warehouse_name', 'UK');
+            $warehouse = Warehouse::query()->where('name', $defaultName)->first()
+                ?? Warehouse::query()->orderBy('id')->first();
+
+            if ($warehouse) {
+                $this->warehouse_id = $warehouse->id;
             }
         }
     }
@@ -92,13 +98,13 @@ class SaleOrderFormPage extends Component
 
         if ($this->recordId) {
             $saleOrder = $this->updateOrder($validated);
-            session()->flash('inventory.status', "{$this->documentLabel()} {$saleOrder->so_number} updated.");
+            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} updated.");
 
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
         }
 
         $saleOrder = app(Inventory::class)->createSaleOrder($validated);
-        session()->flash('inventory.status', "{$this->documentLabel()} {$saleOrder->so_number} created.");
+        $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
 
         return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
     }
@@ -144,7 +150,7 @@ class SaleOrderFormPage extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['warehouse_id', 'price_tier_code'], true)) {
+        if (in_array($property, ['warehouse_id', 'price_tier_code', 'currency'], true)) {
             foreach (array_keys($this->items) as $index) {
                 $this->syncItemPrice($index);
             }
@@ -167,6 +173,7 @@ class SaleOrderFormPage extends Component
             'exchange_rate'            => ['nullable', 'numeric', 'gt:0'],
             'tax_local'                => ['nullable', 'numeric'],
             'discount_local'           => ['nullable', 'numeric'],
+            'shipping_local'           => ['nullable', 'numeric'],
             'coupon_code'              => ['nullable', 'string', 'max:50'],
             'notes'                    => ['nullable', 'string'],
             'credit_override'          => ['nullable', 'boolean'],
@@ -208,6 +215,7 @@ class SaleOrderFormPage extends Component
         $this->exchange_rate = $order->exchange_rate !== null ? (float) $order->exchange_rate : null;
         $this->tax_local = (float) $order->tax_local;
         $this->discount_local = (float) $order->discount_local;
+        $this->shipping_local = (float) $order->shipping_local;
         $this->coupon_code = (string) ($order->coupon_code ?? '');
         $this->notes = (string) ($order->notes ?? '');
         $this->credit_override = (bool) $order->credit_override_required;
@@ -289,16 +297,18 @@ class SaleOrderFormPage extends Component
         $subtotalAmount = round($subtotal * $rate, 4);
         $taxAmount = round((float) ($validated['tax_local'] ?? 0) * $rate, 4);
         $discountAmount = round((float) ($validated['discount_local'] ?? 0) * $rate, 4);
+        $shippingAmount = round((float) ($validated['shipping_local'] ?? 0) * $rate, 4);
         $total = round(
             $subtotal
             + (float) ($validated['tax_local'] ?? 0)
+            + (float) ($validated['shipping_local'] ?? 0)
             - (float) ($validated['discount_local'] ?? 0)
             - $coupon['coupon_discount_local'],
             4,
         );
-        $totalAmount = round($subtotalAmount + $taxAmount - $discountAmount - $coupon['coupon_discount_amount'], 4);
+        $totalAmount = round($subtotalAmount + $taxAmount + $shippingAmount - $discountAmount - $coupon['coupon_discount_amount'], 4);
 
-        DB::transaction(function () use ($saleOrder, $validated, $subtotal, $subtotalAmount, $total, $totalAmount, $taxAmount, $discountAmount, $cogs, $itemsPayload, $coupon, $rate): void {
+        DB::transaction(function () use ($saleOrder, $validated, $subtotal, $subtotalAmount, $total, $totalAmount, $taxAmount, $discountAmount, $shippingAmount, $cogs, $itemsPayload, $coupon, $rate): void {
             $saleOrder->fill([
                 'document_type'            => $validated['document_type'] ?? $saleOrder->document_type,
                 'warehouse_id'             => $validated['warehouse_id'],
@@ -317,6 +327,8 @@ class SaleOrderFormPage extends Component
                 'tax_amount'               => $taxAmount,
                 'discount_local'           => round((float) ($validated['discount_local'] ?? 0), 4),
                 'discount_amount'          => $discountAmount,
+                'shipping_local'           => round((float) ($validated['shipping_local'] ?? 0), 4),
+                'shipping_amount'          => $shippingAmount,
                 'coupon_discount_local'    => $coupon['coupon_discount_local'],
                 'coupon_discount_amount'   => $coupon['coupon_discount_amount'],
                 'total_local'              => $total,
@@ -378,8 +390,10 @@ class SaleOrderFormPage extends Component
         $this->items[$index]['price_tier_code'] = $tierCode;
 
         try {
-            $price = app(Inventory::class)->resolvePrice($productId, $tierCode, (int) $this->warehouse_id);
-            $this->items[$index]['unit_price_local'] = (float) ($price->price_local ?: app(Inventory::class)->convertFromBase((float) $price->price_amount, $this->currency ?: 'BDT'));
+            $inventory = app(Inventory::class);
+            $price = $inventory->resolvePrice($productId, $tierCode, (int) $this->warehouse_id);
+            $currency = $this->currency ?: strtoupper((string) config('inventory.sale_defaults.currency', 'GBP'));
+            $this->items[$index]['unit_price_local'] = (float) ($price->price_local ?: $inventory->convertFromBase((float) $price->price_amount, $currency));
         } catch (\Throwable) {
             // Keep manual price when no active price exists.
         }

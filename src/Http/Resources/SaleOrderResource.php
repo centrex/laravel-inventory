@@ -30,6 +30,8 @@ class SaleOrderResource extends JsonResource
             'tax_amount'                    => $this->tax_amount,
             'discount_local'                => $this->discount_local,
             'discount_amount'               => $this->discount_amount,
+            'shipping_local'                => $this->shipping_local,
+            'shipping_amount'               => $this->shipping_amount,
             'coupon_discount_local'         => $this->coupon_discount_local,
             'coupon_discount_amount'        => $this->coupon_discount_amount,
             'total_local'                   => $this->total_local,

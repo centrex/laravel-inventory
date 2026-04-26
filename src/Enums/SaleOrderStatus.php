@@ -9,10 +9,13 @@ enum SaleOrderStatus: string
     case DRAFT = 'draft';
     case CONFIRMED = 'confirmed';
     case PROCESSING = 'processing';
+    case SHIPPED = 'shipped';
     case PARTIAL = 'partial';
     case FULFILLED = 'fulfilled';
+    case COMPLETED = 'completed';    
     case CANCELLED = 'cancelled';
     case RETURNED = 'returned';
+    
 
     public function label(): string
     {
@@ -20,8 +23,10 @@ enum SaleOrderStatus: string
             self::DRAFT      => 'Draft',
             self::CONFIRMED  => 'Confirmed',
             self::PROCESSING => 'Processing',
+            self::SHIPPED    => 'Shipped',
             self::PARTIAL    => 'Partially Fulfilled',
             self::FULFILLED  => 'Fulfilled',
+            self::COMPLETED  => 'Completed',
             self::CANCELLED  => 'Cancelled',
             self::RETURNED   => 'Returned',
         };
@@ -34,7 +39,8 @@ enum SaleOrderStatus: string
             self::CONFIRMED  => in_array($next, [self::PROCESSING, self::CANCELLED]),
             self::PROCESSING => in_array($next, [self::PARTIAL, self::FULFILLED, self::CANCELLED]),
             self::PARTIAL    => in_array($next, [self::FULFILLED, self::CANCELLED]),
-            self::FULFILLED  => in_array($next, [self::RETURNED]),
+            self::FULFILLED  => in_array($next, [self::COMPLETED, self::RETURNED]),
+            self::COMPLETED  => in_array($next, [self::RETURNED]),
             default          => false,
         };
     }

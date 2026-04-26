@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Models\{CommercialTeamMember, Coupon, Customer, Product, ProductBrand, ProductCategory, ProductPrice, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{CommercialTeamMember, Coupon, Customer, Product, ProductBrand, ProductCategory, ProductPrice, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -69,7 +69,7 @@ class InventoryEntityRegistry
                 'index_columns' => ['sku', 'name', 'category_id', 'brand_id', 'unit', 'weight_kg', 'is_active', 'is_stockable'],
                 'form_fields'   => [
                     self::field('category_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductCategory())->getTable() . ',id'], null, ProductCategory::class, 'name'),
-                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),
+                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),              
                     self::field('sku', 'text', ['required', 'string', 'max:100']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('description', 'textarea', ['nullable', 'string']),
@@ -78,7 +78,8 @@ class InventoryEntityRegistry
                     self::field('barcode', 'text', ['nullable', 'string', 'max:100']),
                     self::field('is_active', 'checkbox', ['boolean'], true),
                     self::field('is_stockable', 'checkbox', ['boolean'], true),
-                    self::field('meta', 'json', ['nullable', 'array'], []),
+                    self::field('variant_names', 'json', ['nullable', 'array'], null, null, null, null, 'Variant Names (e.g. {"size":"Large","color":"Red"})'),
+                    self::field('meta', 'json', ['nullable', 'array'], null),
                 ],
             ],
             'suppliers' => [
@@ -169,6 +170,50 @@ class InventoryEntityRegistry
                     self::field('meta', 'json', ['nullable', 'array'], []),
                 ],
             ],
+            'product-variants' => [
+                'label'         => 'Product Variants',
+                'singular'      => 'Product Variant',
+                'model'         => ProductVariant::class,
+                'search'        => ['sku', 'name', 'barcode'],
+                'index_columns' => ['product_id', 'sku', 'name', 'barcode', 'weight_kg', 'sort_order', 'is_active'],
+                'form_fields'   => [
+                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),
+                    self::field('sku', 'text', ['required', 'string', 'max:100']),
+                    self::field('name', 'text', ['required', 'string', 'max:300']),
+                    self::field('barcode', 'text', ['nullable', 'string', 'max:100']),
+                    self::field('weight_kg', 'number', ['nullable', 'numeric', 'min:0']),
+                    self::field('sort_order', 'number', ['nullable', 'integer', 'min:0'], 0),
+                    self::field('is_active', 'checkbox', ['boolean'], true),
+                    self::field('attributes', 'json', ['nullable', 'array'], []),
+                    self::field('meta', 'json', ['nullable', 'array'], []),
+                ],
+            ],
+            'variant-attribute-types' => [
+                'label'         => 'Variant Attribute Types',
+                'singular'      => 'Attribute Type',
+                'model'         => ProductVariantAttributeType::class,
+                'search'        => ['name', 'slug'],
+                'index_columns' => ['name', 'slug', 'sort_order'],
+                'form_fields'   => [
+                    self::field('name', 'text', ['required', 'string', 'max:100']),
+                    self::field('slug', 'text', ['required', 'string', 'max:100']),
+                    self::field('sort_order', 'number', ['nullable', 'integer', 'min:0'], 0),
+                ],
+            ],
+            'variant-attribute-values' => [
+                'label'         => 'Variant Attribute Values',
+                'singular'      => 'Attribute Value',
+                'model'         => ProductVariantAttributeValue::class,
+                'search'        => ['value', 'display_value'],
+                'index_columns' => ['attribute_type_id', 'value', 'display_value', 'color_hex', 'sort_order'],
+                'form_fields'   => [
+                    self::field('attribute_type_id', 'select', ['required', 'integer', 'exists:' . (new ProductVariantAttributeType())->getTable() . ',id'], null, ProductVariantAttributeType::class, 'name'),
+                    self::field('value', 'text', ['required', 'string', 'max:150']),
+                    self::field('display_value', 'text', ['nullable', 'string', 'max:150']),
+                    self::field('color_hex', 'text', ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/']),
+                    self::field('sort_order', 'number', ['nullable', 'integer', 'min:0'], 0),
+                ],
+            ],
             'product-prices' => [
                 'label'         => 'Product Prices',
                 'singular'      => 'Product Price',
@@ -251,6 +296,13 @@ class InventoryEntityRegistry
 
             if (in_array($field['name'], ['code', 'slug', 'sku', 'barcode'], true)) {
                 $fieldRules[] = Rule::unique($table, $field['name'])->ignore($record?->getKey());
+            }
+
+            if ($entity === 'variant-attribute-values' && $field['name'] === 'value') {
+                $typeId = $payload['attribute_type_id'] ?? null;
+                $fieldRules[] = Rule::unique($table, 'value')
+                    ->where('attribute_type_id', $typeId)
+                    ->ignore($record?->getKey());
             }
 
             if ($entity === 'customers' && $field['name'] === 'sales_owner_id') {

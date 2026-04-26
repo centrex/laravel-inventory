@@ -71,7 +71,7 @@ class TransferFormPage extends Component
         $this->assertStockAvailability($validated['boxes']);
 
         $transfer = app(Inventory::class)->createTransfer($validated);
-        session()->flash('inventory.status', "Transfer {$transfer->transfer_number} created.");
+        $this->dispatch('notify', type: 'success', message: "Transfer {$transfer->transfer_number} created.");
 
         return redirect()->route('inventory.transfers.show', ['recordId' => $transfer->getKey()]);
     }

@@ -27,20 +27,39 @@ class Product extends Model implements HasMedia
     }
 
     protected $fillable = [
-        'category_id', 'brand_id', 'sku', 'name', 'description',
+        'category_id', 'brand_id', 'variant_names', 'sku', 'name', 'description',
         'unit', 'weight_kg', 'barcode', 'is_active', 'is_stockable', 'meta',
     ];
 
     protected $casts = [
-        'weight_kg'    => 'decimal:4',
-        'is_active'    => 'boolean',
-        'is_stockable' => 'boolean',
-        'meta'         => 'array',
+        'weight_kg'     => 'decimal:4',
+        'is_active'     => 'boolean',
+        'is_stockable'  => 'boolean',
+        'variant_names' => 'array',
+        'meta'          => 'array',
     ];
 
     protected $appends = [
         'primary_image_url',
+        'display_name',
     ];
+
+    /**
+     * Full product name including variant dimension values, e.g. "T-Shirt (Red, Large)".
+     * variant_names is stored as JSON: {"size":"Large","color":"Red"}
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        $dims = is_array($this->variant_names)
+            ? array_values(array_filter($this->variant_names))
+            : [];
+
+        if (empty($dims)) {
+            return (string) $this->name;
+        }
+
+        return $this->name . ' (' . implode(', ', $dims) . ')';
+    }
 
     public function category(): BelongsTo
     {

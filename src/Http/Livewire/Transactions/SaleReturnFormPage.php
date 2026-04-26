@@ -83,7 +83,7 @@ class SaleReturnFormPage extends Component
             return null;
         }
 
-        session()->flash('inventory.status', "Sale return {$saleReturn->return_number} posted.");
+        $this->dispatch('notify', type: 'success', message: "Sale return {$saleReturn->return_number} posted.");
 
         return redirect()->route('inventory.sale-returns.show', ['recordId' => $saleReturn->getKey()]);
     }

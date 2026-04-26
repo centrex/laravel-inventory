@@ -12,6 +12,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Purchase Defaults
+    |--------------------------------------------------------------------------
+    | Default warehouse (matched by name) and currency for purchase orders.
+    | The exchange rate is always resolved from the exchange rate table.
+    */
+    'purchase_defaults' => [
+        'warehouse_name' => env('INVENTORY_PURCHASE_DEFAULT_WAREHOUSE', 'UK'),
+        'currency'       => env('INVENTORY_PURCHASE_DEFAULT_CURRENCY', 'GBP'),
+    ],
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sale Defaults
+    |--------------------------------------------------------------------------
+    | Default warehouse (matched by name) and currency for sale orders.
+    | The exchange rate is always resolved from the exchange rate table.
+    */
+    'sale_defaults' => [
+        'warehouse_name' => env('INVENTORY_SALE_DEFAULT_WAREHOUSE', 'UK'),
+        'currency'       => env('INVENTORY_SALE_DEFAULT_CURRENCY', 'GBP'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Driver
     |--------------------------------------------------------------------------
     */

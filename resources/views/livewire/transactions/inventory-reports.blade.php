@@ -71,6 +71,7 @@
             <div class="flex justify-between"><span class="text-base-content/60">Gross Subtotal</span><strong>{{ number_format($salesMetrics['gross_subtotal'], 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Discount</span><strong>{{ number_format($salesMetrics['discount'], 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Tax</span><strong>{{ number_format($salesMetrics['tax'], 2) }}</strong></div>
+            <div class="flex justify-between"><span class="text-base-content/60">Shipping</span><strong>{{ number_format($salesMetrics['shipping'], 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Net Total</span><strong>{{ number_format($salesMetrics['net_total'], 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Fulfilled Value</span><strong>{{ number_format($salesMetrics['fulfilled_total'], 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Collected</span><strong class="text-success">{{ number_format($salesMetrics['invoice_paid'], 2) }}</strong></div>
@@ -90,7 +91,7 @@
                     </div>
                     <div class="text-right">
                         <div>{{ number_format((float) $order->total_local, 2) }}</div>
-                        <div class="text-xs text-base-content/60">Disc {{ number_format((float) $order->discount_local, 2) }}</div>
+                        <div class="text-xs text-base-content/60">Disc {{ number_format((float) $order->discount_local, 2) }} · Ship {{ number_format((float) $order->shipping_local, 2) }}</div>
                     </div>
                 </div>
             @empty

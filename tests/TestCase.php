@@ -9,6 +9,7 @@ use Centrex\LaravelOpenExchangeRates\LaravelOpenExchangeRatesServiceProvider;
 use Centrex\TallUi\TallUiServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\Attributes\WithWorkbench;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -51,6 +52,7 @@ class TestCase extends Orchestra
         }
 
         if (class_exists(TallUiServiceProvider::class)) {
+            $providers[] = LivewireServiceProvider::class;
             $providers[] = TallUiServiceProvider::class;
         }
 

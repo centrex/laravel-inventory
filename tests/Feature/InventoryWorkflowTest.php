@@ -207,6 +207,7 @@ it('applies percent coupons to sale orders and stores a coupon snapshot', functi
         'currency'        => 'BDT',
         'price_tier_code' => 'b2c_retail',
         'coupon_code'     => 'save10',
+        'shipping_local'  => 50,
         'items'           => [[
             'product_id'       => $product->id,
             'qty_ordered'      => 2,
@@ -220,7 +221,9 @@ it('applies percent coupons to sale orders and stores a coupon snapshot', functi
     expect((float) $saleOrder->coupon_discount_value)->toBe(10.0);
     expect((float) $saleOrder->coupon_discount_local)->toBe(100.0);
     expect((float) $saleOrder->coupon_discount_amount)->toBe(100.0);
-    expect((float) $saleOrder->total_local)->toBe(900.0);
+    expect((float) $saleOrder->shipping_local)->toBe(50.0);
+    expect((float) $saleOrder->shipping_amount)->toBe(50.0);
+    expect((float) $saleOrder->total_local)->toBe(950.0);
 });
 
 it('rejects expired coupons on sale orders', function (): void {

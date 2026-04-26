@@ -32,13 +32,23 @@
     <form wire:submit="save" class="space-y-5">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach ($definition['form_fields'] as $field)
-                <div class="{{ in_array($field['type'], ['textarea', 'json'], true) ? 'md:col-span-2' : '' }}">
+                <div class="{{ in_array($field['type'], ['textarea', 'text-editor', 'json'], true) ? 'md:col-span-2' : '' }}">
                     @if ($field['type'] === 'textarea')
                         <x-tallui-form-group :label="$field['label']" :error="$errors->first('form.' . $field['name'])">
                             <x-tallui-textarea
                                 :name="$field['name']"
                                 wire:model="form.{{ $field['name'] }}"
                                 rows="3"
+                            />
+                        </x-tallui-form-group>
+
+                    @elseif ($field['type'] === 'text-editor')
+                        <x-tallui-form-group :label="$field['label']" :error="$errors->first('form.' . $field['name'])">
+                            <x-tallui-text-editor
+                                :name="$field['name']"
+                                wire:model="form.{{ $field['name'] }}"
+                                rows="5"
+                                class="font-mono text-sm"
                             />
                         </x-tallui-form-group>
 

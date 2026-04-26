@@ -28,7 +28,7 @@ class TransferShowPage extends Component
         Gate::authorize('inventory.transfers.dispatch');
 
         $this->record = app(Inventory::class)->dispatchTransfer((int) $this->record->getKey());
-        session()->flash('inventory.status', "Transfer {$this->record->transfer_number} dispatched.");
+        $this->dispatch('notify', type: 'success', message: "Transfer {$this->record->transfer_number} dispatched.");
     }
 
     public function receive(): void
@@ -36,7 +36,7 @@ class TransferShowPage extends Component
         Gate::authorize('inventory.transfers.receive');
 
         $this->record = app(Inventory::class)->receiveTransfer((int) $this->record->getKey());
-        session()->flash('inventory.status', "Transfer {$this->record->transfer_number} received.");
+        $this->dispatch('notify', type: 'success', message: "Transfer {$this->record->transfer_number} received.");
     }
 
     public function render(): View

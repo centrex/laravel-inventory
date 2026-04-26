@@ -188,6 +188,7 @@
             <div class="flex justify-between"><span class="text-base-content/60">Subtotal</span><strong>{{ number_format((float) $record->subtotal_local, 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Tax</span><strong>{{ number_format((float) $record->tax_local, 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Discount</span><strong>{{ number_format((float) $record->discount_local, 2) }}</strong></div>
+            <div class="flex justify-between"><span class="text-base-content/60">Shipping</span><strong>{{ number_format((float) $record->shipping_local, 2) }}</strong></div>
             <div class="flex justify-between"><span class="text-base-content/60">Coupon Discount</span><strong>{{ number_format((float) $record->coupon_discount_local, 2) }}</strong></div>
             <div class="flex justify-between text-base font-semibold"><span>Total</span><strong>{{ number_format((float) $record->total_local, 2) }}</strong></div>
         </div>

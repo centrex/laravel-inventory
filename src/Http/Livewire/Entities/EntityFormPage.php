@@ -53,7 +53,7 @@ class EntityFormPage extends Component
             $record = $model->newQuery()->create($validated);
         }
 
-        session()->flash('inventory.status', InventoryEntityRegistry::definition($this->entity)['singular'] . ' saved.');
+        $this->dispatch('notify', type: 'success', message: InventoryEntityRegistry::definition($this->entity)['singular'] . ' saved.');
 
         return redirect()->route("inventory.entities.{$this->entity}.edit", ['recordId' => $record->getKey()]);
     }
