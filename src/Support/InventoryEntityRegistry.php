@@ -69,7 +69,7 @@ class InventoryEntityRegistry
                 'index_columns' => ['sku', 'name', 'category_id', 'brand_id', 'unit', 'weight_kg', 'is_active', 'is_stockable'],
                 'form_fields'   => [
                     self::field('category_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductCategory())->getTable() . ',id'], null, ProductCategory::class, 'name'),
-                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),              
+                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),
                     self::field('sku', 'text', ['required', 'string', 'max:100']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('description', 'textarea', ['nullable', 'string']),

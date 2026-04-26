@@ -34,9 +34,9 @@ class Supplier extends Model implements HasMedia
     ];
 
     protected $casts = [
-        'is_active'        => 'boolean',
-        'geo'              => 'array',
-        'meta'             => 'array',
+        'is_active' => 'boolean',
+        'geo'       => 'array',
+        'meta'      => 'array',
     ];
 
     protected $appends = [

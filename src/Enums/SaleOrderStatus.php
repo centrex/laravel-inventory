@@ -12,10 +12,9 @@ enum SaleOrderStatus: string
     case SHIPPED = 'shipped';
     case PARTIAL = 'partial';
     case FULFILLED = 'fulfilled';
-    case COMPLETED = 'completed';    
+    case COMPLETED = 'completed';
     case CANCELLED = 'cancelled';
     case RETURNED = 'returned';
-    
 
     public function label(): string
     {
