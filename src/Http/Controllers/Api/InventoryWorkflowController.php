@@ -553,12 +553,12 @@ class InventoryWorkflowController extends Controller
         Gate::authorize('inventory.sale-orders.fulfill');
 
         $validated = $request->validate([
-            'sale_order_id'         => ['required', 'integer'],
-            'carrier'               => ['nullable', 'string', 'max:80'],
-            'tracking_number'       => ['nullable', 'string', 'max:100'],
-            'estimated_delivery_at' => ['nullable', 'date'],
-            'notes'                 => ['nullable', 'string'],
-            'items'                 => ['required', 'array'],
+            'sale_order_id'              => ['required', 'integer'],
+            'carrier'                    => ['nullable', 'string', 'max:80'],
+            'tracking_number'            => ['nullable', 'string', 'max:100'],
+            'estimated_delivery_at'      => ['nullable', 'date'],
+            'notes'                      => ['nullable', 'string'],
+            'items'                      => ['required', 'array'],
             'items.*.sale_order_item_id' => ['required', 'integer'],
             'items.*.qty_shipped'        => ['required', 'numeric', 'gt:0'],
             'items.*.lot_id'             => ['nullable', 'integer'],

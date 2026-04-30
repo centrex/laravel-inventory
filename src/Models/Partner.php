@@ -5,9 +5,8 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Partner extends Model
@@ -35,10 +34,10 @@ class Partner extends Model
     protected $hidden = ['api_key'];
 
     protected $casts = [
-        'can_view_stock'       => 'boolean',
-        'can_view_prices'      => 'boolean',
-        'can_create_orders'    => 'boolean',
-        'is_active'            => 'boolean',
+        'can_view_stock'        => 'boolean',
+        'can_view_prices'       => 'boolean',
+        'can_create_orders'     => 'boolean',
+        'is_active'             => 'boolean',
         'allowed_warehouse_ids' => 'array',
         'allowed_product_ids'   => 'array',
     ];

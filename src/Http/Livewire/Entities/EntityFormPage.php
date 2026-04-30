@@ -9,8 +9,7 @@ use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\Layout;
-use Livewire\Component;
-use Livewire\WithFileUploads;
+use Livewire\{Component, WithFileUploads};
 
 #[Layout('layouts.app')]
 class EntityFormPage extends Component
@@ -124,12 +123,12 @@ class EntityFormPage extends Component
         $record = $this->recordId ? $this->record(false) : null;
 
         return view('inventory::livewire.entities.form-page', [
-            'definition'      => InventoryEntityRegistry::definition($this->entity),
-            'options'         => InventoryEntityRegistry::formOptions($this->entity),
-            'supportsPrimaryImage' => $this->supportsPrimaryImage(),
-            'currentPrimaryImageUrl' => $record?->primary_image_url ?: null,
+            'definition'                => InventoryEntityRegistry::definition($this->entity),
+            'options'                   => InventoryEntityRegistry::formOptions($this->entity),
+            'supportsPrimaryImage'      => $this->supportsPrimaryImage(),
+            'currentPrimaryImageUrl'    => $record?->primary_image_url ?: null,
             'currentPrimaryImageSrcset' => $record?->primary_image_srcset ?: null,
-            'customerHistory' => $this->entity === 'customers' && $this->recordId
+            'customerHistory'           => $this->entity === 'customers' && $this->recordId
                 ? app(Inventory::class)->customerHistory($this->recordId)
                 : collect(),
             'customerCreditSnapshot' => $this->entity === 'customers' && $this->recordId

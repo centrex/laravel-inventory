@@ -57,11 +57,7 @@ class PartnerScope
             return false;
         }
 
-        if ($partner->allowed_warehouse_ids !== null && !in_array($order->warehouse_id, $partner->allowed_warehouse_ids, true)) {
-            return false;
-        }
-
-        return true;
+        return !($partner->allowed_warehouse_ids !== null && !in_array($order->warehouse_id, $partner->allowed_warehouse_ids, true));
     }
 
     /**

@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Controllers\Api;
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Partner, Product, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Partner, Product, WarehouseProduct};
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
 
@@ -71,12 +71,12 @@ class PartnerApiController extends Controller
         $results = $query->paginate($validated['per_page'] ?? 50);
 
         return response()->json($results->through(fn (WarehouseProduct $wp) => [
-            'product_id'   => $wp->product_id,
-            'sku'          => $wp->product?->sku,
-            'product_name' => $wp->product?->name,
-            'warehouse_id' => $wp->warehouse_id,
+            'product_id'    => $wp->product_id,
+            'sku'           => $wp->product?->sku,
+            'product_name'  => $wp->product?->name,
+            'warehouse_id'  => $wp->warehouse_id,
             'qty_available' => $wp->qtyAvailable(),
-            'in_stock'     => $wp->qtyAvailable() > 0,
+            'in_stock'      => $wp->qtyAvailable() > 0,
         ]));
     }
 
@@ -127,13 +127,13 @@ class PartnerApiController extends Controller
         }
 
         $validated = $request->validate([
-            'warehouse_id'  => ['nullable', 'integer'],
-            'currency'      => ['nullable', 'string', 'size:3'],
-            'notes'         => ['nullable', 'string'],
-            'items'         => ['required', 'array', 'min:1'],
-            'items.*.sku'   => ['required_without:items.*.product_id', 'string'],
-            'items.*.product_id' => ['required_without:items.*.sku', 'integer'],
-            'items.*.qty_ordered' => ['required', 'numeric', 'gt:0'],
+            'warehouse_id'             => ['nullable', 'integer'],
+            'currency'                 => ['nullable', 'string', 'size:3'],
+            'notes'                    => ['nullable', 'string'],
+            'items'                    => ['required', 'array', 'min:1'],
+            'items.*.sku'              => ['required_without:items.*.product_id', 'string'],
+            'items.*.product_id'       => ['required_without:items.*.sku', 'integer'],
+            'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
             'items.*.unit_price_local' => ['nullable', 'numeric', 'gt:0'],
             'items.*.discount_pct'     => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
@@ -165,8 +165,8 @@ class PartnerApiController extends Controller
             }
 
             $resolvedItems[] = array_merge($item, [
-                'product_id'       => $productId,
-                'price_tier_code'  => $partner->default_price_tier,
+                'product_id'      => $productId,
+                'price_tier_code' => $partner->default_price_tier,
             ]);
         }
 
@@ -188,7 +188,7 @@ class PartnerApiController extends Controller
 
         $so = \Centrex\Inventory\Models\SaleOrder::with('items.product')
             ->where('id', $soId)
-            ->whereRaw("notes LIKE ?", ["%[partner:{$partner->id}]%"])
+            ->whereRaw('notes LIKE ?', ["%[partner:{$partner->id}]%"])
             ->firstOrFail();
 
         return response()->json($so);

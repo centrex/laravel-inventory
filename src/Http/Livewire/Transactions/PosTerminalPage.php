@@ -604,13 +604,13 @@ class PosTerminalPage extends Component
         }
 
         return view('inventory::livewire.transactions.pos-terminal', [
-            'warehouses'    => Warehouse::query()->orderBy('name')->get(),
-            'customers'     => Customer::query()->orderBy('name')->get(),
-            'products'      => $products,
-            'priceTiers'    => PriceTierCode::options(),
-            'cartItems'     => $cart?->content() ?? collect(),
-            'cartCount'     => $cart?->count() ?? 0,
-            'cartTotal'     => $cart?->total() ?? 0,
+            'warehouses'      => Warehouse::query()->orderBy('name')->get(),
+            'customers'       => Customer::query()->orderBy('name')->get(),
+            'products'        => $products,
+            'priceTiers'      => PriceTierCode::options(),
+            'cartItems'       => $cart?->content() ?? collect(),
+            'cartCount'       => $cart?->count() ?? 0,
+            'cartTotal'       => $cart?->total() ?? 0,
             'couponPreview'   => $couponPreview,
             'hasMoreProducts' => $totalProducts > $products->count(),
             'tabCartCounts'   => $tabCartCounts,

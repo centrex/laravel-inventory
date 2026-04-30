@@ -32,11 +32,11 @@ class Product extends Model implements HasMedia
     ];
 
     protected $casts = [
-        'weight_kg'      => 'decimal:4',
-        'is_active'      => 'boolean',
-        'is_stockable'   => 'boolean',
-        'variant_names'  => 'array',
-        'meta'           => 'array',
+        'weight_kg'     => 'decimal:4',
+        'is_active'     => 'boolean',
+        'is_stockable'  => 'boolean',
+        'variant_names' => 'array',
+        'meta'          => 'array',
     ];
 
     protected $appends = [

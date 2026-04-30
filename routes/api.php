@@ -73,8 +73,8 @@ Route::middleware(config('inventory.partner_api_middleware', ['api']))
     ->prefix(config('inventory.api_prefix', 'api/inventory') . '/partner')
     ->as('inventory.partner.')
     ->group(function (): void {
-        Route::get('/stock',          [PartnerApiController::class, 'stockLevels'])->name('stock');
-        Route::get('/prices',         [PartnerApiController::class, 'priceSheet'])->name('prices');
-        Route::post('/orders',        [PartnerApiController::class, 'createOrder'])->name('orders.store');
-        Route::get('/orders/{soId}',  [PartnerApiController::class, 'getOrder'])->name('orders.show');
+        Route::get('/stock', [PartnerApiController::class, 'stockLevels'])->name('stock');
+        Route::get('/prices', [PartnerApiController::class, 'priceSheet'])->name('prices');
+        Route::post('/orders', [PartnerApiController::class, 'createOrder'])->name('orders.store');
+        Route::get('/orders/{soId}', [PartnerApiController::class, 'getOrder'])->name('orders.show');
     });

@@ -15,15 +15,15 @@ class SerialNumber extends Model
     // Serial number statuses
     public const STATUS_AVAILABLE = 'available';
 
-    public const STATUS_RESERVED  = 'reserved';
+    public const STATUS_RESERVED = 'reserved';
 
-    public const STATUS_SOLD      = 'sold';
+    public const STATUS_SOLD = 'sold';
 
-    public const STATUS_RETURNED  = 'returned';
+    public const STATUS_RETURNED = 'returned';
 
-    public const STATUS_DAMAGED   = 'damaged';
+    public const STATUS_DAMAGED = 'damaged';
 
-    public const STATUS_LOST      = 'lost';
+    public const STATUS_LOST = 'lost';
 
     protected function getTableSuffix(): string
     {

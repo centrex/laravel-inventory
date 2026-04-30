@@ -691,10 +691,10 @@ class Inventory
                 if (!empty($item['lot_number'])) {
                     $lot = Lot::firstOrCreate(
                         [
-                            'product_id'  => $poItem->product_id,
-                            'variant_id'  => $poItem->variant_id,
+                            'product_id'   => $poItem->product_id,
+                            'variant_id'   => $poItem->variant_id,
                             'warehouse_id' => $po->warehouse_id,
-                            'lot_number'  => $item['lot_number'],
+                            'lot_number'   => $item['lot_number'],
                         ],
                         [
                             'purchase_order_item_id' => $poItem->id,
@@ -759,7 +759,7 @@ class Inventory
                 if ($item->lot_id !== null) {
                     Lot::where('id', $item->lot_id)->lockForUpdate()->first()?->increment('qty_on_hand', $item->qty_received);
                     Lot::where('id', $item->lot_id)->update([
-                        'qty_initial'      => \Illuminate\Support\Facades\DB::raw("qty_initial + {$item->qty_received}"),
+                        'qty_initial'      => DB::raw("qty_initial + {$item->qty_received}"),
                         'unit_cost_amount' => $item->unit_cost_amount,
                     ]);
                 }
@@ -1500,8 +1500,8 @@ class Inventory
                     ? ((float) $item->qty_ordered - (float) $item->qty_fulfilled)
                     : (float) (is_array($raw) ? ($raw['qty'] ?? 0) : $raw);
 
-                $lotId      = is_array($raw) ? ($raw['lot_id'] ?? null) : null;
-                $serialIds  = is_array($raw) ? ($raw['serial_ids'] ?? []) : [];
+                $lotId = is_array($raw) ? ($raw['lot_id'] ?? null) : null;
+                $serialIds = is_array($raw) ? ($raw['serial_ids'] ?? []) : [];
                 $fromDamaged = (bool) ($item->from_damaged ?? (is_array($raw) ? ($raw['from_damaged'] ?? false) : false));
 
                 if ($qty <= 0) {
@@ -2059,7 +2059,7 @@ class Inventory
 
         return DB::transaction(function () use ($so, $options): PickList {
             $pickList = PickList::create([
-                'pick_number'  => $this->nextNumber('PIC', PickList::class, 'pick_number'),
+                'pick_number'   => $this->nextNumber('PIC', PickList::class, 'pick_number'),
                 'sale_order_id' => $so->id,
                 'warehouse_id'  => $so->warehouse_id,
                 'assigned_to'   => $options['assigned_to'] ?? null,
@@ -2081,14 +2081,14 @@ class Inventory
                     ->first();
 
                 PickListItem::create([
-                    'pick_list_id'      => $pickList->id,
+                    'pick_list_id'       => $pickList->id,
                     'sale_order_item_id' => $item->id,
-                    'product_id'        => $item->product_id,
-                    'variant_id'        => $item->variant_id,
-                    'lot_id'            => $item->lot_id,
-                    'bin_location'      => $wp?->bin_location,
-                    'qty_to_pick'       => $remainingQty,
-                    'qty_picked'        => 0,
+                    'product_id'         => $item->product_id,
+                    'variant_id'         => $item->variant_id,
+                    'lot_id'             => $item->lot_id,
+                    'bin_location'       => $wp?->bin_location,
+                    'qty_to_pick'        => $remainingQty,
+                    'qty_picked'         => 0,
                 ]);
             }
 
@@ -2224,7 +2224,7 @@ class Inventory
         $this->fulfillSaleOrder((int) $shipment->sale_order_id, $fulfilledQtys);
 
         $shipment->update([
-            'status'       => 'dispatched',
+            'status'        => 'dispatched',
             'dispatched_at' => now(),
         ]);
 
