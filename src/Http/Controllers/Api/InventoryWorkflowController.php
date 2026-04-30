@@ -137,6 +137,24 @@ class InventoryWorkflowController extends Controller
         );
     }
 
+    public function findByBarcode(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'barcode' => ['required', 'string', 'max:100'],
+        ]);
+
+        $result = $this->inventory->findByBarcode($validated['barcode']);
+
+        if ($result === null) {
+            return response()->json(['message' => 'Product not found for the given barcode.'], 404);
+        }
+
+        return response()->json([
+            'product' => $result['product'],
+            'variant' => $result['variant'],
+        ]);
+    }
+
     public function stockLevels(Request $request): JsonResponse
     {
         Gate::authorize('inventory.reports.view');
@@ -478,5 +496,152 @@ class InventoryWorkflowController extends Controller
         ]);
 
         return app(\Centrex\Cart\Services\CartCheckoutService::class)->checkout($validated, $channel);
+    }
+
+    // -------------------------------------------------------------------------
+    // Pick-Pack-Ship
+    // -------------------------------------------------------------------------
+
+    public function createPickList(Request $request): JsonResponse
+    {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
+        $validated = $request->validate([
+            'sale_order_id' => ['required', 'integer'],
+            'assigned_to'   => ['nullable', 'integer'],
+            'notes'         => ['nullable', 'string'],
+        ]);
+
+        $pickList = $this->inventory->createPickList((int) $validated['sale_order_id'], $validated);
+
+        return response()->json($pickList->load('items'), 201);
+    }
+
+    public function startPicking(Request $request, int $pickListId): JsonResponse
+    {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
+        return response()->json($this->inventory->startPicking($pickListId));
+    }
+
+    public function confirmPick(Request $request, int $pickListId): JsonResponse
+    {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
+        $validated = $request->validate([
+            'items'                     => ['required', 'array'],
+            'items.*.pick_list_item_id' => ['required', 'integer'],
+            'items.*.qty_picked'        => ['required', 'numeric', 'min:0'],
+            'items.*.lot_id'            => ['nullable', 'integer'],
+            'items.*.serial_numbers'    => ['nullable', 'array'],
+        ]);
+
+        $pickedQtys = collect($validated['items'])
+            ->keyBy('pick_list_item_id')
+            ->map(fn ($i) => [
+                'qty_picked'     => $i['qty_picked'],
+                'lot_id'         => $i['lot_id'] ?? null,
+                'serial_numbers' => $i['serial_numbers'] ?? [],
+            ])
+            ->all();
+
+        return response()->json($this->inventory->confirmPick($pickListId, $pickedQtys));
+    }
+
+    public function createShipment(Request $request): JsonResponse
+    {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
+        $validated = $request->validate([
+            'sale_order_id'         => ['required', 'integer'],
+            'carrier'               => ['nullable', 'string', 'max:80'],
+            'tracking_number'       => ['nullable', 'string', 'max:100'],
+            'estimated_delivery_at' => ['nullable', 'date'],
+            'notes'                 => ['nullable', 'string'],
+            'items'                 => ['required', 'array'],
+            'items.*.sale_order_item_id' => ['required', 'integer'],
+            'items.*.qty_shipped'        => ['required', 'numeric', 'gt:0'],
+            'items.*.lot_id'             => ['nullable', 'integer'],
+        ]);
+
+        $shipment = $this->inventory->createShipment((int) $validated['sale_order_id'], $validated);
+
+        return response()->json($shipment->load('items'), 201);
+    }
+
+    public function dispatchShipment(Request $request, int $shipmentId): JsonResponse
+    {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
+        return response()->json($this->inventory->dispatchShipment($shipmentId));
+    }
+
+    public function markShipmentDelivered(Request $request, int $shipmentId): JsonResponse
+    {
+        Gate::authorize('inventory.sale-orders.fulfill');
+
+        return response()->json($this->inventory->markShipmentDelivered($shipmentId));
+    }
+
+    // -------------------------------------------------------------------------
+    // Partner Management
+    // -------------------------------------------------------------------------
+
+    public function listPartners(Request $request): JsonResponse
+    {
+        Gate::authorize('inventory.partners.view');
+
+        return response()->json($this->inventory->listPartners(activeOnly: (bool) $request->boolean('active_only', true)));
+    }
+
+    public function createPartner(Request $request): JsonResponse
+    {
+        Gate::authorize('inventory.partners.manage');
+
+        $validated = $request->validate([
+            'name'                  => ['required', 'string', 'max:120'],
+            'type'                  => ['nullable', 'string', 'in:dropshipper,ecom,b2b,marketplace'],
+            'customer_id'           => ['nullable', 'integer'],
+            'default_warehouse_id'  => ['nullable', 'integer'],
+            'default_price_tier'    => ['nullable', 'string'],
+            'can_view_stock'        => ['nullable', 'boolean'],
+            'can_view_prices'       => ['nullable', 'boolean'],
+            'can_create_orders'     => ['nullable', 'boolean'],
+            'allowed_warehouse_ids' => ['nullable', 'array'],
+            'allowed_product_ids'   => ['nullable', 'array'],
+        ]);
+
+        $partner = $this->inventory->createPartner($validated);
+
+        // Make api_key visible only on creation
+        return response()->json($partner->makeVisible('api_key'), 201);
+    }
+
+    public function updatePartner(Request $request, int $partnerId): JsonResponse
+    {
+        Gate::authorize('inventory.partners.manage');
+
+        $validated = $request->validate([
+            'name'                  => ['nullable', 'string', 'max:120'],
+            'type'                  => ['nullable', 'string', 'in:dropshipper,ecom,b2b,marketplace'],
+            'customer_id'           => ['nullable', 'integer'],
+            'default_warehouse_id'  => ['nullable', 'integer'],
+            'default_price_tier'    => ['nullable', 'string'],
+            'can_view_stock'        => ['nullable', 'boolean'],
+            'can_view_prices'       => ['nullable', 'boolean'],
+            'can_create_orders'     => ['nullable', 'boolean'],
+            'is_active'             => ['nullable', 'boolean'],
+            'allowed_warehouse_ids' => ['nullable', 'array'],
+            'allowed_product_ids'   => ['nullable', 'array'],
+        ]);
+
+        return response()->json($this->inventory->updatePartner($partnerId, $validated));
+    }
+
+    public function rotatePartnerApiKey(Request $request, int $partnerId): JsonResponse
+    {
+        Gate::authorize('inventory.partners.manage');
+
+        return response()->json($this->inventory->rotatePartnerApiKey($partnerId));
     }
 }

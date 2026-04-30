@@ -25,7 +25,7 @@ class WarehouseProduct extends Model
 
     protected $fillable = [
         'warehouse_id', 'product_id', 'variant_id',
-        'qty_on_hand', 'qty_reserved', 'qty_in_transit',
+        'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'qty_damaged',
         'wac_amount', 'reorder_point', 'reorder_qty', 'bin_location',
     ];
 
@@ -33,6 +33,7 @@ class WarehouseProduct extends Model
         'qty_on_hand'    => 'decimal:4',
         'qty_reserved'   => 'decimal:4',
         'qty_in_transit' => 'decimal:4',
+        'qty_damaged'    => 'decimal:4',
         'wac_amount'     => 'decimal:4',
         'reorder_point'  => 'decimal:4',
         'reorder_qty'    => 'decimal:4',
@@ -56,6 +57,11 @@ class WarehouseProduct extends Model
     public function qtyAvailable(): float
     {
         return (float) $this->qty_on_hand - (float) $this->qty_reserved;
+    }
+
+    public function qtyDamagedAvailable(): float
+    {
+        return max(0.0, (float) $this->qty_damaged);
     }
 
     public function totalValue(): float

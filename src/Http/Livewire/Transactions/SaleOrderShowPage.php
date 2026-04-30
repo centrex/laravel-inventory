@@ -8,6 +8,7 @@ use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\SaleOrder;
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -51,7 +52,7 @@ class SaleOrderShowPage extends Component
             'canReserve'         => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
             'canFulfill'         => $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
             'canCancel'          => in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
-            'canCreateInvoice'   => $this->documentType === 'order' && $this->financeDocument === null,
+            'canCreateInvoice'   => $this->documentType === 'order' && $this->financeDocument === null && Gate::allows('accounting.invoice.create'),
             'canCreateSaleOrder' => $this->documentType === 'quotation'
                 && $this->record->status?->value === 'confirmed'
                 && $this->linkedSaleOrder === null,
@@ -94,6 +95,8 @@ class SaleOrderShowPage extends Component
     public function createInvoice(): void
     {
         try {
+            Gate::authorize('accounting.invoice.create');
+
             $erp = app(ErpIntegration::class);
 
             if (!$erp->enabled()) {

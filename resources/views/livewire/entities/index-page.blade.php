@@ -34,6 +34,9 @@
         <table class="table table-sm w-full">
             <thead>
                 <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    @if ($showImageThumb)
+                        <th class="pl-5 w-16">Image</th>
+                    @endif
                     @foreach ($columns as $column)
                         <th class="pl-4 first:pl-5">
                             {{ str($column)->replace('_', ' ')->title() }}
@@ -45,6 +48,23 @@
             <tbody class="divide-y divide-base-200">
                 @forelse ($records as $record)
                     <tr class="hover:bg-base-50">
+                        @if ($showImageThumb)
+                            <td class="pl-5 py-2">
+                                @if ($record->primary_image_thumb_url)
+                                    <img
+                                        src="{{ $record->primary_image_thumb_url }}"
+                                        @if ($record->primary_image_thumb_srcset) srcset="{{ $record->primary_image_thumb_srcset }}" sizes="40px" @endif
+                                        alt="{{ $definition['singular'] }} image"
+                                        class="h-10 w-10 rounded-md border border-base-200 object-cover"
+                                        loading="lazy"
+                                    />
+                                @else
+                                    <div class="flex h-10 w-10 items-center justify-center rounded-md border border-base-200 bg-base-100 text-base-content/30">
+                                        <x-tallui-icon name="o-photo" class="h-5 w-5" />
+                                    </div>
+                                @endif
+                            </td>
+                        @endif
                         @foreach ($columns as $column)
                             <td class="pl-4 first:pl-5 text-sm">
                                 @php
@@ -102,7 +122,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ count($columns) + 1 }}" class="py-8">
+                        <td colspan="{{ count($columns) + 1 + ($showImageThumb ? 1 : 0) }}" class="py-8">
                             <x-tallui-empty-state
                                 :title="'No ' . strtolower($definition['label']) . ' yet'"
                                 :description="'Create your first ' . strtolower($definition['singular']) . ' to get started.'"

@@ -128,6 +128,11 @@ return [
     'admin_role_attribute' => env('INVENTORY_ADMIN_ROLE_ATTRIBUTE', null),
     'user_foreign_keys'    => env('INVENTORY_USER_FOREIGN_KEYS', false),
 
+    // Roles that grant back-office partner access (view own orders, create partner orders)
+    'partner_roles'           => env('INVENTORY_PARTNER_ROLES', 'dropshipper,ecom-partner'),
+    // Middleware for the partner API key endpoints (no session required — uses X-Partner-Key header)
+    'partner_api_middleware'  => ['api'],
+
     /*
     |--------------------------------------------------------------------------
     | ERP Integration

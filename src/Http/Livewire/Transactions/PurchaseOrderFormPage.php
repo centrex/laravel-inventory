@@ -38,6 +38,10 @@ class PurchaseOrderFormPage extends Component
 
     public string $notes = '';
 
+    public bool $show_notes = false;
+
+    public int $form_refresh_key = 0;
+
     public array $items = [];
 
     public function mount(int|string|null $recordId = null, string $documentType = 'order'): void
@@ -50,16 +54,29 @@ class PurchaseOrderFormPage extends Component
         if ($recordId !== null) {
             $this->loadOrder($recordId);
         } else {
-            $first = Warehouse::query()->orderBy('id')->first();
+            $defaultName = (string) config('inventory.purchase_defaults.warehouse_name', 'UK');
+            $first = Warehouse::query()->where('name', $defaultName)->first()
+                ?? Warehouse::query()->orderBy('id')->first();
 
             if ($first) {
                 $this->warehouse_id = $first->id;
+                $this->syncWarehouseCurrency();
             }
         }
     }
 
     public function updated(string $property): void
     {
+        if ($property === 'warehouse_id') {
+            if (!$this->recordId) {
+                $this->resetOrderForWarehouse();
+            }
+
+            $this->syncWarehouseCurrency();
+
+            return;
+        }
+
         if (preg_match('/^items\.(\d+)\.product_id$/', $property, $matches)) {
             $this->syncItemPrice((int) $matches[1]);
         }
@@ -83,6 +100,11 @@ class PurchaseOrderFormPage extends Component
         }
 
         $this->items[$index]['show_notes'] = !((bool) ($this->items[$index]['show_notes'] ?? false));
+    }
+
+    public function toggleNotes(): void
+    {
+        $this->show_notes = !$this->show_notes;
     }
 
     public function save()
@@ -205,6 +227,7 @@ class PurchaseOrderFormPage extends Component
         $this->other_charges_amount = (float) $order->other_charges_amount;
         $this->expected_at = $order->expected_at?->format('Y-m-d');
         $this->notes = (string) ($order->notes ?? '');
+        $this->show_notes = false;
         $this->items = $order->items->map(fn ($item): array => [
             'product_id'       => $item->product_id,
             'qty_ordered'      => (float) $item->qty_ordered,
@@ -290,6 +313,47 @@ class PurchaseOrderFormPage extends Component
         app(ErpIntegration::class)->syncPurchaseOrderDocument($purchaseOrder);
 
         return $purchaseOrder;
+    }
+
+    private function resetOrderForWarehouse(): void
+    {
+        $this->supplier_id = null;
+        $this->tax_local = 0;
+        $this->shipping_local = 0;
+        $this->other_charges_amount = 0;
+        $this->expected_at = null;
+        $this->notes = '';
+        $this->show_notes = false;
+        $this->items = [$this->blankItem()];
+        $this->form_refresh_key++;
+        $this->resetErrorBag();
+        $this->resetValidation();
+    }
+
+    private function syncWarehouseCurrency(): void
+    {
+        $currency = $this->warehouseCurrency();
+
+        $this->currency = $currency;
+        $this->exchange_rate = $this->exchangeRateForCurrency($currency);
+    }
+
+    private function warehouseCurrency(): string
+    {
+        $currency = $this->warehouse_id
+            ? Warehouse::query()->whereKey($this->warehouse_id)->value('currency')
+            : null;
+
+        return strtoupper((string) ($currency ?: config('inventory.purchase_defaults.currency', 'GBP')));
+    }
+
+    private function exchangeRateForCurrency(string $currency): ?float
+    {
+        try {
+            return app(Inventory::class)->getExchangeRate($currency);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function routeBase(): string

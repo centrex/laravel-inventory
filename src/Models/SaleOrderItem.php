@@ -25,8 +25,8 @@ class SaleOrderItem extends Model
     }
 
     protected $fillable = [
-        'sale_order_id', 'product_id', 'variant_id', 'price_tier_code',
-        'qty_ordered', 'qty_fulfilled',
+        'sale_order_id', 'product_id', 'variant_id', 'lot_id', 'price_tier_code',
+        'qty_ordered', 'qty_fulfilled', 'from_damaged',
         'unit_price_local', 'unit_price_amount', 'unit_cost_amount',
         'discount_pct', 'line_total_local', 'line_total_amount',
         'notes',
@@ -35,6 +35,7 @@ class SaleOrderItem extends Model
     protected $casts = [
         'qty_ordered'       => 'decimal:4',
         'qty_fulfilled'     => 'decimal:4',
+        'from_damaged'      => 'boolean',
         'unit_price_local'  => 'decimal:4',
         'unit_price_amount' => 'decimal:4',
         'unit_cost_amount'  => 'decimal:4',
@@ -56,6 +57,11 @@ class SaleOrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'variant_id');
+    }
+
+    public function lot(): BelongsTo
+    {
+        return $this->belongsTo(Lot::class);
     }
 
     public function lineCogsAmount(): float

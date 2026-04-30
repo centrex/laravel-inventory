@@ -28,15 +28,15 @@ class Product extends Model implements HasMedia
 
     protected $fillable = [
         'category_id', 'brand_id', 'variant_names', 'sku', 'name', 'description',
-        'unit', 'weight_kg', 'barcode', 'is_active', 'is_stockable', 'meta',
+        'unit', 'weight_kg', 'barcode', 'is_active', 'is_stockable', 'costing_method', 'meta',
     ];
 
     protected $casts = [
-        'weight_kg'     => 'decimal:4',
-        'is_active'     => 'boolean',
-        'is_stockable'  => 'boolean',
-        'variant_names' => 'array',
-        'meta'          => 'array',
+        'weight_kg'      => 'decimal:4',
+        'is_active'      => 'boolean',
+        'is_stockable'   => 'boolean',
+        'variant_names'  => 'array',
+        'meta'           => 'array',
     ];
 
     protected $appends = [

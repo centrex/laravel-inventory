@@ -7,7 +7,7 @@ namespace Centrex\Inventory;
 use Carbon\Carbon;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Product, ProductCategory, ProductPrice, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use DateTimeInterface;
@@ -141,6 +141,7 @@ class Inventory
     {
         $tierCode = $this->normalizePriceTierCode($tierCode);
         $variantId = $this->normalizeVariantId($options['variant_id'] ?? null, $productId);
+        $isDamaged = (bool) ($options['is_damaged'] ?? false);
 
         $data = [
             'variant_id'      => $variantId,
@@ -153,6 +154,7 @@ class Inventory
             'effective_from'  => $options['effective_from'] ?? null,
             'effective_to'    => $options['effective_to'] ?? null,
             'is_active'       => $options['is_active'] ?? true,
+            'is_damaged'      => $isDamaged,
         ];
 
         return ProductPrice::updateOrCreate(
@@ -162,6 +164,7 @@ class Inventory
                 'price_tier_code' => $tierCode,
                 'warehouse_id'    => $warehouseId,
                 'effective_from'  => $data['effective_from'],
+                'is_damaged'      => $isDamaged,
             ],
             $data,
         );
@@ -170,28 +173,37 @@ class Inventory
     /**
      * Resolve the effective sell price for a product + tier at a given warehouse.
      * Priority: warehouse-specific active price → global active price.
+     * Pass $damaged=true to prefer damaged-condition prices; falls back to regular price if none found.
      */
-    public function resolvePrice(int $productId, string $tierCode, int $warehouseId, ?string $date = null, ?int $variantId = null): ProductPrice
+    public function resolvePrice(int $productId, string $tierCode, int $warehouseId, ?string $date = null, ?int $variantId = null, bool $damaged = false): ProductPrice
     {
         $tierCode = $this->normalizePriceTierCode($tierCode);
         $date ??= now()->toDateString();
         $variantId = $this->normalizeVariantId($variantId, $productId);
 
-        $base = ProductPrice::where('product_id', $productId)
+        $makeBase = fn (bool $isDamaged) => ProductPrice::where('product_id', $productId)
             ->where('price_tier_code', $tierCode)
             ->where('is_active', true)
+            ->where('is_damaged', $isDamaged)
             ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $date))
             ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date));
 
-        $price = null;
+        $lookup = function (bool $isDamaged) use ($makeBase, $variantId, $warehouseId): ?ProductPrice {
+            $base = $makeBase($isDamaged);
+            $price = null;
 
-        if ($variantId !== null) {
-            $price = (clone $base)->where('variant_id', $variantId)->where('warehouse_id', $warehouseId)->latest()->first();
-            $price ??= (clone $base)->where('variant_id', $variantId)->whereNull('warehouse_id')->latest()->first();
-        }
+            if ($variantId !== null) {
+                $price = (clone $base)->where('variant_id', $variantId)->where('warehouse_id', $warehouseId)->latest()->first();
+                $price ??= (clone $base)->where('variant_id', $variantId)->whereNull('warehouse_id')->latest()->first();
+            }
 
-        $price ??= (clone $base)->whereNull('variant_id')->where('warehouse_id', $warehouseId)->latest()->first();
-        $price ??= (clone $base)->whereNull('variant_id')->whereNull('warehouse_id')->latest()->first();
+            $price ??= (clone $base)->whereNull('variant_id')->where('warehouse_id', $warehouseId)->latest()->first();
+            $price ??= (clone $base)->whereNull('variant_id')->whereNull('warehouse_id')->latest()->first();
+
+            return $price;
+        };
+
+        $price = $damaged ? ($lookup(true) ?? $lookup(false)) : $lookup(false);
 
         if (!$price) {
             if (config('inventory.price_not_found_throws', true)) {
@@ -286,12 +298,13 @@ class Inventory
         return round($newWac, (int) config('inventory.wac_precision', 4));
     }
 
-    private function writeMovement(int $warehouseId, int $productId, ?int $variantId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null): StockMovement
+    private function writeMovement(int $warehouseId, int $productId, ?int $variantId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null, ?int $lotId = null): StockMovement
     {
         return StockMovement::create([
             'warehouse_id'     => $warehouseId,
             'product_id'       => $productId,
             'variant_id'       => $variantId,
+            'lot_id'           => $lotId,
             'movement_type'    => $type,
             'direction'        => $type->direction(),
             'qty'              => $qty,
@@ -671,11 +684,38 @@ class Inventory
                 $unitCostLocal = (float) ($item['unit_cost_local'] ?? $poItem->unit_price_local);
                 $unitCostBdt = round($unitCostLocal * $rate, 4);
 
+                // Lot tracking: find-or-create Lot at draft time so lot_id is stored on the item.
+                // qty_on_hand is incremented only when the GRN is posted.
+                $lotId = null;
+
+                if (!empty($item['lot_number'])) {
+                    $lot = Lot::firstOrCreate(
+                        [
+                            'product_id'  => $poItem->product_id,
+                            'variant_id'  => $poItem->variant_id,
+                            'warehouse_id' => $po->warehouse_id,
+                            'lot_number'  => $item['lot_number'],
+                        ],
+                        [
+                            'purchase_order_item_id' => $poItem->id,
+                            'manufactured_at'        => $item['lot_manufactured_at'] ?? null,
+                            'expires_at'             => $item['lot_expires_at'] ?? null,
+                            'qty_initial'            => 0,
+                            'qty_on_hand'            => 0,
+                            'unit_cost_amount'       => $unitCostBdt,
+                            'notes'                  => $item['lot_notes'] ?? null,
+                        ],
+                    );
+                    $lotId = $lot->id;
+                }
+
                 StockReceiptItem::create([
                     'stock_receipt_id'       => $grn->id,
                     'purchase_order_item_id' => $poItem->id,
                     'product_id'             => $poItem->product_id,
                     'variant_id'             => $poItem->variant_id,
+                    'lot_id'                 => $lotId,
+                    'serial_numbers'         => !empty($item['serial_numbers']) ? $item['serial_numbers'] : null,
                     'qty_received'           => $qty,
                     'unit_cost_local'        => $unitCostLocal,
                     'unit_cost_amount'       => $unitCostBdt,
@@ -715,7 +755,42 @@ class Inventory
                         ->increment('qty_received', $item->qty_received);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id);
+                // Lot tracking: increment lot qty_on_hand and update cost
+                if ($item->lot_id !== null) {
+                    Lot::where('id', $item->lot_id)->lockForUpdate()->first()?->increment('qty_on_hand', $item->qty_received);
+                    Lot::where('id', $item->lot_id)->update([
+                        'qty_initial'      => \Illuminate\Support\Facades\DB::raw("qty_initial + {$item->qty_received}"),
+                        'unit_cost_amount' => $item->unit_cost_amount,
+                    ]);
+                }
+
+                // Serial number tracking: create serial records with status=available
+                if (!empty($item->serial_numbers)) {
+                    foreach ($item->serial_numbers as $sn) {
+                        SerialNumber::create([
+                            'serial_number'          => $sn,
+                            'product_id'             => $item->product_id,
+                            'variant_id'             => $item->variant_id,
+                            'lot_id'                 => $item->lot_id,
+                            'warehouse_id'           => $grn->warehouse_id,
+                            'purchase_order_item_id' => $item->purchase_order_item_id,
+                            'status'                 => SerialNumber::STATUS_AVAILABLE,
+                        ]);
+                    }
+                }
+
+                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, null, $item->lot_id);
+
+                // Damaged units go into a separate bin (qty_damaged) — can be sold at discounted price.
+                // Lost units are written off entirely. Neither affects qty_on_hand.
+                if ((float) $item->qty_damaged > 0) {
+                    $wp->increment('qty_damaged', $item->qty_damaged);
+                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::ADJUSTMENT_OUT, (float) $item->qty_damaged, $qtyAfter, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, 'damaged at receipt', $item->lot_id);
+                }
+
+                if ((float) $item->qty_lost > 0) {
+                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::ADJUSTMENT_OUT, (float) $item->qty_lost, $qtyAfter, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, 'lost at receipt', $item->lot_id);
+                }
             }
 
             $grn->update(['status' => StockReceiptStatus::POSTED]);
@@ -765,7 +840,19 @@ class Inventory
                         ->decrement('qty_received', $item->qty_received);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, StockReceipt::class, $grn->id, null, 'GRN void');
+                // Reverse lot qty_on_hand
+                if ($item->lot_id !== null) {
+                    Lot::where('id', $item->lot_id)->decrement('qty_on_hand', $item->qty_received);
+                }
+
+                // Mark serial numbers as lost (they are being returned to supplier)
+                if (!empty($item->serial_numbers)) {
+                    SerialNumber::where('purchase_order_item_id', $item->purchase_order_item_id)
+                        ->whereIn('serial_number', $item->serial_numbers)
+                        ->update(['status' => SerialNumber::STATUS_LOST]);
+                }
+
+                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, StockReceipt::class, $grn->id, null, 'GRN void', $item->lot_id);
             }
 
             $grn->update(['status' => StockReceiptStatus::VOID]);
@@ -801,13 +888,15 @@ class Inventory
 
             foreach ($data['items'] as $item) {
                 [$productId, $variantId] = $this->resolveProductReference($item);
-                $itemTierCode = isset($item['price_tier_code'])
+                $itemTierCode = isset($item['price_tier_code']) && trim((string) $item['price_tier_code']) !== ''
                     ? $this->normalizePriceTierCode($item['price_tier_code'])
                     : $tierCode;
 
+                $fromDamaged = (bool) ($item['from_damaged'] ?? false);
+
                 $unitPriceBdt = isset($item['unit_price_local'])
                     ? round((float) $item['unit_price_local'] * $rate, 4)
-                    : (float) $this->resolvePrice($productId, $itemTierCode, $warehouseId, null, $variantId)->price_amount;
+                    : (float) $this->resolvePrice($productId, $itemTierCode, $warehouseId, null, $variantId, $fromDamaged)->price_amount;
 
                 $unitPriceLocal = round($unitPriceBdt / ($rate ?: 1), 4);
                 $qty = (float) $item['qty_ordered'];
@@ -822,6 +911,7 @@ class Inventory
                     'price_tier_code'   => $itemTierCode,
                     'qty_ordered'       => $qty,
                     'qty_fulfilled'     => 0,
+                    'from_damaged'      => $fromDamaged,
                     'unit_price_local'  => $unitPriceLocal,
                     'unit_price_amount' => $unitPriceBdt,
                     'unit_cost_amount'  => 0,
@@ -896,6 +986,7 @@ class Inventory
                     'price_tier_code'   => $lineItem['price_tier_code'],
                     'qty_ordered'       => $lineItem['qty_ordered'],
                     'qty_fulfilled'     => $lineItem['qty_fulfilled'],
+                    'from_damaged'      => $lineItem['from_damaged'],
                     'unit_price_local'  => $lineItem['unit_price_local'],
                     'unit_price_amount' => $lineItem['unit_price_amount'],
                     'unit_cost_amount'  => $lineItem['unit_cost_amount'],
@@ -982,7 +1073,7 @@ class Inventory
         return $saleOrder;
     }
 
-    public function resolveCouponDiscount(?string $couponCode, float $subtotalLocal, string $currency, Carbon|string|null $orderedAt = null, ?string $documentType = 'order', ?int $ignoreSaleOrderId = null): array
+    public function resolveCouponDiscount(?string $couponCode, float $subtotalLocal, string $currency, DateTimeInterface|string|null $orderedAt = null, ?string $documentType = 'order', ?int $ignoreSaleOrderId = null): array
     {
         $normalizedCode = $this->normalizeCouponCode($couponCode);
 
@@ -999,8 +1090,8 @@ class Inventory
             ];
         }
 
-        $orderedAt = $orderedAt instanceof Carbon
-            ? $orderedAt
+        $orderedAt = $orderedAt instanceof DateTimeInterface
+            ? Carbon::parse($orderedAt->format('Y-m-d H:i:s'))
             : Carbon::parse($orderedAt ?? now());
 
         /** @var Coupon|null $coupon */
@@ -1388,7 +1479,7 @@ class Inventory
      */
     public function fulfillSaleOrder(int $soId, array $fulfilledQtys = []): SaleOrder
     {
-        $so = SaleOrder::with('items')->findOrFail($soId);
+        $so = SaleOrder::with('items.product')->findOrFail($soId);
         $this->assertSaleOrderAccess($so);
 
         if (!in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL])) {
@@ -1401,9 +1492,17 @@ class Inventory
             $fullyFulfilled = true;
 
             foreach ($so->items as $item) {
-                $qty = isset($fulfilledQtys[$item->id])
-                    ? (float) $fulfilledQtys[$item->id]
-                    : ((float) $item->qty_ordered - (float) $item->qty_fulfilled);
+                // $fulfilledQtys supports two formats:
+                //   legacy:  [item_id => qty]
+                //   with lot: [item_id => ['qty' => x, 'lot_id' => y, 'serial_ids' => [...]]]
+                $raw = $fulfilledQtys[$item->id] ?? null;
+                $qty = $raw === null
+                    ? ((float) $item->qty_ordered - (float) $item->qty_fulfilled)
+                    : (float) (is_array($raw) ? ($raw['qty'] ?? 0) : $raw);
+
+                $lotId      = is_array($raw) ? ($raw['lot_id'] ?? null) : null;
+                $serialIds  = is_array($raw) ? ($raw['serial_ids'] ?? []) : [];
+                $fromDamaged = (bool) ($item->from_damaged ?? (is_array($raw) ? ($raw['from_damaged'] ?? false) : false));
 
                 if ($qty <= 0) {
                     continue;
@@ -1422,6 +1521,36 @@ class Inventory
                     ->firstOrFail();
 
                 $wac = (float) $wp->wac_amount;
+
+                if ($fromDamaged) {
+                    // Fulfill from the damaged bin — does not touch qty_on_hand or qty_reserved
+                    $qtyDamaged = (float) $wp->qty_damaged;
+
+                    if ($qtyDamaged + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                        throw new InsufficientStockException("Insufficient damaged stock for sale order item [{$item->id}]: available {$qtyDamaged}, requested {$qty}.");
+                    }
+
+                    $wp->decrement('qty_damaged', $qty);
+
+                    $item->update([
+                        'qty_fulfilled'    => (float) $item->qty_fulfilled + $qty,
+                        'unit_cost_amount' => $wac,
+                        'from_damaged'     => true,
+                        'lot_id'           => $lotId ?? $item->lot_id,
+                    ]);
+                    $totalCogs += round($qty * $wac, 4);
+
+                    if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance')) {
+                        $fullyFulfilled = false;
+                    }
+
+                    // Use qty_on_hand as before/after context since damaged bin is separate
+                    $qtyBefore = (float) $wp->qty_on_hand;
+                    $this->writeMovement($so->warehouse_id, $item->product_id, $item->variant_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyBefore, $wac, $wac, SaleOrder::class, $so->id, null, 'from damaged stock', $lotId);
+
+                    continue;
+                }
+
                 $qtyBefore = (float) $wp->qty_on_hand;
                 $reservedBefore = (float) $wp->qty_reserved;
 
@@ -1433,6 +1562,48 @@ class Inventory
                     throw new InsufficientStockException("Insufficient reserved stock for sale order item [{$item->id}]: reserved {$reservedBefore}, requested {$qty}.");
                 }
 
+                // FIFO/LIFO: auto-select lot when none explicitly specified
+                if ($lotId === null) {
+                    $costingMethod = $item->product?->costing_method ?? 'wac';
+
+                    if ($costingMethod === 'fifo' || $costingMethod === 'lifo') {
+                        $lotQuery = Lot::where('product_id', $item->product_id)
+                            ->where('warehouse_id', $so->warehouse_id)
+                            ->where('qty_on_hand', '>', 0)
+                            ->lockForUpdate();
+
+                        $lotQuery = $costingMethod === 'fifo'
+                            ? $lotQuery->oldest('created_at')
+                            : $lotQuery->latest('created_at');
+
+                        $autoLot = $lotQuery->first();
+
+                        if ($autoLot !== null) {
+                            $lotId = $autoLot->id;
+                        }
+                    }
+                }
+
+                // Lot validation: ensure the specified lot belongs to this product/warehouse
+                if ($lotId !== null) {
+                    $lot = Lot::where('id', $lotId)
+                        ->where('product_id', $item->product_id)
+                        ->where('warehouse_id', $so->warehouse_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($lot === null) {
+                        throw new \InvalidArgumentException("Lot [{$lotId}] not found for product [{$item->product_id}] in warehouse [{$so->warehouse_id}].");
+                    }
+
+                    if ((float) $lot->qty_on_hand + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                        throw new InsufficientStockException("Insufficient lot stock for lot [{$lotId}]: available {$lot->qty_on_hand}, requested {$qty}.");
+                    }
+
+                    $lot->decrement('qty_on_hand', $qty);
+                    $wac = (float) $lot->unit_cost_amount ?: $wac;
+                }
+
                 $qtyAfter = $qtyBefore - $qty;
 
                 $wp->update([
@@ -1440,14 +1611,25 @@ class Inventory
                     'qty_reserved' => $reservedBefore - $qty,
                 ]);
 
-                $item->update(['qty_fulfilled' => (float) $item->qty_fulfilled + $qty, 'unit_cost_amount' => $wac]);
+                $item->update([
+                    'qty_fulfilled'    => (float) $item->qty_fulfilled + $qty,
+                    'unit_cost_amount' => $wac,
+                    'lot_id'           => $lotId ?? $item->lot_id,
+                ]);
                 $totalCogs += round($qty * $wac, 4);
+
+                // Mark serial numbers as sold
+                if (!empty($serialIds)) {
+                    SerialNumber::whereIn('id', $serialIds)
+                        ->where('warehouse_id', $so->warehouse_id)
+                        ->update(['status' => SerialNumber::STATUS_SOLD, 'sale_order_item_id' => $item->id]);
+                }
 
                 if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance')) {
                     $fullyFulfilled = false;
                 }
 
-                $this->writeMovement($so->warehouse_id, $item->product_id, $item->variant_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyAfter, $wac, $wac, SaleOrder::class, $so->id);
+                $this->writeMovement($so->warehouse_id, $item->product_id, $item->variant_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyAfter, $wac, $wac, SaleOrder::class, $so->id, null, null, $lotId);
             }
 
             $so->update(['status' => $fullyFulfilled ? SaleOrderStatus::FULFILLED : SaleOrderStatus::PARTIAL, 'cogs_amount' => (float) $so->cogs_amount + $totalCogs]);
@@ -1860,6 +2042,210 @@ class Inventory
     }
 
     // -------------------------------------------------------------------------
+    // Pick-Pack-Ship
+    // -------------------------------------------------------------------------
+
+    /**
+     * Create a pick list for a confirmed/processing sale order.
+     * Each SO item becomes a pick list item pre-populated with bin location from WarehouseProduct.
+     */
+    public function createPickList(int $soId, array $options = []): PickList
+    {
+        $so = SaleOrder::with('items.product')->findOrFail($soId);
+
+        if (!in_array($so->status, [SaleOrderStatus::CONFIRMED, SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL])) {
+            throw new InvalidTransitionException("Cannot create pick list for sale order in status [{$so->status->value}].");
+        }
+
+        return DB::transaction(function () use ($so, $options): PickList {
+            $pickList = PickList::create([
+                'pick_number'  => $this->nextNumber('PIC', PickList::class, 'pick_number'),
+                'sale_order_id' => $so->id,
+                'warehouse_id'  => $so->warehouse_id,
+                'assigned_to'   => $options['assigned_to'] ?? null,
+                'status'        => 'draft',
+                'notes'         => $options['notes'] ?? null,
+                'created_by'    => $this->currentUserId() ?? ($options['created_by'] ?? null),
+            ]);
+
+            foreach ($so->items as $item) {
+                $remainingQty = max(0.0, (float) $item->qty_ordered - (float) $item->qty_fulfilled);
+
+                if ($remainingQty <= 0) {
+                    continue;
+                }
+
+                $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
+                    ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
+                    ->first();
+
+                PickListItem::create([
+                    'pick_list_id'      => $pickList->id,
+                    'sale_order_item_id' => $item->id,
+                    'product_id'        => $item->product_id,
+                    'variant_id'        => $item->variant_id,
+                    'lot_id'            => $item->lot_id,
+                    'bin_location'      => $wp?->bin_location,
+                    'qty_to_pick'       => $remainingQty,
+                    'qty_picked'        => 0,
+                ]);
+            }
+
+            return $pickList->refresh();
+        });
+    }
+
+    /** Mark a pick list as actively being picked (draft → picking). */
+    public function startPicking(int $pickListId): PickList
+    {
+        $pickList = PickList::findOrFail($pickListId);
+
+        if ($pickList->status !== 'draft') {
+            throw new InvalidTransitionException("Pick list #{$pickListId} is not in draft status.");
+        }
+
+        $pickList->update(['status' => 'picking']);
+
+        return $pickList->refresh();
+    }
+
+    /**
+     * Confirm pick: record actual quantities picked.
+     * $pickedQtys = [pick_list_item_id => ['qty_picked' => x, 'lot_id' => y, 'serial_numbers' => [...]]]
+     * Transitions status: picking → picked
+     */
+    public function confirmPick(int $pickListId, array $pickedQtys): PickList
+    {
+        $pickList = PickList::with('items')->findOrFail($pickListId);
+
+        if ($pickList->status !== 'picking') {
+            throw new InvalidTransitionException("Pick list #{$pickListId} must be in 'picking' status to confirm.");
+        }
+
+        return DB::transaction(function () use ($pickList, $pickedQtys): PickList {
+            foreach ($pickList->items as $item) {
+                $data = $pickedQtys[$item->id] ?? null;
+
+                if ($data === null) {
+                    continue;
+                }
+
+                $qtyPicked = (float) (is_array($data) ? ($data['qty_picked'] ?? 0) : $data);
+                $lotId = is_array($data) ? ($data['lot_id'] ?? null) : null;
+                $serials = is_array($data) ? ($data['serial_numbers'] ?? []) : [];
+
+                $item->update([
+                    'qty_picked'     => $qtyPicked,
+                    'lot_id'         => $lotId ?? $item->lot_id,
+                    'serial_numbers' => !empty($serials) ? $serials : $item->serial_numbers,
+                ]);
+            }
+
+            $pickList->update([
+                'status'    => 'picked',
+                'picked_at' => now(),
+            ]);
+
+            return $pickList->refresh();
+        });
+    }
+
+    /**
+     * Create a shipment for a sale order. Links to pick list items for lot/serial traceability.
+     * $data['items'] = [['sale_order_item_id' => x, 'qty_shipped' => y, 'lot_id' => z], ...]
+     */
+    public function createShipment(int $soId, array $data): Shipment
+    {
+        $so = SaleOrder::with('items')->findOrFail($soId);
+
+        if (!in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL])) {
+            throw new InvalidTransitionException("Cannot create shipment for sale order in status [{$so->status->value}].");
+        }
+
+        return DB::transaction(function () use ($so, $data): Shipment {
+            $shipment = Shipment::create([
+                'shipment_number'       => $this->nextNumber('SHP', Shipment::class, 'shipment_number'),
+                'sale_order_id'         => $so->id,
+                'warehouse_id'          => $so->warehouse_id,
+                'carrier'               => $data['carrier'] ?? null,
+                'tracking_number'       => $data['tracking_number'] ?? null,
+                'status'                => 'pending',
+                'notes'                 => $data['notes'] ?? null,
+                'estimated_delivery_at' => $data['estimated_delivery_at'] ?? null,
+                'created_by'            => $this->currentUserId() ?? ($data['created_by'] ?? null),
+            ]);
+
+            $itemsMap = $so->items->keyBy('id');
+
+            foreach ($data['items'] ?? [] as $itemData) {
+                $soItem = $itemsMap[$itemData['sale_order_item_id']] ?? null;
+
+                if ($soItem === null) {
+                    continue;
+                }
+
+                ShipmentItem::create([
+                    'shipment_id'        => $shipment->id,
+                    'sale_order_item_id' => $soItem->id,
+                    'product_id'         => $soItem->product_id,
+                    'variant_id'         => $soItem->variant_id,
+                    'lot_id'             => $itemData['lot_id'] ?? $soItem->lot_id,
+                    'qty_shipped'        => (float) $itemData['qty_shipped'],
+                ]);
+            }
+
+            return $shipment->refresh();
+        });
+    }
+
+    /**
+     * Dispatch a shipment: triggers stock fulfillment and marks shipment as dispatched.
+     * This is where qty_on_hand is decremented and COGS is recorded.
+     */
+    public function dispatchShipment(int $shipmentId): Shipment
+    {
+        $shipment = Shipment::with('items')->findOrFail($shipmentId);
+
+        if ($shipment->status !== 'pending') {
+            throw new InvalidTransitionException("Shipment #{$shipmentId} is already {$shipment->status}.");
+        }
+
+        // Build fulfilledQtys from shipment items for fulfillSaleOrder
+        $fulfilledQtys = $shipment->items
+            ->mapWithKeys(fn (ShipmentItem $item) => [
+                $item->sale_order_item_id => [
+                    'qty'    => (float) $item->qty_shipped,
+                    'lot_id' => $item->lot_id,
+                ],
+            ])
+            ->all();
+
+        $this->fulfillSaleOrder((int) $shipment->sale_order_id, $fulfilledQtys);
+
+        $shipment->update([
+            'status'       => 'dispatched',
+            'dispatched_at' => now(),
+        ]);
+
+        return $shipment->refresh();
+    }
+
+    /** Mark a shipment as delivered. */
+    public function markShipmentDelivered(int $shipmentId): Shipment
+    {
+        $shipment = Shipment::findOrFail($shipmentId);
+
+        if ($shipment->status !== 'dispatched') {
+            throw new InvalidTransitionException("Shipment #{$shipmentId} must be dispatched before marking delivered.");
+        }
+
+        $shipment->update(['status' => 'delivered']);
+
+        return $shipment->refresh();
+    }
+
+    // -------------------------------------------------------------------------
     // Reporting
     // -------------------------------------------------------------------------
 
@@ -1961,6 +2347,82 @@ class Inventory
         return Product::query()
             ->with(['category', 'brand', 'warehouseProducts', 'prices', 'variants'])
             ->find($id);
+    }
+
+    /**
+     * Look up a product or variant by barcode.
+     * Returns ['product' => Product, 'variant' => ProductVariant|null] or null if not found.
+     */
+    public function findByBarcode(string $barcode): ?array
+    {
+        $variant = ProductVariant::query()
+            ->with(['product.category', 'product.brand', 'product.prices', 'warehouseProducts', 'attributeValues.attributeType'])
+            ->where('barcode', $barcode)
+            ->first();
+
+        if ($variant !== null) {
+            return ['product' => $variant->product, 'variant' => $variant];
+        }
+
+        $product = Product::query()
+            ->with(['category', 'brand', 'warehouseProducts', 'prices', 'variants'])
+            ->where('barcode', $barcode)
+            ->first();
+
+        return $product !== null ? ['product' => $product, 'variant' => null] : null;
+    }
+
+    // ── Lot management ────────────────────────────────────────────────────────
+
+    /**
+     * List all lots for a product/warehouse, ordered by creation date (oldest first — FIFO order).
+     */
+    public function getLotsByProduct(int $productId, int $warehouseId, ?int $variantId = null): Collection
+    {
+        return Lot::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->when($variantId !== null, fn ($q) => $q->where('variant_id', $variantId))
+            ->where('qty_on_hand', '>', 0)
+            ->orderBy('created_at')
+            ->get();
+    }
+
+    /**
+     * Find a specific lot by its number within a product/warehouse scope.
+     */
+    public function findLotByNumber(int $productId, int $warehouseId, string $lotNumber, ?int $variantId = null): ?Lot
+    {
+        return Lot::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('lot_number', $lotNumber)
+            ->when($variantId !== null, fn ($q) => $q->where('variant_id', $variantId))
+            ->first();
+    }
+
+    /**
+     * Return all lots expiring within the given number of days.
+     */
+    public function getExpiringLots(int $withinDays = 30, ?int $warehouseId = null): Collection
+    {
+        return Lot::when($warehouseId, fn ($q) => $q->where('warehouse_id', $warehouseId))
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now()->addDays($withinDays))
+            ->where('qty_on_hand', '>', 0)
+            ->orderBy('expires_at')
+            ->get();
+    }
+
+    /**
+     * Return all available serial numbers for a product/warehouse, optionally scoped to a lot.
+     */
+    public function getAvailableSerialNumbers(int $productId, int $warehouseId, ?int $lotId = null): Collection
+    {
+        return SerialNumber::where('product_id', $productId)
+            ->where('warehouse_id', $warehouseId)
+            ->where('status', SerialNumber::STATUS_AVAILABLE)
+            ->when($lotId !== null, fn ($q) => $q->where('lot_id', $lotId))
+            ->orderBy('id')
+            ->get();
     }
 
     // ── Variant management ────────────────────────────────────────────────────
@@ -3016,5 +3478,54 @@ class Inventory
         }
 
         \Centrex\ModelData\Data::putForModel($model, $metadata);
+    }
+
+    // -------------------------------------------------------------------------
+    // Partner Management
+    // -------------------------------------------------------------------------
+
+    /**
+     * Create a new API partner (dropshipper / e-commerce / B2B / marketplace).
+     * Returns the partner with the generated api_key (shown only once).
+     */
+    public function createPartner(array $data): Partner
+    {
+        return Partner::create([
+            'name'                  => $data['name'],
+            'type'                  => $data['type'] ?? 'dropshipper',
+            'api_key'               => Partner::generateApiKey(),
+            'customer_id'           => $data['customer_id'] ?? null,
+            'default_warehouse_id'  => $data['default_warehouse_id'] ?? null,
+            'default_price_tier'    => $data['default_price_tier'] ?? 'B2B_WHOLESALE',
+            'can_view_stock'        => $data['can_view_stock'] ?? true,
+            'can_view_prices'       => $data['can_view_prices'] ?? true,
+            'can_create_orders'     => $data['can_create_orders'] ?? true,
+            'is_active'             => $data['is_active'] ?? true,
+            'allowed_warehouse_ids' => $data['allowed_warehouse_ids'] ?? null,
+            'allowed_product_ids'   => $data['allowed_product_ids'] ?? null,
+        ]);
+    }
+
+    public function updatePartner(int $partnerId, array $data): Partner
+    {
+        $partner = Partner::findOrFail($partnerId);
+        $partner->update($data);
+
+        return $partner->refresh();
+    }
+
+    /** Rotate the API key for a partner. Returns the partner with the new key. */
+    public function rotatePartnerApiKey(int $partnerId): Partner
+    {
+        $partner = Partner::findOrFail($partnerId);
+        $partner->update(['api_key' => Partner::generateApiKey()]);
+
+        // Temporarily un-hide api_key for the response
+        return $partner->makeVisible('api_key')->refresh();
+    }
+
+    public function listPartners(bool $activeOnly = true): Collection
+    {
+        return Partner::when($activeOnly, fn ($q) => $q->where('is_active', true))->get();
     }
 }

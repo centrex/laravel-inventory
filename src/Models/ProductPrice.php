@@ -28,7 +28,7 @@ class ProductPrice extends Model
         'product_id', 'variant_id', 'price_tier_code', 'warehouse_id',
         'price_amount', 'cost_price', 'moq', 'preorder_moq',
         'price_local', 'currency',
-        'effective_from', 'effective_to', 'is_active',
+        'effective_from', 'effective_to', 'is_active', 'is_damaged',
     ];
 
     protected $casts = [
@@ -40,6 +40,7 @@ class ProductPrice extends Model
         'effective_from' => 'date',
         'effective_to'   => 'date',
         'is_active'      => 'boolean',
+        'is_damaged'     => 'boolean',
     ];
 
     public function product(): BelongsTo

@@ -75,6 +75,7 @@ class EntityIndexPage extends Component
             'definition'       => $definition,
             'columns'          => InventoryEntityRegistry::indexColumns($this->entity),
             'fieldDefinitions' => $fieldDefinitions,
+            'showImageThumb'   => $this->showsImageThumb(),
             'records'          => $query->paginate(15),
         ]);
     }
@@ -99,5 +100,10 @@ class EntityIndexPage extends Component
         if ($this->entity === 'customers') {
             CommercialTeamAccess::applySalesScope($query);
         }
+    }
+
+    private function showsImageThumb(): bool
+    {
+        return in_array($this->entity, ['products', 'product-categories', 'product-brands', 'customers', 'suppliers'], true);
     }
 }

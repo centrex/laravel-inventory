@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Controllers\Api\{EntityCrudController, InventoryWorkflowController};
+use Centrex\Inventory\Http\Controllers\Api\{EntityCrudController, InventoryWorkflowController, PartnerApiController};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +26,7 @@ Route::middleware(config('inventory.api_middleware', ['api', 'auth:sanctum']))
         Route::get('/pricing/resolve', [InventoryWorkflowController::class, 'resolvePrice'])->name('pricing.resolve');
         Route::get('/pricing/sheet', [InventoryWorkflowController::class, 'priceSheet'])->name('pricing.sheet');
 
+        Route::get('/products/barcode', [InventoryWorkflowController::class, 'findByBarcode'])->name('products.barcode');
         Route::get('/reports/stock-levels', [InventoryWorkflowController::class, 'stockLevels'])->name('reports.stock-levels');
         Route::get('/reports/stock-valuation', [InventoryWorkflowController::class, 'stockValuation'])->name('reports.stock-valuation');
         Route::get('/reports/movement-history', [InventoryWorkflowController::class, 'movementHistory'])->name('reports.movement-history');
@@ -52,4 +53,28 @@ Route::middleware(config('inventory.api_middleware', ['api', 'auth:sanctum']))
 
         Route::post('/adjustments', [InventoryWorkflowController::class, 'createAdjustment'])->name('adjustments.store');
         Route::post('/adjustments/{adjustmentId}/post', [InventoryWorkflowController::class, 'postAdjustment'])->name('adjustments.post');
+
+        Route::get('/partners', [InventoryWorkflowController::class, 'listPartners'])->name('partners.index');
+        Route::post('/partners', [InventoryWorkflowController::class, 'createPartner'])->name('partners.store');
+        Route::put('/partners/{partnerId}', [InventoryWorkflowController::class, 'updatePartner'])->name('partners.update');
+        Route::post('/partners/{partnerId}/rotate-key', [InventoryWorkflowController::class, 'rotatePartnerApiKey'])->name('partners.rotate-key');
+
+        Route::post('/pick-lists', [InventoryWorkflowController::class, 'createPickList'])->name('pick-lists.store');
+        Route::post('/pick-lists/{pickListId}/start', [InventoryWorkflowController::class, 'startPicking'])->name('pick-lists.start');
+        Route::post('/pick-lists/{pickListId}/confirm', [InventoryWorkflowController::class, 'confirmPick'])->name('pick-lists.confirm');
+
+        Route::post('/shipments', [InventoryWorkflowController::class, 'createShipment'])->name('shipments.store');
+        Route::post('/shipments/{shipmentId}/dispatch', [InventoryWorkflowController::class, 'dispatchShipment'])->name('shipments.dispatch');
+        Route::post('/shipments/{shipmentId}/delivered', [InventoryWorkflowController::class, 'markShipmentDelivered'])->name('shipments.delivered');
+    });
+
+// Partner API — authenticated by X-Partner-Key header, no session/sanctum required
+Route::middleware(config('inventory.partner_api_middleware', ['api']))
+    ->prefix(config('inventory.api_prefix', 'api/inventory') . '/partner')
+    ->as('inventory.partner.')
+    ->group(function (): void {
+        Route::get('/stock',          [PartnerApiController::class, 'stockLevels'])->name('stock');
+        Route::get('/prices',         [PartnerApiController::class, 'priceSheet'])->name('prices');
+        Route::post('/orders',        [PartnerApiController::class, 'createOrder'])->name('orders.store');
+        Route::get('/orders/{soId}',  [PartnerApiController::class, 'getOrder'])->name('orders.show');
     });

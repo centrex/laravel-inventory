@@ -29,7 +29,98 @@
     icon="o-document-text"
     :shadow="true"
 >
-    <form wire:submit="save" class="space-y-5">
+    <form wire:submit="save" enctype="multipart/form-data" class="space-y-5">
+        @if ($supportsPrimaryImage)
+            @php
+                $pendingPrimaryImageUrl = null;
+
+                if ($primaryImage) {
+                    try {
+                        $pendingPrimaryImageUrl = $primaryImage->temporaryUrl();
+                    } catch (Throwable) {
+                        $pendingPrimaryImageUrl = null;
+                    }
+                }
+            @endphp
+
+            <div class="rounded-xl border border-base-200 bg-base-50 p-4">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-[10rem_1fr] md:items-start">
+                    <div class="overflow-hidden rounded-xl border border-base-200 bg-base-100">
+                        @if ($pendingPrimaryImageUrl || $currentPrimaryImageUrl)
+                            <img
+                                src="{{ $pendingPrimaryImageUrl ?: $currentPrimaryImageUrl }}"
+                                @if (!$pendingPrimaryImageUrl && $currentPrimaryImageSrcset) srcset="{{ $currentPrimaryImageSrcset }}" sizes="10rem" @endif
+                                alt="{{ $definition['singular'] }} image"
+                                class="h-40 w-full object-cover"
+                            />
+                        @else
+                            <div class="flex h-40 w-full items-center justify-center text-base-content/30">
+                                <x-tallui-icon name="o-photo" class="h-10 w-10" />
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <div class="text-sm font-semibold text-base-content">Primary Image</div>
+                            <div class="mt-1 text-xs text-base-content/60">
+                                Upload, replace, or remove the image used across inventory and storefront views.
+                            </div>
+                        </div>
+
+                        <x-tallui-file-upload
+                            name="primary_image"
+                            wire:model="primaryImage"
+                            accept="image/*"
+                            :max-size-mb="4"
+                            :preview="true"
+                            upload-text="Drop image here or click to upload"
+                            helper="Accepted image files up to 4MB."
+                            :error="$errors->first('primaryImage')"
+                        />
+
+                        <div class="flex flex-wrap gap-2">
+                            @if ($recordId && $primaryImage)
+                                <x-tallui-button
+                                    label="Upload Image"
+                                    icon="o-arrow-up-tray"
+                                    class="btn-primary btn-sm"
+                                    type="button"
+                                    wire:click="uploadPrimaryImage"
+                                    :spinner="'uploadPrimaryImage'"
+                                />
+                            @endif
+
+                            @if ($primaryImage)
+                                <x-tallui-button
+                                    label="Remove Selected"
+                                    icon="o-x-mark"
+                                    class="btn-ghost btn-sm"
+                                    type="button"
+                                    wire:click="removeSelectedImage"
+                                />
+                            @endif
+
+                            @if ($recordId && $currentPrimaryImageUrl)
+                                <x-tallui-button
+                                    label="Delete Current Image"
+                                    icon="o-trash"
+                                    class="btn-ghost btn-sm text-error"
+                                    type="button"
+                                    wire:click="deletePrimaryImage"
+                                    wire:confirm="Delete the current image?"
+                                />
+                            @endif
+                        </div>
+
+                        <div wire:loading wire:target="primaryImage" class="text-xs text-base-content/60">
+                            Uploading selected image...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach ($definition['form_fields'] as $field)
                 <div class="{{ in_array($field['type'], ['textarea', 'text-editor', 'json'], true) ? 'md:col-span-2' : '' }}">

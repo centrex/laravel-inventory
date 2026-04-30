@@ -24,7 +24,7 @@
     </x-slot:actions>
 </x-tallui-page-header>
 
-<form wire:submit="save" class="space-y-4">
+<form wire:submit="save" wire:key="purchase-order-form-{{ $warehouse_id ?? 'none' }}-{{ $form_refresh_key }}" class="space-y-4">
 
     {{-- Header --}}
     <x-tallui-card title="Order Details" subtitle="Supplier, warehouse, and cost settings." icon="o-document-arrow-down" :shadow="true">
@@ -39,15 +39,18 @@
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Supplier *" :error="$errors->first('supplier_id')">
-                <x-tallui-select
-                    name="supplier_id"
-                    wire:model="supplier_id"
-                    searchable
-                    placeholder="Search supplier…"
-                    :options="$selectedSupplierOptions"
-                    :search-url="route('inventory.async-select', ['resource' => 'suppliers'])"
-                    class="{{ $errors->has('supplier_id') ? 'select-error' : '' }}"
-                />
+                <div wire:key="purchase-supplier-select-{{ $supplier_id ?? 'none' }}-{{ $form_refresh_key }}">
+                    <x-tallui-select
+                        name="supplier_id"
+                        wire:model="supplier_id"
+                        :value="$supplier_id"
+                        searchable
+                        placeholder="Search supplier…"
+                        :options="$selectedSupplierOptions"
+                        :search-url="route('inventory.async-select', ['resource' => 'suppliers'])"
+                        class="{{ $errors->has('supplier_id') ? 'select-error' : '' }}"
+                    />
+                </div>
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Expected Date">
@@ -75,9 +78,26 @@
             </x-tallui-form-group>
 
             <div class="md:col-span-2 lg:col-span-3">
-                <x-tallui-form-group label="Notes">
-                    <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Internal notes, delivery instructions…" />
-                </x-tallui-form-group>
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-50 px-4 py-3">
+                    <div>
+                        <div class="text-xs uppercase text-base-content/50">Pricing Currency</div>
+                        <div class="font-mono text-sm font-semibold">{{ $currency ?: 'Auto' }}</div>
+                    </div>
+                    <x-tallui-button
+                        :label="filled($notes) ? 'View Note' : 'Add Note'"
+                        :icon="filled($notes) || $show_notes ? 'o-chat-bubble-left-ellipsis' : 'o-plus-circle'"
+                        class="btn-ghost btn-sm"
+                        type="button"
+                        wire:click="toggleNotes"
+                    />
+                </div>
+                @if ($show_notes)
+                    <div class="mt-3">
+                        <x-tallui-form-group label="Notes">
+                            <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Internal notes, delivery instructions…" />
+                        </x-tallui-form-group>
+                    </div>
+                @endif
             </div>
         </div>
     </x-tallui-card>
@@ -111,10 +131,11 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="po-item-{{ $index }}" class="hover:bg-base-50">
                             <td class="pl-5 py-2">
-                                <div wire:key="purchase-product-select-{{ $index }}">
+                                <div wire:key="purchase-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_id'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
                                         name="items.{{ $index }}.product_id"
                                         wire:model.live="items.{{ $index }}.product_id"
+                                        :value="$item['product_id'] ?? null"
                                         searchable
                                         placeholder="Search product…"
                                         :options="isset($selectedProductOptions[$item['product_id'] ?? 0]) ? [($item['product_id'] ?? 0) => $selectedProductOptions[$item['product_id'] ?? 0]] : []"

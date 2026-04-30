@@ -5,15 +5,19 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\PriceTierCode;
+use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, Warehouse, WarehouseProduct};
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('inventory::layouts.pos')]
 class PosTerminalPage extends Component
 {
+    private const PRODUCT_BATCH_SIZE = 20;
+
     public ?int $warehouse_id = null;
 
     public string $price_tier_code = 'b2b_pos';
@@ -31,6 +35,8 @@ class PosTerminalPage extends Component
 
     public array $tabCustomers = [0 => null];
 
+    public array $tabCouponInputs = [0 => ''];
+
     public array $tabCouponCodes = [0 => ''];
 
     public array $tabSearches = [0 => ''];
@@ -45,6 +51,8 @@ class PosTerminalPage extends Component
     public string $notes = '';
 
     public ?string $errorMessage = null;
+
+    public int $productLimit = self::PRODUCT_BATCH_SIZE;
 
     public function mount(): void
     {
@@ -113,6 +121,7 @@ class PosTerminalPage extends Component
     {
         if (in_array($id, $this->tabIds, true)) {
             $this->activeTabId = $id;
+            $this->resetProductLimit();
             $this->errorMessage = null;
             $this->dispatch('focus-search');
         }
@@ -130,9 +139,11 @@ class PosTerminalPage extends Component
         $this->tabIds[] = $id;
         $this->tabLabels[$id] = 'Tab ' . ($id + 1);
         $this->tabCustomers[$id] = null;
+        $this->tabCouponInputs[$id] = '';
         $this->tabCouponCodes[$id] = '';
         $this->tabSearches[$id] = '';
         $this->activeTabId = $id;
+        $this->resetProductLimit();
         $this->errorMessage = null;
         $this->dispatch('focus-search');
     }
@@ -148,7 +159,7 @@ class PosTerminalPage extends Component
         }
 
         $this->tabIds = array_values(array_filter($this->tabIds, fn ($t) => $t !== $id));
-        unset($this->tabLabels[$id], $this->tabCustomers[$id], $this->tabCouponCodes[$id], $this->tabSearches[$id]);
+        unset($this->tabLabels[$id], $this->tabCustomers[$id], $this->tabCouponInputs[$id], $this->tabCouponCodes[$id], $this->tabSearches[$id]);
 
         if ($this->activeTabId === $id) {
             $this->activeTabId = $this->tabIds[0];
@@ -210,7 +221,25 @@ class PosTerminalPage extends Component
     public function clearSearch(): void
     {
         $this->tabSearches[$this->activeTabId] = '';
+        $this->resetProductLimit();
         $this->dispatch('focus-search');
+    }
+
+    public function updated(string $property, mixed $value = null): void
+    {
+        if (in_array($property, ['warehouse_id', 'price_tier_code'], true) || str_starts_with($property, 'tabSearches.')) {
+            $this->resetProductLimit();
+        }
+    }
+
+    public function loadMoreProducts(): void
+    {
+        $this->productLimit += self::PRODUCT_BATCH_SIZE;
+    }
+
+    private function resetProductLimit(): void
+    {
+        $this->productLimit = self::PRODUCT_BATCH_SIZE;
     }
 
     // ── Cart helpers ────────────────────────────────────────────────────────
@@ -375,6 +404,53 @@ class PosTerminalPage extends Component
         }
 
         $this->getCart()->clear();
+        $this->tabCouponInputs[$this->activeTabId] = '';
+        $this->tabCouponCodes[$this->activeTabId] = '';
+        $this->dispatch('focus-search');
+    }
+
+    public function applyCoupon(): void
+    {
+        if (!class_exists(\Centrex\Cart\Cart::class)) {
+            return;
+        }
+
+        $cart = $this->getCart();
+        $couponCode = app(Inventory::class)->normalizeCouponCode($this->tabCouponInputs[$this->activeTabId] ?? null);
+
+        if ($couponCode === null) {
+            $this->tabCouponInputs[$this->activeTabId] = '';
+            $this->tabCouponCodes[$this->activeTabId] = '';
+            $this->errorMessage = null;
+            $this->dispatch('notify', type: 'info', message: 'Coupon removed.');
+            $this->dispatch('focus-search');
+
+            return;
+        }
+
+        if ($cart->isEmpty()) {
+            $this->errorMessage = 'Add products before applying a coupon.';
+
+            return;
+        }
+
+        try {
+            $coupon = app(Inventory::class)->resolveCouponDiscount(
+                $couponCode,
+                $cart->subtotal(),
+                $this->currency,
+            );
+        } catch (ValidationException $exception) {
+            $this->tabCouponCodes[$this->activeTabId] = '';
+            $this->errorMessage = $exception->validator->errors()->first('coupon_code') ?: 'The coupon could not be applied.';
+
+            return;
+        }
+
+        $this->tabCouponInputs[$this->activeTabId] = (string) $coupon['coupon_code'];
+        $this->tabCouponCodes[$this->activeTabId] = (string) $coupon['coupon_code'];
+        $this->errorMessage = null;
+        $this->dispatch('notify', type: 'success', message: 'Coupon applied: ' . $coupon['coupon_code']);
         $this->dispatch('focus-search');
     }
 
@@ -395,7 +471,28 @@ class PosTerminalPage extends Component
         }
 
         $customerId = $this->tabCustomers[$this->activeTabId] ?? null;
+        $typedCoupon = app(Inventory::class)->normalizeCouponCode($this->tabCouponInputs[$this->activeTabId] ?? null);
         $couponCode = $this->tabCouponCodes[$this->activeTabId] ?? null;
+
+        if ($typedCoupon !== app(Inventory::class)->normalizeCouponCode($couponCode)) {
+            $this->errorMessage = 'Press Apply to use this coupon code.';
+
+            return;
+        }
+
+        if ($couponCode) {
+            try {
+                app(Inventory::class)->resolveCouponDiscount(
+                    $couponCode,
+                    $this->getCart()->subtotal(),
+                    $this->currency,
+                );
+            } catch (ValidationException $exception) {
+                $this->errorMessage = $exception->validator->errors()->first('coupon_code') ?: 'The coupon is no longer valid.';
+
+                return;
+            }
+        }
 
         $saleOrder = app(\Centrex\Cart\Services\CartCheckoutService::class)->checkout([
             'warehouse_id'    => (int) $this->warehouse_id,
@@ -413,6 +510,7 @@ class PosTerminalPage extends Component
         ], 'pos');
 
         $this->tabCustomers[$this->activeTabId] = null;
+        $this->tabCouponInputs[$this->activeTabId] = '';
         $this->tabCouponCodes[$this->activeTabId] = '';
         $this->dispatch('notify', type: 'success', message: "Sale {$saleOrder->so_number} completed!");
         $this->dispatch('focus-search');
@@ -428,7 +526,7 @@ class PosTerminalPage extends Component
 
         $search = $this->tabSearches[$this->activeTabId] ?? '';
 
-        $products = Product::query()
+        $productQuery = Product::query()
             ->with([
                 'media',
                 'warehouseProducts' => fn ($q) => $q->where('warehouse_id', $this->warehouse_id),
@@ -462,8 +560,13 @@ class PosTerminalPage extends Component
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('barcode', 'like', "%{$search}%"),
                 ),
-            )
+            );
+
+        $totalProducts = (clone $productQuery)->count();
+
+        $products = $productQuery
             ->orderBy('name')
+            ->limit($this->productLimit)
             ->get();
 
         $tabCartCounts = [];
@@ -476,6 +579,30 @@ class PosTerminalPage extends Component
             }
         }
 
+        $couponPreview = null;
+
+        if ($cart && !empty($this->tabCouponCodes[$this->activeTabId])) {
+            try {
+                $coupon = app(Inventory::class)->resolveCouponDiscount(
+                    $this->tabCouponCodes[$this->activeTabId],
+                    $cart->subtotal(),
+                    $this->currency,
+                );
+
+                $couponPreview = [
+                    'code'     => $coupon['coupon_code'],
+                    'discount' => $coupon['coupon_discount_local'],
+                    'invalid'  => null,
+                ];
+            } catch (ValidationException $exception) {
+                $couponPreview = [
+                    'code'     => $this->tabCouponCodes[$this->activeTabId],
+                    'discount' => 0,
+                    'invalid'  => $exception->validator->errors()->first('coupon_code') ?: 'Coupon is no longer valid.',
+                ];
+            }
+        }
+
         return view('inventory::livewire.transactions.pos-terminal', [
             'warehouses'    => Warehouse::query()->orderBy('name')->get(),
             'customers'     => Customer::query()->orderBy('name')->get(),
@@ -484,7 +611,9 @@ class PosTerminalPage extends Component
             'cartItems'     => $cart?->content() ?? collect(),
             'cartCount'     => $cart?->count() ?? 0,
             'cartTotal'     => $cart?->total() ?? 0,
-            'tabCartCounts' => $tabCartCounts,
+            'couponPreview'   => $couponPreview,
+            'hasMoreProducts' => $totalProducts > $products->count(),
+            'tabCartCounts'   => $tabCartCounts,
         ]);
     }
 }

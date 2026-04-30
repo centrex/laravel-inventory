@@ -1,6 +1,16 @@
 <div>
 <x-tallui-notification />
 
+<x-tallui-dialog id="sale-order-credit-limit-dialog" type="warning" title="Credit limit exceeded" size="lg">
+    <div class="text-left">
+        {{ $credit_limit_dialog_message }}
+    </div>
+    <x-slot:footer>
+        <x-tallui-button label="Close" class="btn-ghost" x-on:click="open = false" />
+        <x-tallui-button label="Review Override" class="btn-primary" x-on:click="open = false" />
+    </x-slot:footer>
+</x-tallui-dialog>
+
 <x-tallui-page-header
     :title="$isEditing ? 'Edit ' . $documentLabel : 'New ' . $documentLabel"
     :subtitle="$documentLabel === 'Quotation' ? 'Prepare customer-ready pricing before stock is committed.' : ($isEditing ? 'Review line items, update draft details, and print or export invoice documents.' : 'Capture outbound sales with tier-based or automatic pricing.')"
@@ -24,10 +34,10 @@
     </x-slot:actions>
 </x-tallui-page-header>
 
-<form wire:submit="save" class="space-y-4">
+<form wire:submit="save" wire:key="sale-order-form-{{ $warehouse_id ?? 'none' }}-{{ $form_refresh_key }}" class="space-y-4">
 
     {{-- Header --}}
-    <x-tallui-card title="Order Details" subtitle="Customer, pricing tier, and currency settings." icon="o-banknotes" :shadow="true">
+    <x-tallui-card title="Order Details" subtitle="Customer, default price tier, and order adjustments." icon="o-banknotes" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <x-tallui-form-group label="Warehouse *" :error="$errors->first('warehouse_id')">
                 <x-tallui-select name="warehouse_id" wire:model.live="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
@@ -38,12 +48,33 @@
                 </x-tallui-select>
             </x-tallui-form-group>
 
+            <x-tallui-form-group label="Default Price Tier">
+                <x-tallui-select name="price_tier_code" wire:model.live="price_tier_code">
+                    @foreach ($priceTiers as $tier)
+                        <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
+                    @endforeach
+                </x-tallui-select>
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Tax (Local)">
+                <x-tallui-input name="tax_local" type="number" step="0.0001" wire:model="tax_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Discount (Local)">
+                <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Shipping (Local)">
+                <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" />
+            </x-tallui-form-group>
+
             <x-tallui-form-group label="Customer">
                 <div class="flex items-start gap-2">
-                    <div class="flex-1">
+                    <div class="flex-1" wire:key="sale-customer-select-{{ $customer_id ?? 'none' }}-{{ $form_refresh_key }}">
                         <x-tallui-select
                             name="customer_id"
-                            wire:model="customer_id"
+                            wire:model.live="customer_id"
+                            :value="$customer_id"
                             searchable
                             placeholder="Search customer or leave empty for walk-in"
                             :options="$selectedCustomerOptions"
@@ -62,47 +93,32 @@
                 </div>
             </x-tallui-form-group>
 
-            <x-tallui-form-group label="Default Price Tier">
-                <x-tallui-select name="price_tier_code" wire:model.live="price_tier_code">
-                    @foreach ($priceTiers as $tier)
-                        <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
-                    @endforeach
-                </x-tallui-select>
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Currency">
-                <x-tallui-input name="currency" wire:model="currency" placeholder="BDT" />
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Exchange Rate (BDT)">
-                <x-tallui-input name="exchange_rate" type="number" step="0.0001" wire:model="exchange_rate" />
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Tax (Local)">
-                <x-tallui-input name="tax_local" type="number" step="0.0001" wire:model="tax_local" placeholder="0.00" />
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Discount (Local)">
-                <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" />
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Shipping (Local)">
-                <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" />
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Coupon Code" :error="$errors->first('coupon_code')">
-                <x-tallui-input name="coupon_code" wire:model="coupon_code" placeholder="SAVE10" />
-            </x-tallui-form-group>
-
             <div class="md:col-span-2 lg:col-span-3">
-                <x-tallui-form-group label="Notes">
-                    <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Internal notes, delivery instructions…" />
-                </x-tallui-form-group>
+                <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-50 px-4 py-3">
+                    <div>
+                        <div class="text-xs uppercase text-base-content/50">Pricing Currency</div>
+                        <div class="font-mono text-sm font-semibold">{{ $currency ?: 'Auto' }}</div>
+                    </div>
+                    <x-tallui-button
+                        :label="filled($notes) ? 'View Note' : 'Add Note'"
+                        :icon="filled($notes) || $show_notes ? 'o-chat-bubble-left-ellipsis' : 'o-plus-circle'"
+                        class="btn-ghost btn-sm"
+                        type="button"
+                        wire:click="toggleNotes"
+                    />
+                </div>
+                @if ($show_notes)
+                    <div class="mt-3">
+                        <x-tallui-form-group label="Notes">
+                            <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Internal notes, delivery instructions…" />
+                        </x-tallui-form-group>
+                    </div>
+                @endif
             </div>
         </div>
 
         @if ($selectedCustomer && $customerCreditSnapshot)
-            <div class="mt-5 rounded-2xl border border-base-200 bg-base-50 p-4">
+            <div class="mt-5 rounded-xl border border-base-200 bg-base-50 p-4">
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <div class="text-sm font-semibold text-base-content">Customer Credit Snapshot</div>
@@ -135,23 +151,39 @@
                     </div>
                 </div>
 
-                <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div class="flex items-start gap-3 rounded-xl border border-base-200 bg-base-100 p-3">
-                        <x-tallui-checkbox
-                            name="credit_override"
-                            label="Allow higher-authority credit override"
-                            wire:model="credit_override"
-                        />
-                    </div>
+                <div class="mt-4 rounded-xl border border-base-200 bg-base-100">
+                    <button
+                        type="button"
+                        class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                        wire:click="toggleCreditOverrideOptions"
+                    >
+                        <span>
+                            <span class="block text-sm font-semibold text-base-content">Credit Override</span>
+                            <span class="block text-xs text-base-content/60">Use only when this order needs higher-authority approval.</span>
+                        </span>
+                        <x-tallui-icon :name="$show_credit_override_options ? 'o-chevron-up' : 'o-chevron-down'" class="h-4 w-4 text-base-content/60" />
+                    </button>
 
-                    <x-tallui-form-group label="Override Reason / Approval Note" :error="$errors->first('credit_override_notes')">
-                        <x-tallui-textarea
-                            name="credit_override_notes"
-                            wire:model="credit_override_notes"
-                            rows="2"
-                            placeholder="Required when the order will go over the customer credit limit."
-                        />
-                    </x-tallui-form-group>
+                    @if ($show_credit_override_options)
+                        <div class="grid grid-cols-1 gap-4 border-t border-base-200 p-4 md:grid-cols-2">
+                            <div class="flex items-start gap-3">
+                                <x-tallui-checkbox
+                                    name="credit_override"
+                                    label="Allow higher-authority credit override"
+                                    wire:model="credit_override"
+                                />
+                            </div>
+
+                            <x-tallui-form-group label="Override Reason / Approval Note" :error="$errors->first('credit_override_notes')">
+                                <x-tallui-textarea
+                                    name="credit_override_notes"
+                                    wire:model="credit_override_notes"
+                                    rows="2"
+                                    placeholder="Required when the order will go over the customer credit limit."
+                                />
+                            </x-tallui-form-group>
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif
@@ -173,7 +205,8 @@
                         <th class="w-24">Qty</th>
                         <th class="w-24">Available</th>
                         <th class="w-32">Tier Override</th>
-                        <th class="w-32">Unit Price (Local)</th>
+                        <th class="w-36">Barcode</th>
+                        <th class="w-32">Unit Price ({{ $currency ?: 'Local' }})</th>
                         <th class="w-24">Discount %</th>
                         <th class="pr-5 w-28 text-right">Options</th>
                     </tr>
@@ -182,14 +215,17 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="so-item-{{ $index }}" class="hover:bg-base-50">
                             <td class="pl-5 py-2">
-                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}">
+                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_id'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
                                         name="items.{{ $index }}.product_id"
                                         wire:model.live="items.{{ $index }}.product_id"
+                                        wire:change="refreshItemPrice({{ $index }})"
+                                        :value="$item['product_id'] ?? null"
                                         searchable
                                         placeholder="Search product…"
                                         :options="isset($selectedProductOptions[$item['product_id'] ?? 0]) ? [($item['product_id'] ?? 0) => $selectedProductOptions[$item['product_id'] ?? 0]] : []"
                                         :search-url="route('inventory.async-select', ['resource' => 'sale-products', 'warehouse_id' => $warehouse_id])"
+                                        :disabled="filled($item['product_id'] ?? null)"
                                         class="select-sm w-full"
                                     />
                                 </div>
@@ -209,7 +245,24 @@
                                 </x-tallui-select>
                             </td>
                             <td class="py-2">
-                                <x-tallui-input name="items.{{ $index }}.unit_price_local" type="number" step="0.0001" min="0" wire:model="items.{{ $index }}.unit_price_local" class="input-sm text-right w-full" />
+                                <x-tallui-input
+                                    wire:key="so-barcode-{{ $index }}-{{ $item['product_id'] ?? 'none' }}"
+                                    name="items.{{ $index }}.barcode"
+                                    wire:model="items.{{ $index }}.barcode"
+                                    class="input-sm w-full font-mono"
+                                    disabled
+                                />
+                            </td>
+                            <td class="py-2">
+                                <x-tallui-input
+                                    wire:key="so-unit-price-{{ $index }}-{{ $item['product_id'] ?? 'none' }}-{{ $item['price_tier_code'] ?: $price_tier_code }}"
+                                    name="items.{{ $index }}.unit_price_local"
+                                    type="number"
+                                    step="0.0001"
+                                    min="0"
+                                    wire:model="items.{{ $index }}.unit_price_local"
+                                    class="input-sm text-right w-full"
+                                />
                             </td>
                             <td class="py-2">
                                 <x-tallui-input name="items.{{ $index }}.discount_pct" type="number" step="0.01" min="0" max="100" wire:model="items.{{ $index }}.discount_pct" class="input-sm text-right w-full" placeholder="0" />
@@ -231,7 +284,7 @@
                         </tr>
                         @if (($item['show_notes'] ?? false) || filled($item['notes'] ?? ''))
                             <tr wire:key="so-item-notes-{{ $index }}" class="bg-base-50/60">
-                                <td colspan="7" class="px-5 py-3">
+                                <td colspan="8" class="px-5 py-3">
                                     <x-tallui-form-group label="Line Note">
                                         <x-tallui-textarea
                                             name="items.{{ $index }}.notes"
@@ -245,7 +298,7 @@
                         @endif
                     @empty
                         <tr>
-                            <td colspan="7" class="py-6 text-center">
+                            <td colspan="8" class="py-6 text-center">
                                 <x-tallui-empty-state title="No items yet" description="Add at least one product line." icon="o-shopping-bag" size="sm">
                                     <x-tallui-button label="Add Line" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addItem" />
                                 </x-tallui-empty-state>

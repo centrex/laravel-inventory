@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Customer, Product, SaleOrder, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, Product, ProductPrice, SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -41,9 +41,17 @@ class SaleOrderFormPage extends Component
 
     public string $notes = '';
 
+    public bool $show_notes = false;
+
+    public bool $show_credit_override_options = false;
+
     public bool $credit_override = false;
 
     public string $credit_override_notes = '';
+
+    public int $form_refresh_key = 0;
+
+    public string $credit_limit_dialog_message = '';
 
     public array $items = [];
 
@@ -66,6 +74,7 @@ class SaleOrderFormPage extends Component
 
             if ($warehouse) {
                 $this->warehouse_id = $warehouse->id;
+                $this->syncWarehouseCurrency();
             }
         }
     }
@@ -90,23 +99,60 @@ class SaleOrderFormPage extends Component
         $this->items[$index]['show_notes'] = !((bool) ($this->items[$index]['show_notes'] ?? false));
     }
 
+    public function toggleNotes(): void
+    {
+        $this->show_notes = !$this->show_notes;
+    }
+
+    public function toggleCreditOverrideOptions(): void
+    {
+        $this->show_credit_override_options = !$this->show_credit_override_options;
+    }
+
+    public function refreshItemPrice(int $index): void
+    {
+        $this->syncItemPrice($index);
+    }
+
+    public function updatedItems(mixed $value, string $key): void
+    {
+        if (preg_match('/^(\d+)\.(product_id|price_tier_code)$/', $key, $matches)) {
+            $this->syncItemPrice((int) $matches[1]);
+        }
+    }
+
     public function save()
     {
+        $this->prepareDerivedPricingFields();
+
         $validated = $this->validate($this->rules());
         $validated['document_type'] = $this->documentType;
+        $validated['coupon_code'] = $this->recordId ? ($this->coupon_code ?: null) : null;
         $this->assertStockAvailability($validated['items']);
 
-        if ($this->recordId) {
-            $saleOrder = $this->updateOrder($validated);
-            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} updated.");
+        try {
+            if ($this->recordId) {
+                $saleOrder = $this->updateOrder($validated);
+                $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} updated.");
+
+                return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
+            }
+
+            $saleOrder = app(Inventory::class)->createSaleOrder($validated);
+            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
 
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
+        } catch (\InvalidArgumentException $exception) {
+            if (!str_contains($exception->getMessage(), 'exceeds credit limit')) {
+                throw $exception;
+            }
+
+            $this->credit_limit_dialog_message = $exception->getMessage();
+            $this->show_credit_override_options = true;
+            $this->dispatch('open-dialog', 'sale-order-credit-limit-dialog');
+
+            return null;
         }
-
-        $saleOrder = app(Inventory::class)->createSaleOrder($validated);
-        $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
-
-        return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
     }
 
     public function render(): View
@@ -133,10 +179,20 @@ class SaleOrderFormPage extends Component
             'priceTiers'              => PriceTierCode::options(),
             'selectedCustomer'        => $selectedCustomer,
             'selectedCustomerOptions' => $selectedCustomer
-                ? [$selectedCustomer->id => $selectedCustomer->name]
+                ? [
+                    $selectedCustomer->id => [
+                        'label'    => (string) ($selectedCustomer->organization_name ?: $selectedCustomer->name),
+                        'sublabel' => filled($selectedCustomer->phone) ? (string) $selectedCustomer->phone : null,
+                    ],
+                ]
                 : [],
             'selectedProductOptions' => $selectedProducts->mapWithKeys(
-                fn (Product $product): array => [$product->id => $product->name],
+                fn (Product $product): array => [
+                    $product->id => [
+                        'label'    => (string) $product->name,
+                        'sublabel' => filled($product->barcode) ? (string) $product->barcode : null,
+                    ],
+                ],
             )->all(),
             'customerCreditSnapshot' => $selectedCustomer ? app(Inventory::class)->customerCreditSnapshot($selectedCustomer->id) : null,
             'isEditing'              => $this->recordId !== null,
@@ -150,7 +206,14 @@ class SaleOrderFormPage extends Component
 
     public function updated(string $property): void
     {
-        if (in_array($property, ['warehouse_id', 'price_tier_code', 'currency'], true)) {
+        if ($property === 'warehouse_id') {
+            $this->resetOrderForWarehouse();
+            $this->syncWarehouseCurrency();
+
+            return;
+        }
+
+        if ($property === 'price_tier_code') {
             foreach (array_keys($this->items) as $index) {
                 $this->syncItemPrice($index);
             }
@@ -174,7 +237,6 @@ class SaleOrderFormPage extends Component
             'tax_local'                => ['nullable', 'numeric'],
             'discount_local'           => ['nullable', 'numeric'],
             'shipping_local'           => ['nullable', 'numeric'],
-            'coupon_code'              => ['nullable', 'string', 'max:50'],
             'notes'                    => ['nullable', 'string'],
             'credit_override'          => ['nullable', 'boolean'],
             'credit_override_notes'    => ['nullable', 'string'],
@@ -182,6 +244,7 @@ class SaleOrderFormPage extends Component
             'items.*.product_id'       => ['required', 'integer'],
             'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
             'items.*.price_tier_code'  => ['nullable', 'string'],
+            'items.*.barcode'          => ['nullable', 'string'],
             'items.*.unit_price_local' => ['nullable', 'numeric', 'min:0'],
             'items.*.discount_pct'     => ['nullable', 'numeric', 'min:0'],
             'items.*.notes'            => ['nullable', 'string'],
@@ -193,7 +256,8 @@ class SaleOrderFormPage extends Component
         return [
             'product_id'       => null,
             'qty_ordered'      => 1,
-            'price_tier_code'  => PriceTierCode::B2B_RETAIL->value,
+            'price_tier_code'  => '',
+            'barcode'          => '',
             'unit_price_local' => null,
             'discount_pct'     => 0,
             'notes'            => '',
@@ -203,7 +267,7 @@ class SaleOrderFormPage extends Component
 
     private function loadOrder(int $recordId): void
     {
-        $query = SaleOrder::query()->with('items');
+        $query = SaleOrder::query()->with('items.product');
         CommercialTeamAccess::applySalesScope($query);
         $order = $query->findOrFail($recordId);
 
@@ -218,12 +282,15 @@ class SaleOrderFormPage extends Component
         $this->shipping_local = (float) $order->shipping_local;
         $this->coupon_code = (string) ($order->coupon_code ?? '');
         $this->notes = (string) ($order->notes ?? '');
+        $this->show_notes = false;
         $this->credit_override = (bool) $order->credit_override_required;
         $this->credit_override_notes = (string) ($order->credit_override_notes ?? '');
+        $this->show_credit_override_options = $this->credit_override || $this->credit_override_notes !== '';
         $this->items = $order->items->map(fn ($item): array => [
             'product_id'       => $item->product_id,
             'qty_ordered'      => (float) $item->qty_ordered,
             'price_tier_code'  => $item->price_tier_code,
+            'barcode'          => (string) ($item->product?->barcode ?? ''),
             'unit_price_local' => (float) $item->unit_price_local,
             'discount_pct'     => (float) $item->discount_pct,
             'notes'            => (string) ($item->notes ?? ''),
@@ -382,20 +449,166 @@ class SaleOrderFormPage extends Component
 
         if (!$productId || !$this->warehouse_id) {
             $this->items[$index]['unit_price_local'] = null;
+            $this->items[$index]['barcode'] = '';
 
             return;
         }
 
         $tierCode = $this->items[$index]['price_tier_code'] ?: $this->price_tier_code ?: PriceTierCode::B2B_RETAIL->value;
-        $this->items[$index]['price_tier_code'] = $tierCode;
 
         try {
             $inventory = app(Inventory::class);
-            $price = $inventory->resolvePrice($productId, $tierCode, (int) $this->warehouse_id);
-            $currency = $this->currency ?: strtoupper((string) config('inventory.sale_defaults.currency', 'GBP'));
-            $this->items[$index]['unit_price_local'] = (float) ($price->price_local ?: $inventory->convertFromBase((float) $price->price_amount, $currency));
+            $price = $this->resolvePriceForLine($inventory, $productId, $tierCode);
+            $product = Product::query()->find($productId);
+            $currency = $this->warehouseCurrency();
+
+            $this->items[$index]['barcode'] = (string) ($product?->barcode ?? '');
+            $this->currency = $currency;
+            $this->exchange_rate = $this->exchangeRateForCurrency($currency);
+            $this->items[$index]['unit_price_local'] = $this->resolvedUnitPriceLocal($price, $inventory, $currency);
         } catch (\Throwable) {
             // Keep manual price when no active price exists.
+        }
+    }
+
+    private function resolvePriceForLine(Inventory $inventory, int $productId, string $tierCode): ProductPrice
+    {
+        try {
+            return $inventory->resolvePrice($productId, $tierCode, (int) $this->warehouse_id);
+        } catch (\Throwable) {
+            $query = ProductPrice::query()
+                ->where('product_id', $productId)
+                ->where('is_active', true)
+                ->where(fn ($builder) => $builder->whereNull('effective_from')->orWhere('effective_from', '<=', now()->toDateString()))
+                ->where(fn ($builder) => $builder->whereNull('effective_to')->orWhere('effective_to', '>=', now()->toDateString()));
+
+            $price = (clone $query)
+                ->where('price_tier_code', $tierCode)
+                ->where('warehouse_id', $this->warehouse_id)
+                ->latest()
+                ->first();
+            $price ??= (clone $query)
+                ->where('price_tier_code', $tierCode)
+                ->whereNull('warehouse_id')
+                ->latest()
+                ->first();
+            $price ??= (clone $query)
+                ->where('warehouse_id', $this->warehouse_id)
+                ->latest()
+                ->first();
+            $price ??= (clone $query)
+                ->whereNull('warehouse_id')
+                ->latest()
+                ->first();
+
+            if ($price) {
+                return $price;
+            }
+
+            $product = Product::query()->find($productId);
+            $defaultPrice = (float) ($product?->meta['default_price'] ?? $product?->meta['price'] ?? 0);
+
+            return new ProductPrice([
+                'price_amount' => $defaultPrice,
+                'price_local'  => $defaultPrice,
+            ]);
+        }
+    }
+
+    private function resolvedUnitPriceLocal(ProductPrice $price, Inventory $inventory, string $currency): float
+    {
+        if ($price->price_local !== null) {
+            return (float) $price->price_local;
+        }
+
+        $priceAmount = (float) ($price->price_amount ?? 0);
+
+        try {
+            return $inventory->convertFromBase($priceAmount, $currency);
+        } catch (\Throwable) {
+            return $priceAmount;
+        }
+    }
+
+    private function prepareDerivedPricingFields(): void
+    {
+        foreach (array_keys($this->items) as $index) {
+            if (($this->items[$index]['unit_price_local'] ?? null) === null || $this->items[$index]['unit_price_local'] === '') {
+                $this->syncItemPrice($index);
+
+                continue;
+            }
+
+            $this->syncCurrencyFromItemPrice($index);
+        }
+
+        $this->syncWarehouseCurrency();
+        $this->exchange_rate ??= $this->exchangeRateForCurrency($this->currency);
+    }
+
+    private function syncCurrencyFromItemPrice(int $index): void
+    {
+        $productId = (int) ($this->items[$index]['product_id'] ?? 0);
+
+        if (!$productId || !$this->warehouse_id) {
+            return;
+        }
+
+        $tierCode = $this->items[$index]['price_tier_code'] ?: $this->price_tier_code ?: PriceTierCode::B2B_RETAIL->value;
+
+        try {
+            $this->resolvePriceForLine(app(Inventory::class), $productId, $tierCode);
+            $currency = $this->warehouseCurrency();
+
+            $this->currency = $currency;
+            $this->exchange_rate = $this->exchangeRateForCurrency($currency);
+        } catch (\Throwable) {
+            // Manual lines can still be submitted with the current derived currency.
+        }
+    }
+
+    private function resetOrderForWarehouse(): void
+    {
+        $this->customer_id = null;
+        $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
+        $this->tax_local = 0;
+        $this->discount_local = 0;
+        $this->shipping_local = 0;
+        $this->coupon_code = '';
+        $this->notes = '';
+        $this->show_notes = false;
+        $this->credit_override = false;
+        $this->credit_override_notes = '';
+        $this->show_credit_override_options = false;
+        $this->items = [$this->blankItem()];
+        $this->form_refresh_key++;
+        $this->resetErrorBag();
+        $this->resetValidation();
+    }
+
+    private function syncWarehouseCurrency(): void
+    {
+        $currency = $this->warehouseCurrency();
+
+        $this->currency = $currency;
+        $this->exchange_rate = $this->exchangeRateForCurrency($currency);
+    }
+
+    private function warehouseCurrency(): string
+    {
+        $currency = $this->warehouse_id
+            ? Warehouse::query()->whereKey($this->warehouse_id)->value('currency')
+            : null;
+
+        return strtoupper((string) ($currency ?: config('inventory.sale_defaults.currency', 'GBP')));
+    }
+
+    private function exchangeRateForCurrency(string $currency): ?float
+    {
+        try {
+            return app(Inventory::class)->getExchangeRate($currency);
+        } catch (\Throwable) {
+            return null;
         }
     }
 

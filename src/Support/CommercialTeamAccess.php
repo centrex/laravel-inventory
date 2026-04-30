@@ -165,7 +165,13 @@ final class CommercialTeamAccess
     {
         $userId ??= self::currentUserId();
 
-        if (!$userId || self::isPrivilegedUser($userId) || !self::tableReady() || !self::workflowHasActiveMembers($workflow)) {
+        if (
+            !$userId
+            || self::isPrivilegedUser($userId)
+            || self::canViewAllWorkflowOrders($workflow, $userId)
+            || !self::tableReady()
+            || !self::workflowHasActiveMembers($workflow)
+        ) {
             return null;
         }
 
@@ -261,6 +267,39 @@ final class CommercialTeamAccess
         }
 
         return method_exists($user, 'hasRole') && $user->hasRole(self::adminRoles());
+    }
+
+    private static function canViewAllWorkflowOrders(string $workflow, int $userId): bool
+    {
+        $ability = match ($workflow) {
+            'sales'    => 'inventory.sale-orders.view-all',
+            'purchase' => 'inventory.purchase-orders.view-all',
+            default    => null,
+        };
+
+        if (!$ability) {
+            return false;
+        }
+
+        $userClass = (string) config('auth.providers.users.model', 'App\\Models\\User');
+
+        if (!class_exists($userClass)) {
+            return false;
+        }
+
+        $user = $userClass::query()->find($userId);
+
+        if (!$user || !method_exists($user, 'allTeams') || !method_exists($user, 'hasTeamPermission')) {
+            return false;
+        }
+
+        try {
+            return $user->allTeams()->contains(
+                fn ($team): bool => $user->hasTeamPermission($team, $ability),
+            );
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private static function workflowHasActiveMembers(string $workflow): bool

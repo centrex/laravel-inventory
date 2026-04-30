@@ -109,7 +109,38 @@ class InventoryServiceProvider extends ServiceProvider
             'inventory.adjustments.view',
             'inventory.adjustments.create',
             'inventory.adjustments.post',
+
+            // Partners (manage partner records — admin only)
+            'inventory.partners.view',
+            'inventory.partners.manage',
+
+            // Pick-Pack-Ship
+            'inventory.pick-lists.view',
+            'inventory.shipments.view',
         ];
+
+        // Partner back-office gates: granted to users with a partner role.
+        // These gates scope access to the partner's own customer data only.
+        $partnerAbilities = [
+            'inventory.partner.view-stock',
+            'inventory.partner.view-prices',
+            'inventory.partner.create-order',
+            'inventory.partner.view-own-orders',
+        ];
+
+        foreach ($partnerAbilities as $ability) {
+            if (!Gate::has($ability)) {
+                Gate::define($ability, function ($user) {
+                    $partnerRoles = $this->normalizeAdminRoles(config('inventory.partner_roles', 'dropshipper,ecom-partner'));
+
+                    if (method_exists($user, 'hasRole') && !empty($partnerRoles)) {
+                        return $user->hasRole($partnerRoles);
+                    }
+
+                    return false;
+                });
+            }
+        }
 
         foreach ($abilities as $ability) {
             if (!Gate::has($ability)) {

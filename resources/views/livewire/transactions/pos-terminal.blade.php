@@ -129,10 +129,10 @@
     @endif
 
     {{-- ── MAIN AREA ── --}}
-    <div class="flex flex-1 overflow-hidden flex-col md:flex-row">
+    <div class="flex flex-1 overflow-hidden flex-row">
 
         {{-- ═══ PRODUCT PANEL (left / top) ═══ --}}
-        <div class="flex flex-col flex-1 overflow-hidden">
+        <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
 
             {{-- Barcode / search bar — always focused for scanner input --}}
             <div class="px-3 py-2 border-b border-base-200 flex-shrink-0">
@@ -220,12 +220,22 @@
                             </button>
                         @endforeach
                     </div>
+
+                    @if ($hasMoreProducts)
+                        <div
+                            wire:key="pos-product-load-more-{{ $productLimit }}"
+                            x-intersect="$wire.loadMoreProducts()"
+                            class="flex items-center justify-center py-5"
+                        >
+                            <span wire:loading wire:target="loadMoreProducts" class="loading loading-spinner loading-sm text-primary"></span>
+                        </div>
+                    @endif
                 @endif
             </div>
         </div>
 
         {{-- ═══ CART PANEL (right / bottom) ═══ --}}
-        <div class="flex flex-col border-t md:border-t-0 md:border-l border-base-200 bg-base-50 md:w-80 lg:w-96 flex-shrink-0 max-h-[45vh] md:max-h-none">
+        <div class="flex flex-col border-l border-base-200 bg-base-50 w-80 lg:w-96 flex-shrink-0">
 
             {{-- Cart header + per-tab customer --}}
             <div class="px-4 py-3 border-b border-base-200 flex-shrink-0 bg-base-200 space-y-2">
@@ -255,12 +265,45 @@
                     @endforeach
                 </select>
 
-                <input
-                    wire:model.blur="tabCouponCodes.{{ $activeTabId }}"
-                    class="input input-sm input-bordered w-full font-mono uppercase"
-                    placeholder="Coupon code"
-                    maxlength="50"
-                />
+                <div class="flex items-center gap-2">
+                    <input
+                        wire:model="tabCouponInputs.{{ $activeTabId }}"
+                        wire:keydown.enter="applyCoupon"
+                        class="input input-sm input-bordered w-full font-mono uppercase"
+                        placeholder="Coupon code"
+                        maxlength="50"
+                    />
+                    <button
+                        type="button"
+                        wire:click="applyCoupon"
+                        wire:loading.attr="disabled"
+                        wire:target="applyCoupon"
+                        class="btn btn-sm btn-outline flex-shrink-0"
+                    >
+                        <span wire:loading.remove wire:target="applyCoupon">Apply</span>
+                        <span wire:loading wire:target="applyCoupon" class="loading loading-spinner loading-xs"></span>
+                    </button>
+                </div>
+
+                @if ($couponPreview)
+                    <div @class([
+                        'flex items-center justify-between rounded-lg px-3 py-2 text-xs',
+                        'bg-success/10 text-success' => empty($couponPreview['invalid']),
+                        'bg-error/10 text-error' => !empty($couponPreview['invalid']),
+                    ])>
+                        <span class="font-medium truncate">
+                            {{ $couponPreview['code'] }}
+                            @if (!empty($couponPreview['invalid']))
+                                · {{ $couponPreview['invalid'] }}
+                            @else
+                                applied
+                            @endif
+                        </span>
+                        @if (empty($couponPreview['invalid']))
+                            <span class="font-mono flex-shrink-0">-{{ $currency }} {{ number_format((float) $couponPreview['discount'], 2) }}</span>
+                        @endif
+                    </div>
+                @endif
             </div>
 
             {{-- Cart items --}}
@@ -308,11 +351,25 @@
 
             {{-- Cart footer --}}
             <div class="border-t border-base-200 flex-shrink-0 bg-base-100">
+                @php
+                    $couponDiscountLocal = $couponPreview && empty($couponPreview['invalid'])
+                        ? (float) $couponPreview['discount']
+                        : 0.0;
+                    $payableTotal = max(0, (float) $cartTotal - $couponDiscountLocal);
+                @endphp
+
+                @if ($couponDiscountLocal > 0)
+                    <div class="flex items-center justify-between px-4 py-2 border-b border-base-200 text-sm">
+                        <span class="text-base-content/50 font-medium">Coupon</span>
+                        <span class="font-mono text-success tabular-nums">-{{ $currency }} {{ number_format($couponDiscountLocal, 2) }}</span>
+                    </div>
+                @endif
+
                 {{-- Total row --}}
                 <div class="flex items-baseline justify-between px-4 py-3 border-b border-base-200">
                     <span class="text-xs text-base-content/50 uppercase tracking-widest font-medium">Total</span>
                     <span class="text-2xl font-bold font-mono text-primary tabular-nums">
-                        {{ $currency }} {{ number_format($cartTotal, 2) }}
+                        {{ $currency }} {{ number_format($payableTotal, 2) }}
                     </span>
                 </div>
 
