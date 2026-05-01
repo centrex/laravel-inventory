@@ -7,9 +7,12 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class TransferBoxItem extends Model
+class TransferBoxItem extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
 
     protected function getTableSuffix(): string

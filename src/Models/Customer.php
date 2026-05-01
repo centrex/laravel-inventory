@@ -8,10 +8,13 @@ use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
 use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphTo};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\MediaLibrary\HasMedia;
 
-class Customer extends Model implements HasMedia
+class Customer extends Model implements Auditable, HasMedia
 {
+    use AuditableTrait;
     use AddTablePrefix;
     use HasPrimaryImage;
     use SoftDeletes;

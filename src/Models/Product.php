@@ -7,10 +7,13 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\MediaLibrary\HasMedia;
 
-class Product extends Model implements HasMedia
+class Product extends Model implements Auditable, HasMedia
 {
+    use AuditableTrait;
     use AddTablePrefix;
     use HasPrimaryImage;
     use SoftDeletes;

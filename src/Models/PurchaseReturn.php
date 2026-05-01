@@ -7,9 +7,12 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class PurchaseReturn extends Model
+class PurchaseReturn extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
     use SoftDeletes;
 

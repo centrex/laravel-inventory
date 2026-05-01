@@ -8,9 +8,12 @@ use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class Partner extends Model
+class Partner extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
     use SoftDeletes;
 

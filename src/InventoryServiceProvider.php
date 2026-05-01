@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
+use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand};
 use Centrex\Inventory\Models\{Customer, Supplier};
 use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
 use Centrex\Inventory\Support\ErpIntegration;
@@ -27,7 +28,7 @@ class InventoryServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
         }
 
-        $this->app->booted(fn (): mixed => $this->registerLivewireComponents());
+        $this->app->booted(function (): void { $this->registerLivewireComponents(); });
         $this->registerGates();
 
         if ((bool) config('inventory.erp.accounting.enabled', false)) {
@@ -43,6 +44,11 @@ class InventoryServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../database/migrations/' => database_path('migrations'),
             ], 'inventory-migrations');
+
+            $this->commands([
+                InventoryCommand::class,
+                SnapshotTrendsCommand::class,
+            ]);
         }
     }
 
@@ -144,7 +150,7 @@ class InventoryServiceProvider extends ServiceProvider
 
         foreach ($abilities as $ability) {
             if (!Gate::has($ability)) {
-                Gate::define($ability, static function ($user) use ($ability): bool {
+                Gate::define($ability, function ($user) use ($ability): bool {
                     if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
                         return true;
                     }

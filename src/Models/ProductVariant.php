@@ -8,9 +8,12 @@ use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class ProductVariant extends Model
+class ProductVariant extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
     use SoftDeletes;
 

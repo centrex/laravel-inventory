@@ -8,9 +8,12 @@ use Centrex\Inventory\Concerns\AddTablePrefix;
 use Centrex\Inventory\Enums\PurchaseOrderStatus;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class PurchaseOrder extends Model
+class PurchaseOrder extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
     use SoftDeletes;
 

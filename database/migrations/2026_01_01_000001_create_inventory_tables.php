@@ -67,14 +67,15 @@ return new class() extends Migration
             $table->string('barcode', 100)->nullable()->unique();
             $table->boolean('is_active')->default(true)->index();
             $table->boolean('is_stockable')->default(true);
-            $table->text('variant_names')->nullable(); // JSON object of variant dimension key→value pairs, e.g. {"size":"Large","color":"Red"}
+            // wac = Weighted Average Cost (default), fifo = First-In First-Out, lifo = Last-In First-Out
+            $table->string('costing_method', 10)->default('wac');
+            $table->text('variant_names')->nullable();
             $table->json('meta')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });
 
         // ── Product Variant Attribute Types ───────────────────────────────────
-        // Defines variation axes (Color, Size, Material, etc.) for a product family.
         Schema::connection($c)->create($p . 'product_variant_attribute_types', function (Blueprint $table): void {
             $table->id();
             $table->string('name', 100);
@@ -84,7 +85,6 @@ return new class() extends Migration
         });
 
         // ── Product Variant Attribute Values ──────────────────────────────────
-        // Valid values per type (e.g. Color → Red, Blue; Size → S, M, L, XL).
         Schema::connection($c)->create($p . 'product_variant_attribute_values', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('attribute_type_id')
@@ -101,10 +101,6 @@ return new class() extends Migration
         });
 
         // ── Product Variants ──────────────────────────────────────────────────
-        // One row per sellable SKU variant of a product (e.g. Red / L, Blue / M).
-        // Structured attributes stored as JSON object keyed by attribute-type slug:
-        //   {"color":"red","size":"l"}
-        // The normalised pivot below links variants to attribute-value rows for UI.
         Schema::connection($c)->create($p . 'product_variants', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('product_id')
@@ -126,7 +122,6 @@ return new class() extends Migration
         });
 
         // ── Variant ↔ Attribute-Value pivot ───────────────────────────────────
-        // Normalised link between a variant and its per-axis attribute values.
         Schema::connection($c)->create($p . 'product_variant_attributes', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('variant_id')
@@ -147,7 +142,6 @@ return new class() extends Migration
         });
 
         // ── Suppliers ─────────────────────────────────────────────────────────
-        // geo JSON: {zone, area, segment, ...} replaces separate zone/area/demographic columns
         Schema::connection($c)->create($p . 'suppliers', function (Blueprint $table): void {
             $table->id();
             $table->string('code', 30)->unique();
@@ -175,7 +169,6 @@ return new class() extends Migration
         });
 
         // ── Customers ─────────────────────────────────────────────────────────
-        // geo JSON: {zone, area, segment, ...} replaces separate zone/area/demographic columns
         Schema::connection($c)->create($p . 'customers', function (Blueprint $table): void {
             $table->id();
             $table->string('code', 30)->unique();
@@ -253,6 +246,7 @@ return new class() extends Migration
             $table->date('effective_from')->nullable();
             $table->date('effective_to')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->boolean('is_damaged')->default(false)->index();
             $table->timestamps();
 
             $table->index(['product_id', 'price_tier_code']);
@@ -262,7 +256,6 @@ return new class() extends Migration
         });
 
         // ── Warehouse-Product Stock Ledger ────────────────────────────────────
-        // variant_id=NULL means base product (no variant); unique on (warehouse_id, product_id, variant_id)
         Schema::connection($c)->create($p . 'warehouse_products', function (Blueprint $table) use ($p): void {
             $table->id();
             $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
@@ -271,6 +264,7 @@ return new class() extends Migration
             $table->decimal('qty_on_hand', 18, 4)->default(0);
             $table->decimal('qty_reserved', 18, 4)->default(0);
             $table->decimal('qty_in_transit', 18, 4)->default(0);
+            $table->decimal('qty_damaged', 18, 4)->default(0);
             $table->decimal('wac_amount', 18, 4)->default(0);
             $table->decimal('reorder_point', 18, 4)->nullable();
             $table->decimal('reorder_qty', 18, 4)->nullable();
@@ -344,6 +338,50 @@ return new class() extends Migration
             $table->index(['product_id', 'variant_id'], $p . 'purchase_order_items_product_variant_idx');
         });
 
+        // ── Lots (batch tracking) ─────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'lots', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('lot_number', 100);
+            $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
+            $table->unsignedBigInteger('purchase_order_item_id')->nullable()->index();
+            $table->date('manufactured_at')->nullable();
+            $table->date('expires_at')->nullable();
+            $table->decimal('qty_initial', 18, 4)->default(0);
+            $table->decimal('qty_on_hand', 18, 4)->default(0);
+            $table->decimal('unit_cost_amount', 18, 4)->default(0);
+            $table->text('notes')->nullable();
+            $table->timestamps();
+
+            $table->unique(
+                ['product_id', 'variant_id', 'warehouse_id', 'lot_number'],
+                $p . 'lots_product_warehouse_lot_unique',
+            );
+            $table->index(['product_id', 'variant_id', 'warehouse_id'], $p . 'lots_product_variant_warehouse_idx');
+            $table->index('expires_at');
+        });
+
+        // ── Serial Numbers (unit-level tracking) ──────────────────────────────
+        Schema::connection($c)->create($p . 'serial_numbers', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('serial_number', 150)->unique();
+            $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
+            $table->unsignedBigInteger('purchase_order_item_id')->nullable()->index();
+            $table->unsignedBigInteger('sale_order_item_id')->nullable()->index();
+            // available | reserved | sold | returned | damaged | lost
+            $table->string('status', 30)->default('available')->index();
+            $table->timestamps();
+
+            $table->index(
+                ['product_id', 'warehouse_id', 'status'],
+                $p . 'serial_numbers_product_warehouse_status_idx',
+            );
+        });
+
         // ── Stock Receipts (GRN) ──────────────────────────────────────────────
         Schema::connection($c)->create($p . 'stock_receipts', function (Blueprint $table) use ($p, $withUserForeignKeys): void {
             $table->id();
@@ -374,7 +412,11 @@ return new class() extends Migration
             $table->foreignId('purchase_order_item_id')->nullable()->constrained($p . 'purchase_order_items')->nullOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
             $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
+            $table->json('serial_numbers')->nullable();
             $table->decimal('qty_received', 18, 4);
+            $table->decimal('qty_damaged', 18, 4)->default(0);
+            $table->decimal('qty_lost', 18, 4)->default(0);
             $table->decimal('unit_cost_local', 18, 4);
             $table->decimal('unit_cost_amount', 18, 4);
             $table->decimal('exchange_rate', 18, 8);
@@ -453,6 +495,8 @@ return new class() extends Migration
             $table->foreignId('sale_order_id')->constrained($p . 'sale_orders')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
             $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
+            $table->boolean('from_damaged')->default(false);
             $table->string('price_tier_code', 30)->nullable()->index();
             $table->decimal('qty_ordered', 18, 4);
             $table->decimal('qty_fulfilled', 18, 4)->default(0);
@@ -674,6 +718,7 @@ return new class() extends Migration
             $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
             $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
             $table->string('movement_type', 30);
             $table->enum('direction', ['in', 'out']);
             $table->decimal('qty', 18, 4);
@@ -699,6 +744,171 @@ return new class() extends Migration
                 $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
             }
         });
+
+        // ── Pick Lists ────────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'pick_lists', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('pick_number', 40)->unique();
+            $table->foreignId('sale_order_id')->constrained($p . 'sale_orders')->cascadeOnDelete();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses');
+            $table->unsignedBigInteger('assigned_to')->nullable()->index();
+            $table->string('status', 20)->default('draft'); // draft|picking|picked|cancelled
+            $table->text('notes')->nullable();
+            $table->timestamp('picked_at')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+        });
+
+        // ── Pick List Items ───────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'pick_list_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('pick_list_id')->constrained($p . 'pick_lists')->cascadeOnDelete();
+            $table->foreignId('sale_order_item_id')->constrained($p . 'sale_order_items');
+            $table->foreignId('product_id')->constrained($p . 'products');
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
+            $table->string('bin_location', 50)->nullable();
+            $table->decimal('qty_to_pick', 18, 4)->default(0);
+            $table->decimal('qty_picked', 18, 4)->default(0);
+            $table->json('serial_numbers')->nullable();
+            $table->timestamps();
+        });
+
+        // ── Shipments ─────────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'shipments', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->string('shipment_number', 40)->unique();
+            $table->foreignId('sale_order_id')->constrained($p . 'sale_orders');
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses');
+            $table->string('carrier', 80)->nullable();
+            $table->string('tracking_number', 100)->nullable();
+            $table->string('status', 20)->default('pending'); // pending|dispatched|delivered|returned
+            $table->text('notes')->nullable();
+            $table->timestamp('dispatched_at')->nullable();
+            $table->timestamp('estimated_delivery_at')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+        });
+
+        // ── Shipment Items ────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'shipment_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('shipment_id')->constrained($p . 'shipments')->cascadeOnDelete();
+            $table->foreignId('sale_order_item_id')->constrained($p . 'sale_order_items');
+            $table->foreignId('product_id')->constrained($p . 'products');
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
+            $table->decimal('qty_shipped', 18, 4)->default(0);
+            $table->timestamps();
+        });
+
+        // ── Partners (dropshipper / ecom / b2b API access) ────────────────────
+        Schema::connection($c)->create($p . 'partners', function (Blueprint $table): void {
+            $table->id();
+            $table->string('name', 120);
+            $table->string('type', 30)->default('dropshipper'); // dropshipper|ecom|b2b|marketplace
+            $table->string('api_key', 64)->unique();
+            $table->unsignedBigInteger('customer_id')->nullable()->index();
+            $table->unsignedBigInteger('default_warehouse_id')->nullable();
+            $table->string('default_price_tier', 30)->default('B2B_WHOLESALE');
+            $table->boolean('can_view_stock')->default(true);
+            $table->boolean('can_view_prices')->default(true);
+            $table->boolean('can_create_orders')->default(true);
+            $table->boolean('is_active')->default(true);
+            $table->json('allowed_warehouse_ids')->nullable();
+            $table->json('allowed_product_ids')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
+        // ── Product Trend Snapshots ───────────────────────────────────────────
+        // Daily/weekly/monthly aggregated metrics per product for trend analysis
+        Schema::connection($c)->create($p . 'product_trend_snapshots', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('product_id')->constrained($p . 'products')->cascadeOnDelete();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('warehouse_id')->nullable()->index(); // null = all warehouses aggregated
+            $table->date('snapshot_date'); // period start date (day / week-start / month-start)
+            $table->string('period', 10)->default('daily'); // daily | weekly | monthly
+            $table->decimal('qty_sold', 18, 4)->default(0);
+            $table->decimal('qty_purchased', 18, 4)->default(0);
+            $table->decimal('qty_returned_sale', 18, 4)->default(0);
+            $table->decimal('qty_returned_purchase', 18, 4)->default(0);
+            $table->decimal('revenue_amount', 18, 4)->default(0); // base currency
+            $table->decimal('cogs_amount', 18, 4)->default(0);
+            $table->decimal('gross_profit_amount', 18, 4)->default(0); // revenue - cogs
+            $table->decimal('gross_margin_pct', 8, 4)->default(0); // gross_profit / revenue * 100
+            $table->decimal('avg_sell_price', 18, 4)->default(0);
+            $table->decimal('avg_cost_amount', 18, 4)->default(0); // WAC at time of sale
+            $table->decimal('wac_snapshot', 18, 4)->default(0); // WAC at end of period
+            $table->decimal('qty_on_hand_snapshot', 18, 4)->default(0);
+            $table->unsignedInteger('orders_count')->default(0);
+            $table->unsignedInteger('customers_count')->default(0);
+            $table->timestamps();
+
+            $table->unique(
+                ['product_id', 'variant_id', 'warehouse_id', 'snapshot_date', 'period'],
+                $p . 'product_trend_snapshots_unique',
+            );
+            $table->index(['product_id', 'snapshot_date', 'period'], $p . 'product_trend_snapshots_lookup_idx');
+            $table->index(['snapshot_date', 'period']);
+        });
+
+        // ── Customer Product Stats ────────────────────────────────────────────
+        // Rolling per-customer, per-product purchase statistics for demand forecasting
+        Schema::connection($c)->create($p . 'customer_product_stats', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('customer_id')->constrained($p . 'customers')->cascadeOnDelete();
+            $table->foreignId('product_id')->constrained($p . 'products')->cascadeOnDelete();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedInteger('total_orders')->default(0);
+            $table->decimal('total_qty_ordered', 18, 4)->default(0);
+            $table->decimal('total_qty_fulfilled', 18, 4)->default(0);
+            $table->decimal('total_revenue_amount', 18, 4)->default(0);
+            $table->decimal('avg_unit_price_amount', 18, 4)->default(0);
+            $table->decimal('avg_order_interval_days', 8, 2)->nullable(); // avg days between orders of this product
+            $table->decimal('total_return_qty', 18, 4)->default(0);
+            $table->decimal('return_rate_pct', 8, 4)->default(0); // total_return_qty / total_qty_ordered * 100
+            $table->timestamp('first_ordered_at')->nullable();
+            $table->timestamp('last_ordered_at')->nullable();
+            $table->timestamps();
+
+            $table->unique(
+                ['customer_id', 'product_id', 'variant_id'],
+                $p . 'customer_product_stats_unique',
+            );
+            $table->index(['customer_id', 'last_ordered_at'], $p . 'customer_product_stats_customer_idx');
+            $table->index('product_id');
+        });
+
+        // ── Supplier Product Stats ────────────────────────────────────────────
+        // Rolling per-supplier, per-product supply statistics for cost trending and reliability
+        Schema::connection($c)->create($p . 'supplier_product_stats', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('supplier_id')->constrained($p . 'suppliers')->cascadeOnDelete();
+            $table->foreignId('product_id')->constrained($p . 'products')->cascadeOnDelete();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedInteger('total_orders')->default(0);
+            $table->decimal('total_qty_ordered', 18, 4)->default(0);
+            $table->decimal('total_qty_received', 18, 4)->default(0);
+            $table->decimal('total_cost_amount', 18, 4)->default(0); // base currency
+            $table->decimal('avg_unit_cost_amount', 18, 4)->default(0);
+            $table->decimal('min_unit_cost_amount', 18, 4)->default(0); // lowest price ever seen
+            $table->decimal('max_unit_cost_amount', 18, 4)->default(0); // highest price ever seen
+            $table->decimal('avg_lead_time_days', 8, 2)->nullable(); // avg days from PO ordered_at to GRN received_at
+            $table->decimal('on_time_receipt_rate_pct', 8, 4)->default(0); // % of GRNs received by PO expected_at
+            $table->decimal('fulfillment_rate_pct', 8, 4)->default(0); // qty_received / qty_ordered * 100
+            $table->timestamp('first_ordered_at')->nullable();
+            $table->timestamp('last_ordered_at')->nullable();
+            $table->timestamps();
+
+            $table->unique(
+                ['supplier_id', 'product_id', 'variant_id'],
+                $p . 'supplier_product_stats_unique',
+            );
+            $table->index(['supplier_id', 'last_ordered_at'], $p . 'supplier_product_stats_supplier_idx');
+            $table->index('product_id');
+        });
     }
 
     public function down(): void
@@ -707,11 +917,19 @@ return new class() extends Migration
         $c = config('inventory.drivers.database.connection', config('database.default'));
 
         $tables = [
-            'stock_movements', 'adjustment_items', 'adjustments',
+            'supplier_product_stats',
+            'customer_product_stats',
+            'product_trend_snapshots',
+            'partners',
+            'shipment_items', 'shipments',
+            'pick_list_items', 'pick_lists',
+            'stock_movements',
+            'adjustment_items', 'adjustments',
             'purchase_return_items', 'purchase_returns',
             'sale_return_items', 'sale_returns',
             'transfer_box_items', 'transfer_boxes', 'transfer_items', 'transfers',
             'sale_order_items', 'sale_orders',
+            'serial_numbers', 'lots',
             'stock_receipt_items', 'stock_receipts',
             'purchase_order_items', 'purchase_orders',
             'warehouse_products', 'product_prices',

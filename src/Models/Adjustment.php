@@ -8,9 +8,12 @@ use Centrex\Inventory\Concerns\AddTablePrefix;
 use Centrex\Inventory\Enums\{AdjustmentReason, StockReceiptStatus};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class Adjustment extends Model
+class Adjustment extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
 
     protected function getTableSuffix(): string

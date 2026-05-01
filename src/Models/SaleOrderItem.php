@@ -8,9 +8,12 @@ use Centrex\Inventory\Concerns\AddTablePrefix;
 use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class SaleOrderItem extends Model
+class SaleOrderItem extends Model implements Auditable
 {
+    use AuditableTrait;
     use AddTablePrefix;
 
     protected function getTableSuffix(): string
