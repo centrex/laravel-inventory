@@ -12,8 +12,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class Coupon extends Model implements Auditable
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
     use SoftDeletes;
 
     protected function getTableSuffix(): string

@@ -13,8 +13,8 @@ use Spatie\MediaLibrary\HasMedia;
 
 class Warehouse extends Model implements Auditable, HasMedia
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
     use HasPrimaryImage;
     use SoftDeletes;
 

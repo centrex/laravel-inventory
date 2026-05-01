@@ -13,8 +13,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class StockReceipt extends Model implements Auditable
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
 
     protected function getTableSuffix(): string
     {

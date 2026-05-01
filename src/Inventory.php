@@ -8,7 +8,6 @@ use Carbon\Carbon;
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Models;
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use DateTimeInterface;
@@ -3547,7 +3546,7 @@ class Inventory
     ): array {
         $from = now()->subDays($days)->startOfDay();
 
-        $snapshots = Models\ProductTrendSnapshot::query()
+        $snapshots = ProductTrendSnapshot::query()
             ->where('product_id', $productId)
             ->where('period', $period)
             ->when($warehouseId !== null, fn ($q) => $q->where('warehouse_id', $warehouseId))
@@ -3560,18 +3559,18 @@ class Inventory
         $qtys = $snapshots->pluck('qty_sold')->map(fn ($v) => (float) $v);
 
         return [
-            'product_id'      => $productId,
-            'period'          => $period,
-            'days'            => $days,
-            'snapshots'       => $snapshots,
-            'trend'           => [
-                'revenue_slope'     => $this->linearSlope($revenues->values()->all()),
-                'qty_slope'         => $this->linearSlope($qtys->values()->all()),
-                'avg_gross_margin'  => $margins->avg() !== null ? round((float) $margins->avg(), 2) : null,
-                'peak_revenue_date' => $snapshots->sortByDesc('revenue_amount')->first()?->snapshot_date?->toDateString(),
-                'total_revenue'     => round((float) $revenues->sum(), 2),
-                'total_qty'         => round((float) $qtys->sum(), 2),
-                'total_cogs'        => round((float) $snapshots->sum('cogs_amount'), 2),
+            'product_id' => $productId,
+            'period'     => $period,
+            'days'       => $days,
+            'snapshots'  => $snapshots,
+            'trend'      => [
+                'revenue_slope'      => $this->linearSlope($revenues->values()->all()),
+                'qty_slope'          => $this->linearSlope($qtys->values()->all()),
+                'avg_gross_margin'   => $margins->avg() !== null ? round((float) $margins->avg(), 2) : null,
+                'peak_revenue_date'  => $snapshots->sortByDesc('revenue_amount')->first()?->snapshot_date?->toDateString(),
+                'total_revenue'      => round((float) $revenues->sum(), 2),
+                'total_qty'          => round((float) $qtys->sum(), 2),
+                'total_cogs'         => round((float) $snapshots->sum('cogs_amount'), 2),
                 'total_gross_profit' => round((float) $snapshots->sum('gross_profit_amount'), 2),
             ],
         ];
@@ -3584,13 +3583,13 @@ class Inventory
      */
     public function customerProductStats(int $customerId): array
     {
-        $stats = Models\CustomerProductStat::query()
+        $stats = CustomerProductStat::query()
             ->with(['product', 'variant'])
             ->where('customer_id', $customerId)
             ->orderByDesc('total_revenue_amount')
             ->get();
 
-        $top = $stats->take(10)->map(fn (Models\CustomerProductStat $s): array => [
+        $top = $stats->take(10)->map(fn (CustomerProductStat $s): array => [
             'product_id'              => $s->product_id,
             'product_name'            => $s->product?->name ?? ('#' . $s->product_id),
             'sku'                     => $s->product?->sku,
@@ -3610,9 +3609,9 @@ class Inventory
         ]);
 
         return [
-            'customer_id'   => $customerId,
-            'stats'         => $stats,
-            'top_products'  => $top,
+            'customer_id'  => $customerId,
+            'stats'        => $stats,
+            'top_products' => $top,
         ];
     }
 
@@ -3623,25 +3622,25 @@ class Inventory
      */
     public function supplierProductStats(int $supplierId): array
     {
-        $stats = Models\SupplierProductStat::query()
+        $stats = SupplierProductStat::query()
             ->with(['product', 'variant'])
             ->where('supplier_id', $supplierId)
             ->orderByDesc('total_cost_amount')
             ->get();
 
-        $top = $stats->take(10)->map(fn (Models\SupplierProductStat $s): array => [
-            'product_id'               => $s->product_id,
-            'product_name'             => $s->product?->name ?? ('#' . $s->product_id),
-            'sku'                      => $s->product?->sku,
-            'variant_id'               => $s->variant_id,
-            'total_orders'             => $s->total_orders,
-            'total_qty_ordered'        => $s->total_qty_ordered,
-            'total_qty_received'       => $s->total_qty_received,
-            'total_cost_amount'        => $s->total_cost_amount,
-            'avg_unit_cost_amount'     => $s->avg_unit_cost_amount,
-            'min_unit_cost_amount'     => $s->min_unit_cost_amount,
-            'max_unit_cost_amount'     => $s->max_unit_cost_amount,
-            'cost_spread_pct'          => $s->min_unit_cost_amount > 0
+        $top = $stats->take(10)->map(fn (SupplierProductStat $s): array => [
+            'product_id'           => $s->product_id,
+            'product_name'         => $s->product?->name ?? ('#' . $s->product_id),
+            'sku'                  => $s->product?->sku,
+            'variant_id'           => $s->variant_id,
+            'total_orders'         => $s->total_orders,
+            'total_qty_ordered'    => $s->total_qty_ordered,
+            'total_qty_received'   => $s->total_qty_received,
+            'total_cost_amount'    => $s->total_cost_amount,
+            'avg_unit_cost_amount' => $s->avg_unit_cost_amount,
+            'min_unit_cost_amount' => $s->min_unit_cost_amount,
+            'max_unit_cost_amount' => $s->max_unit_cost_amount,
+            'cost_spread_pct'      => $s->min_unit_cost_amount > 0
                 ? round(($s->max_unit_cost_amount - $s->min_unit_cost_amount) / $s->min_unit_cost_amount * 100, 2)
                 : 0.0,
             'avg_lead_time_days'       => $s->avg_lead_time_days,
@@ -3674,13 +3673,13 @@ class Inventory
         string $groupBy = 'product',
         ?int $warehouseId = null,
     ): array {
-        $rows = Models\ProductTrendSnapshot::query()
+        $rows = ProductTrendSnapshot::query()
             ->with('product.category', 'product.brand')
             ->where('period', 'daily')
             ->whereBetween('snapshot_date', [$from, $to])
             ->when($warehouseId !== null, fn ($q) => $q->where('warehouse_id', $warehouseId))
             ->get()
-            ->groupBy(function (Models\ProductTrendSnapshot $snap) use ($groupBy): int|string {
+            ->groupBy(function (ProductTrendSnapshot $snap) use ($groupBy): int|string {
                 return match ($groupBy) {
                     'category' => $snap->product?->category_id ?? 'Uncategorized',
                     'brand'    => $snap->product?->brand_id ?? 'No Brand',
@@ -3702,16 +3701,16 @@ class Inventory
                 };
 
                 return [
-                    'key'             => $key,
-                    'label'           => $label,
-                    'sku'             => $groupBy === 'product' ? ($first?->product?->sku) : null,
-                    'qty_sold'        => round($qtySold, 2),
-                    'revenue_amount'  => round($revenue, 2),
-                    'cogs_amount'     => round($cogs, 2),
-                    'gross_profit'    => round($grossProfit, 2),
+                    'key'              => $key,
+                    'label'            => $label,
+                    'sku'              => $groupBy === 'product' ? ($first?->product?->sku) : null,
+                    'qty_sold'         => round($qtySold, 2),
+                    'revenue_amount'   => round($revenue, 2),
+                    'cogs_amount'      => round($cogs, 2),
+                    'gross_profit'     => round($grossProfit, 2),
                     'gross_margin_pct' => $grossMargin,
-                    'orders_count'    => (int) $snaps->sum('orders_count'),
-                    'customers_count' => $snaps->max('customers_count'),
+                    'orders_count'     => (int) $snaps->sum('orders_count'),
+                    'customers_count'  => $snaps->max('customers_count'),
                 ];
             })
             ->sortByDesc('gross_profit')
@@ -3727,12 +3726,12 @@ class Inventory
             'group_by' => $groupBy,
             'rows'     => $rows,
             'summary'  => [
-                'total_revenue'     => round($totalRevenue, 2),
-                'total_cogs'        => round($totalCogs, 2),
+                'total_revenue'      => round($totalRevenue, 2),
+                'total_cogs'         => round($totalCogs, 2),
                 'total_gross_profit' => round($totalProfit, 2),
-                'avg_gross_margin'  => $totalRevenue > 0 ? round($totalProfit / $totalRevenue * 100, 2) : 0.0,
-                'top_product'       => $rows->first()['label'] ?? null,
-                'loss_makers'       => $rows->filter(fn ($r) => (float) $r['gross_profit'] < 0)->count(),
+                'avg_gross_margin'   => $totalRevenue > 0 ? round($totalProfit / $totalRevenue * 100, 2) : 0.0,
+                'top_product'        => $rows->first()['label'] ?? null,
+                'loss_makers'        => $rows->filter(fn ($r) => (float) $r['gross_profit'] < 0)->count(),
             ],
         ];
     }

@@ -13,8 +13,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class ProductVariant extends Model implements Auditable
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
     use SoftDeletes;
 
     protected function getTableSuffix(): string

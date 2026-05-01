@@ -14,8 +14,8 @@ use Spatie\MediaLibrary\HasMedia;
 
 class Customer extends Model implements Auditable, HasMedia
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
     use HasPrimaryImage;
     use SoftDeletes;
 

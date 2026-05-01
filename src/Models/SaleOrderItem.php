@@ -13,8 +13,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class SaleOrderItem extends Model implements Auditable
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
 
     protected function getTableSuffix(): string
     {

@@ -12,8 +12,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 
 class SerialNumber extends Model implements Auditable
 {
-    use AuditableTrait;
     use AddTablePrefix;
+    use AuditableTrait;
 
     // Serial number statuses
     public const STATUS_AVAILABLE = 'available';

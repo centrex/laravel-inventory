@@ -28,7 +28,9 @@ class InventoryServiceProvider extends ServiceProvider
             $this->loadRoutesFrom(__DIR__ . '/../routes/api.php');
         }
 
-        $this->app->booted(function (): void { $this->registerLivewireComponents(); });
+        $this->app->booted(function (): void {
+            $this->registerLivewireComponents();
+        });
         $this->registerGates();
 
         if ((bool) config('inventory.erp.accounting.enabled', false)) {
