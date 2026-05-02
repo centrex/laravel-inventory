@@ -4,13 +4,14 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CustomerProductStat extends Model
 {
     use AddTablePrefix;
+    use HasTenant;
 
     protected function getTableSuffix(): string
     {

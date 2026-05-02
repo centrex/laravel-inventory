@@ -144,7 +144,11 @@ class SaleOrderShowPage extends Component
                 ->find($this->record->accounting_invoice_id)
             : $invoiceClass::query()
                 ->with(['payments.journalEntry'])
-                ->where('inventory_sale_order_id', $this->record->getKey())
+                ->where(function ($query): void {
+                    $query->where('source_type', SaleOrder::class)
+                        ->where('source_id', $this->record->getKey());
+                })
+                ->orWhere('inventory_sale_order_id', $this->record->getKey())
                 ->first();
 
         if (!$invoice) {

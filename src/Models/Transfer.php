@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
 use Centrex\Inventory\Enums\TransferStatus;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
@@ -14,6 +14,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class Transfer extends Model implements Auditable
 {
     use AddTablePrefix;
+    use HasTenant;
     use AuditableTrait;
     use SoftDeletes;
 
@@ -29,38 +30,29 @@ class Transfer extends Model implements Auditable
     }
 
     protected $fillable = [
-        'transfer_number', 'from_warehouse_id', 'to_warehouse_id',
-        'status', 'total_weight_kg',
-        'shipping_rate_per_kg', 'shipping_cost_amount',
-        'notes', 'shipped_at', 'received_at', 'created_by',
+        'transfer_number', 'sale_order_id', 'warehouse_id',
+        'carrier', 'tracking_number', 'status',
+        'notes', 'dispatched_at', 'estimated_delivery_at', 'created_by',
     ];
 
     protected $casts = [
-        'status'               => TransferStatus::class,
-        'total_weight_kg'      => 'decimal:4',
-        'shipping_rate_per_kg' => 'decimal:4',
-        'shipping_cost_amount' => 'decimal:4',
-        'shipped_at'           => 'datetime',
-        'received_at'          => 'datetime',
+        'status'                 => TransferStatus::class,
+        'dispatched_at'          => 'datetime',
+        'estimated_delivery_at'  => 'datetime',
     ];
 
-    public function fromWarehouse(): BelongsTo
+    public function saleOrder(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class, 'from_warehouse_id');
+        return $this->belongsTo(SaleOrder::class);
     }
 
-    public function toWarehouse(): BelongsTo
+    public function warehouse(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class, 'to_warehouse_id');
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function items(): HasMany
     {
         return $this->hasMany(TransferItem::class);
-    }
-
-    public function boxes(): HasMany
-    {
-        return $this->hasMany(TransferBox::class);
     }
 }

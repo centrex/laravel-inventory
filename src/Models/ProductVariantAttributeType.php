@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -13,6 +13,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class ProductVariantAttributeType extends Model implements Auditable
 {
     use AddTablePrefix;
+    use HasTenant;
     use AuditableTrait;
 
     protected function getTableSuffix(): string

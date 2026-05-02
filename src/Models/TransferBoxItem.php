@@ -17,7 +17,7 @@ class TransferBoxItem extends Model implements Auditable
 
     protected function getTableSuffix(): string
     {
-        return 'transfer_box_items';
+        return 'shipment_box_items';
     }
 
     public function __construct(array $attributes = [])
@@ -27,7 +27,7 @@ class TransferBoxItem extends Model implements Auditable
     }
 
     protected $fillable = [
-        'transfer_box_id',
+        'shipment_box_id',
         'product_id',
         'variant_id',
         'qty_sent',
@@ -52,7 +52,7 @@ class TransferBoxItem extends Model implements Auditable
 
     public function box(): BelongsTo
     {
-        return $this->belongsTo(TransferBox::class, 'transfer_box_id');
+        return $this->belongsTo(TransferBox::class, 'shipment_box_id');
     }
 
     public function product(): BelongsTo

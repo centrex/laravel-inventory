@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
 use Centrex\Inventory\Enums\MovementType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, MorphTo};
@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\{BelongsTo, MorphTo};
 class StockMovement extends Model
 {
     use AddTablePrefix;
+    use HasTenant;
 
     public const UPDATED_AT = null; // append-only — no updated_at
 

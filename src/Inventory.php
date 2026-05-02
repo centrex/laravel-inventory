@@ -3103,7 +3103,10 @@ class Inventory
         }
 
         $invoices = $invoiceClass::query()
-            ->whereNotNull('inventory_sale_order_id')
+            ->where(function ($query): void {
+                $query->where('source_type', SaleOrder::class)
+                    ->orWhereNotNull('inventory_sale_order_id');
+            })
             ->whereDate('invoice_date', '>=', $startDate->toDateString())
             ->whereDate('invoice_date', '<=', $endDate->toDateString())
             ->get();
@@ -3126,7 +3129,10 @@ class Inventory
         }
 
         $bills = $billClass::query()
-            ->whereNotNull('inventory_purchase_order_id')
+            ->where(function ($query): void {
+                $query->where('source_type', PurchaseOrder::class)
+                    ->orWhereNotNull('inventory_purchase_order_id');
+            })
             ->whereDate('bill_date', '>=', $startDate->toDateString())
             ->whereDate('bill_date', '<=', $endDate->toDateString())
             ->get();

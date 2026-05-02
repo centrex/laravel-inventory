@@ -513,10 +513,50 @@ return new class() extends Migration
             $table->index(['product_id', 'variant_id'], $p . 'sale_order_items_product_variant_idx');
         });
 
-        // ── Inter-Warehouse Transfers ─────────────────────────────────────────
+        // ── Outbound Customer Transfers (last-mile delivery) ──────────────────
         Schema::connection($c)->create($p . 'transfers', function (Blueprint $table) use ($p, $withUserForeignKeys): void {
             $table->id();
             $table->string('transfer_number', 50)->unique();
+            $table->foreignId('sale_order_id')->constrained($p . 'sale_orders')->restrictOnDelete();
+            $table->foreignId('warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
+            $table->string('carrier', 80)->nullable();
+            $table->string('tracking_number', 100)->nullable();
+            $table->string('status', 30)->default('pending');
+            $table->text('notes')->nullable();
+            $table->timestamp('dispatched_at')->nullable();
+            $table->timestamp('estimated_delivery_at')->nullable();
+            $table->unsignedBigInteger('created_by')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index(['sale_order_id', 'status']);
+            $table->index('status');
+            $table->index('created_by');
+
+            if ($withUserForeignKeys) {
+                $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
+            }
+        });
+
+        // ── Transfer Items (delivery line items) ──────────────────────────────
+        Schema::connection($c)->create($p . 'transfer_items', function (Blueprint $table) use ($p): void {
+            $table->id();
+            $table->foreignId('transfer_id')->constrained($p . 'transfers')->cascadeOnDelete();
+            $table->foreignId('sale_order_item_id')->constrained($p . 'sale_order_items')->restrictOnDelete();
+            $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
+            $table->unsignedBigInteger('variant_id')->nullable()->index();
+            $table->unsignedBigInteger('lot_id')->nullable()->index();
+            $table->decimal('qty_shipped', 18, 4)->default(0);
+            $table->timestamps();
+
+            $table->index('transfer_id');
+            $table->index(['product_id', 'variant_id'], $p . 'transfer_items_product_variant_idx');
+        });
+
+        // ── Inter-Warehouse Shipments ─────────────────────────────────────────
+        Schema::connection($c)->create($p . 'shipments', function (Blueprint $table) use ($p, $withUserForeignKeys): void {
+            $table->id();
+            $table->string('shipment_number', 50)->unique();
             $table->foreignId('from_warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
             $table->foreignId('to_warehouse_id')->constrained($p . 'warehouses')->restrictOnDelete();
             $table->string('status', 30)->default('draft');
@@ -540,15 +580,15 @@ return new class() extends Migration
             }
         });
 
-        // ── Transfer Items ────────────────────────────────────────────────────
-        Schema::connection($c)->create($p . 'transfer_items', function (Blueprint $table) use ($p): void {
+        // ── Shipment Items ────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'shipment_items', function (Blueprint $table) use ($p): void {
             $table->id();
-            $table->foreignId('transfer_id')->constrained($p . 'transfers')->cascadeOnDelete();
+            $table->foreignId('shipment_id')->constrained($p . 'shipments')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
             $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_sent', 18, 4);
             $table->decimal('qty_received', 18, 4)->default(0);
-            $table->decimal('unit_cost_source_amount', 18, 4);
+            $table->decimal('unit_cost_source_amount', 18, 4)->default(0);
             $table->decimal('weight_kg_total', 18, 4)->default(0);
             $table->decimal('shipping_allocated_amount', 18, 4)->default(0);
             $table->decimal('unit_landed_cost_amount', 18, 4)->default(0);
@@ -558,26 +598,26 @@ return new class() extends Migration
             $table->string('notes', 500)->nullable();
             $table->timestamps();
 
-            $table->index('transfer_id');
-            $table->index(['product_id', 'variant_id'], $p . 'transfer_items_product_variant_idx');
+            $table->index('shipment_id');
+            $table->index(['product_id', 'variant_id'], $p . 'shipment_items_product_variant_idx');
         });
 
-        // ── Transfer Boxes ────────────────────────────────────────────────────
-        Schema::connection($c)->create($p . 'transfer_boxes', function (Blueprint $table) use ($p): void {
+        // ── Shipment Boxes ────────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'shipment_boxes', function (Blueprint $table) use ($p): void {
             $table->id();
-            $table->foreignId('transfer_id')->constrained($p . 'transfers')->cascadeOnDelete();
+            $table->foreignId('shipment_id')->constrained($p . 'shipments')->cascadeOnDelete();
             $table->string('box_code', 50)->nullable();
             $table->decimal('measured_weight_kg', 18, 4);
             $table->string('notes', 500)->nullable();
             $table->timestamps();
 
-            $table->index('transfer_id');
+            $table->index('shipment_id');
         });
 
-        // ── Transfer Box Items ────────────────────────────────────────────────
-        Schema::connection($c)->create($p . 'transfer_box_items', function (Blueprint $table) use ($p): void {
+        // ── Shipment Box Items ────────────────────────────────────────────────
+        Schema::connection($c)->create($p . 'shipment_box_items', function (Blueprint $table) use ($p): void {
             $table->id();
-            $table->foreignId('transfer_box_id')->constrained($p . 'transfer_boxes')->cascadeOnDelete();
+            $table->foreignId('shipment_box_id')->constrained($p . 'shipment_boxes')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained($p . 'products')->restrictOnDelete();
             $table->unsignedBigInteger('variant_id')->nullable()->index();
             $table->decimal('qty_sent', 18, 4);
@@ -590,8 +630,8 @@ return new class() extends Migration
             $table->string('notes', 500)->nullable();
             $table->timestamps();
 
-            $table->index('transfer_box_id');
-            $table->index(['product_id', 'variant_id'], $p . 'transfer_box_items_product_variant_idx');
+            $table->index('shipment_box_id');
+            $table->index(['product_id', 'variant_id'], $p . 'shipment_box_items_product_variant_idx');
         });
 
         // ── Sale Returns ──────────────────────────────────────────────────────
@@ -774,34 +814,6 @@ return new class() extends Migration
             $table->timestamps();
         });
 
-        // ── Shipments ─────────────────────────────────────────────────────────
-        Schema::connection($c)->create($p . 'shipments', function (Blueprint $table) use ($p): void {
-            $table->id();
-            $table->string('shipment_number', 40)->unique();
-            $table->foreignId('sale_order_id')->constrained($p . 'sale_orders');
-            $table->foreignId('warehouse_id')->constrained($p . 'warehouses');
-            $table->string('carrier', 80)->nullable();
-            $table->string('tracking_number', 100)->nullable();
-            $table->string('status', 20)->default('pending'); // pending|dispatched|delivered|returned
-            $table->text('notes')->nullable();
-            $table->timestamp('dispatched_at')->nullable();
-            $table->timestamp('estimated_delivery_at')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->timestamps();
-        });
-
-        // ── Shipment Items ────────────────────────────────────────────────────
-        Schema::connection($c)->create($p . 'shipment_items', function (Blueprint $table) use ($p): void {
-            $table->id();
-            $table->foreignId('shipment_id')->constrained($p . 'shipments')->cascadeOnDelete();
-            $table->foreignId('sale_order_item_id')->constrained($p . 'sale_order_items');
-            $table->foreignId('product_id')->constrained($p . 'products');
-            $table->unsignedBigInteger('variant_id')->nullable()->index();
-            $table->unsignedBigInteger('lot_id')->nullable()->index();
-            $table->decimal('qty_shipped', 18, 4)->default(0);
-            $table->timestamps();
-        });
-
         // ── Partners (dropshipper / ecom / b2b API access) ────────────────────
         Schema::connection($c)->create($p . 'partners', function (Blueprint $table): void {
             $table->id();
@@ -921,13 +933,13 @@ return new class() extends Migration
             'customer_product_stats',
             'product_trend_snapshots',
             'partners',
-            'shipment_items', 'shipments',
             'pick_list_items', 'pick_lists',
             'stock_movements',
             'adjustment_items', 'adjustments',
             'purchase_return_items', 'purchase_returns',
             'sale_return_items', 'sale_returns',
-            'transfer_box_items', 'transfer_boxes', 'transfer_items', 'transfers',
+            'shipment_box_items', 'shipment_boxes', 'shipment_items', 'shipments',
+            'transfer_items', 'transfers',
             'sale_order_items', 'sale_orders',
             'serial_numbers', 'lots',
             'stock_receipt_items', 'stock_receipts',

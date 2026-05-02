@@ -49,7 +49,16 @@
                     <tr class="hover:bg-base-50">
                         <td class="pl-5 font-mono text-sm font-semibold">{{ $order->so_number }}</td>
                         <td class="text-sm">{{ $order->ordered_at?->format('M d, Y') ?? '—' }}</td>
-                        <td class="text-sm">{{ data_get($order->customer?->meta, 'company_name') ?: ($order->customer?->name ?? 'Walk-in') }}</td>
+                        <td class="text-sm">
+                            @if ($order->customer)
+                                <div class="font-medium">{{ $order->customer->organization_name ?: $order->customer->name }}</div>
+                                @if ($order->customer->organization_name)
+                                    <div class="text-xs text-base-content/50">{{ $order->customer->name }}</div>
+                                @endif
+                            @else
+                                <span class="text-base-content/40">Walk-in</span>
+                            @endif
+                        </td>
                         <td class="text-sm">{{ $order->warehouse?->name ?? '—' }}</td>
                         <td class="text-sm">{{ $order->status?->label() ?? '—' }}</td>
                         <td class="text-sm font-medium">{{ number_format((float) $order->total_local, 2) }}</td>

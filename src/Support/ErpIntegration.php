@@ -99,7 +99,7 @@ class ErpIntegration
             return null;
         }
 
-        $saleOrder->loadMissing(['customer', 'items']);
+        $saleOrder->loadMissing(['customer', 'warehouse', 'items']);
         $saleOrder->items->loadMissing('product');
         $customerId = $saleOrder->customer_id
             ? $this->syncCustomer($saleOrder->customer)
@@ -112,7 +112,12 @@ class ErpIntegration
         $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
         $invoice = $saleOrder->accounting_invoice_id
             ? $invoiceClass::find($saleOrder->accounting_invoice_id)
-            : $invoiceClass::where('inventory_sale_order_id', $saleOrder->id)->first();
+            : $invoiceClass::query()
+                ->where(fn ($query) => $query
+                    ->where('source_type', SaleOrder::class)
+                    ->where('source_id', $saleOrder->id))
+                ->orWhere('inventory_sale_order_id', $saleOrder->id)
+                ->first();
 
         $invoiceDate = $saleOrder->ordered_at?->toDateString() ?? now()->toDateString();
         $dueDate = $saleOrder->ordered_at?->copy()->addDays(30)->toDateString() ?? now()->addDays(30)->toDateString();
@@ -131,6 +136,10 @@ class ErpIntegration
             'exchange_rate'           => (float) $saleOrder->exchange_rate,
             'status'                  => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
             'notes'                   => $saleOrder->notes,
+            'source_type'             => SaleOrder::class,
+            'source_id'               => $saleOrder->id,
+            'source_reference'        => $saleOrder->so_number,
+            'sbu_code'                => $this->resolveDocumentSbuCode($saleOrder->warehouse, $saleOrder->customer),
             'inventory_sale_order_id' => $saleOrder->id,
         ];
 
@@ -178,7 +187,7 @@ class ErpIntegration
             return null;
         }
 
-        $purchaseOrder->loadMissing(['supplier', 'items']);
+        $purchaseOrder->loadMissing(['supplier', 'warehouse', 'items']);
         $purchaseOrder->items->loadMissing('product');
         $vendorId = $this->syncSupplier($purchaseOrder->supplier);
 
@@ -189,7 +198,12 @@ class ErpIntegration
         $billClass = \Centrex\Accounting\Models\Bill::class;
         $bill = $purchaseOrder->accounting_bill_id
             ? $billClass::find($purchaseOrder->accounting_bill_id)
-            : $billClass::where('inventory_purchase_order_id', $purchaseOrder->id)->first();
+            : $billClass::query()
+                ->where(fn ($query) => $query
+                    ->where('source_type', PurchaseOrder::class)
+                    ->where('source_id', $purchaseOrder->id))
+                ->orWhere('inventory_purchase_order_id', $purchaseOrder->id)
+                ->first();
 
         $billDate = $purchaseOrder->ordered_at?->toDateString() ?? now()->toDateString();
         $dueDate = $purchaseOrder->expected_at?->toDateString() ?? now()->addDays(30)->toDateString();
@@ -207,6 +221,10 @@ class ErpIntegration
             'exchange_rate'               => (float) $purchaseOrder->exchange_rate,
             'status'                      => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
             'notes'                       => $purchaseOrder->notes,
+            'source_type'                 => PurchaseOrder::class,
+            'source_id'                   => $purchaseOrder->id,
+            'source_reference'            => $purchaseOrder->po_number,
+            'sbu_code'                    => $this->resolveDocumentSbuCode($purchaseOrder->warehouse, $purchaseOrder->supplier),
             'inventory_purchase_order_id' => $purchaseOrder->id,
         ];
 
@@ -454,6 +472,38 @@ class ErpIntegration
         $name = $product?->name ?? 'Inventory line';
 
         return sprintf('%s x %s', $name, rtrim(rtrim(number_format($qty, 4, '.', ''), '0'), '.'));
+    }
+
+    private function resolveDocumentSbuCode(mixed ...$models): ?string
+    {
+        foreach ($models as $model) {
+            $sbuCode = $this->resolveModelSbuCode($model);
+
+            if ($sbuCode !== null) {
+                return $sbuCode;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveModelSbuCode(mixed $model): ?string
+    {
+        if (! is_object($model)) {
+            return null;
+        }
+
+        $meta = method_exists($model, 'getAttributes') && array_key_exists('meta', $model->getAttributes())
+            ? $model->getAttribute('meta')
+            : ($model->meta ?? null);
+
+        if (! is_array($meta)) {
+            return null;
+        }
+
+        $value = strtoupper(trim((string) ($meta['default_sbu'] ?? $meta['sbu_code'] ?? $meta['sbu'] ?? '')));
+
+        return $value !== '' ? $value : null;
     }
 
     private function resolveWalkInAccountingCustomerId(): ?int

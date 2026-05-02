@@ -141,7 +141,11 @@ class PurchaseOrderShowPage extends Component
                 ->find($this->record->accounting_bill_id)
             : $billClass::query()
                 ->with(['payments.journalEntry'])
-                ->where('inventory_purchase_order_id', $this->record->getKey())
+                ->where(function ($query): void {
+                    $query->where('source_type', PurchaseOrder::class)
+                        ->where('source_id', $this->record->getKey());
+                })
+                ->orWhere('inventory_purchase_order_id', $this->record->getKey())
                 ->first();
 
         if (!$bill) {

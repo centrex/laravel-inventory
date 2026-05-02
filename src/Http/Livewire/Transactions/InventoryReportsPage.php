@@ -159,7 +159,10 @@ class InventoryReportsPage extends Component
         }
 
         $invoices = $invoiceClass::query()
-            ->whereNotNull('inventory_sale_order_id')
+            ->where(function ($query): void {
+                $query->where('source_type', SaleOrder::class)
+                    ->orWhereNotNull('inventory_sale_order_id');
+            })
             ->when($startDate !== '', fn ($query) => $query->whereDate('invoice_date', '>=', $startDate))
             ->when($endDate !== '', fn ($query) => $query->whereDate('invoice_date', '<=', $endDate))
             ->get();
@@ -179,7 +182,10 @@ class InventoryReportsPage extends Component
         }
 
         $bills = $billClass::query()
-            ->whereNotNull('inventory_purchase_order_id')
+            ->where(function ($query): void {
+                $query->where('source_type', PurchaseOrder::class)
+                    ->orWhereNotNull('inventory_purchase_order_id');
+            })
             ->when($startDate !== '', fn ($query) => $query->whereDate('bill_date', '>=', $startDate))
             ->when($endDate !== '', fn ($query) => $query->whereDate('bill_date', '<=', $endDate))
             ->get();

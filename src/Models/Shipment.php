@@ -4,13 +4,19 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\AddTablePrefix;
-use Illuminate\Database\Eloquent\Model;
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
+use Centrex\Inventory\Enums\ShipmentStatus;
+use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class Shipment extends Model
+class Shipment extends Model implements Auditable
 {
     use AddTablePrefix;
+    use HasTenant;
+    use AuditableTrait;
+    use SoftDeletes;
 
     protected function getTableSuffix(): string
     {
@@ -24,28 +30,38 @@ class Shipment extends Model
     }
 
     protected $fillable = [
-        'shipment_number', 'sale_order_id', 'warehouse_id',
-        'carrier', 'tracking_number', 'status',
-        'notes', 'dispatched_at', 'estimated_delivery_at', 'created_by',
+        'shipment_number', 'from_warehouse_id', 'to_warehouse_id',
+        'status', 'total_weight_kg',
+        'shipping_rate_per_kg', 'shipping_cost_amount',
+        'notes', 'shipped_at', 'received_at', 'created_by',
     ];
 
     protected $casts = [
-        'dispatched_at'         => 'datetime',
-        'estimated_delivery_at' => 'datetime',
+        'status'               => ShipmentStatus::class,
+        'total_weight_kg'      => 'decimal:4',
+        'shipping_rate_per_kg' => 'decimal:4',
+        'shipping_cost_amount' => 'decimal:4',
+        'shipped_at'           => 'datetime',
+        'received_at'          => 'datetime',
     ];
 
-    public function saleOrder(): BelongsTo
+    public function fromWarehouse(): BelongsTo
     {
-        return $this->belongsTo(SaleOrder::class);
+        return $this->belongsTo(Warehouse::class, 'from_warehouse_id');
     }
 
-    public function warehouse(): BelongsTo
+    public function toWarehouse(): BelongsTo
     {
-        return $this->belongsTo(Warehouse::class);
+        return $this->belongsTo(Warehouse::class, 'to_warehouse_id');
     }
 
     public function items(): HasMany
     {
         return $this->hasMany(ShipmentItem::class);
+    }
+
+    public function boxes(): HasMany
+    {
+        return $this->hasMany(TransferBox::class, 'shipment_id');
     }
 }

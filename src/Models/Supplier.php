@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
+use Centrex\Inventory\Concerns\{HasTenant, AddTablePrefix, HasPrimaryImage};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphTo};
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -14,6 +14,7 @@ use Spatie\MediaLibrary\HasMedia;
 class Supplier extends Model implements Auditable, HasMedia
 {
     use AddTablePrefix;
+    use HasTenant;
     use AuditableTrait;
     use HasPrimaryImage;
     use SoftDeletes;

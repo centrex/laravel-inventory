@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\AddTablePrefix;
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
 use Centrex\Inventory\Enums\PurchaseOrderStatus;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
@@ -14,6 +14,7 @@ use OwenIt\Auditing\Contracts\Auditable;
 class PurchaseOrder extends Model implements Auditable
 {
     use AddTablePrefix;
+    use HasTenant;
     use AuditableTrait;
     use SoftDeletes;
 

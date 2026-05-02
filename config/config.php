@@ -153,6 +153,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Multi-Tenancy
+    |--------------------------------------------------------------------------
+    | When enabled, a TenantScope global scope is applied to all root-aggregate
+    | models, scoping every query to the current tenant set via TenantContext::set().
+    | The tenant column name is configurable; the tenant ID is typically the
+    | authenticated user's current Team ID resolved in SetCurrentTenant middleware.
+    */
+    'tenant' => [
+        'enabled' => env('INVENTORY_TENANT_ENABLED', true),
+        'column'  => env('INVENTORY_TENANT_COLUMN', 'tenant_id'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Pagination
     |--------------------------------------------------------------------------
     */

@@ -7,7 +7,7 @@ namespace Centrex\Inventory;
 use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand};
 use Centrex\Inventory\Models\{Customer, Supplier};
 use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
-use Centrex\Inventory\Support\ErpIntegration;
+use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
 use Illuminate\Support\Facades\{Blade, Gate};
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -214,6 +214,13 @@ class InventoryServiceProvider extends ServiceProvider
 
         $this->app->singleton('inventory', fn () => new Inventory());
         $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
+
+        if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
+            $this->app->bind(
+                \Centrex\Accounting\Contracts\InventorySnapshotProvider::class,
+                AccountingInventorySnapshotProvider::class,
+            );
+        }
     }
 
     private function registerLivewireComponents(): void
