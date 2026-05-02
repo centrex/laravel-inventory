@@ -13,8 +13,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 class SerialNumber extends Model implements Auditable
 {
     use AddTablePrefix;
-    use HasTenant;
     use AuditableTrait;
+    use HasTenant;
 
     // Serial number statuses
     public const STATUS_AVAILABLE = 'available';

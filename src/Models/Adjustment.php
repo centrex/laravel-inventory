@@ -14,8 +14,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 class Adjustment extends Model implements Auditable
 {
     use AddTablePrefix;
-    use HasTenant;
     use AuditableTrait;
+    use HasTenant;
 
     protected function getTableSuffix(): string
     {

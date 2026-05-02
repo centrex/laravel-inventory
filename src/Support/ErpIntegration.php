@@ -489,7 +489,7 @@ class ErpIntegration
 
     private function resolveModelSbuCode(mixed $model): ?string
     {
-        if (! is_object($model)) {
+        if (!is_object($model)) {
             return null;
         }
 
@@ -497,7 +497,7 @@ class ErpIntegration
             ? $model->getAttribute('meta')
             : ($model->meta ?? null);
 
-        if (! is_array($meta)) {
+        if (!is_array($meta)) {
             return null;
         }
 

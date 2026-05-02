@@ -6,16 +6,16 @@ namespace Centrex\Inventory\Support;
 
 final class TenantContext
 {
-    private static int|null $tenantId = null;
+    private static ?int $tenantId = null;
 
-    private static \Closure|null $resolver = null;
+    private static ?\Closure $resolver = null;
 
-    public static function set(int|null $id): void
+    public static function set(?int $id): void
     {
         self::$tenantId = $id;
     }
 
-    public static function get(): int|null
+    public static function get(): ?int
     {
         if (self::$tenantId !== null) {
             return self::$tenantId;
@@ -37,7 +37,7 @@ final class TenantContext
     /** Run $callback with no tenant filter active, then restore previous state. */
     public static function withoutTenant(\Closure $callback): mixed
     {
-        $prevId       = self::$tenantId;
+        $prevId = self::$tenantId;
         $prevResolver = self::$resolver;
 
         self::$tenantId = null;

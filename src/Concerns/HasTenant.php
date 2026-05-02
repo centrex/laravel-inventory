@@ -17,6 +17,7 @@ trait HasTenant
         static::creating(function (Model $model): void {
             if ($model->getAttribute('tenant_id') === null) {
                 $tenantId = TenantContext::get();
+
                 if ($tenantId !== null) {
                     $model->setAttribute('tenant_id', $tenantId);
                 }

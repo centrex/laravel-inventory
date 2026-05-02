@@ -52,7 +52,7 @@ class SaleOrderIndexPage extends Component
                 $builder->where('so_number', 'like', '%' . $search . '%')
                     ->orWhere('notes', 'like', '%' . $search . '%')
                     ->orWhereHas('customer', fn ($customerQuery) => $customerQuery->where('name', 'like', '%' . $search . '%')
-                            ->orWhere('organization_name', 'like', '%' . $search . '%'))
+                        ->orWhere('organization_name', 'like', '%' . $search . '%'))
                     ->orWhereHas('warehouse', fn ($warehouseQuery) => $warehouseQuery->where('name', 'like', '%' . $search . '%'));
             });
         }

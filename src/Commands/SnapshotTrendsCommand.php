@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Commands;
 
 use Carbon\Carbon;
-use Centrex\Inventory\Enums\{SaleOrderStatus};
+use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Models\{CustomerProductStat, ProductTrendSnapshot, PurchaseOrder, PurchaseOrderItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, StockMovement, StockReceipt, StockReceiptItem, SupplierProductStat, WarehouseProduct};
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;

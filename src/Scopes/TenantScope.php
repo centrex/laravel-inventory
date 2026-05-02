@@ -11,7 +11,7 @@ class TenantScope implements Scope
 {
     public function apply(Builder $builder, Model $model): void
     {
-        if (! config('inventory.tenant.enabled', true)) {
+        if (!config('inventory.tenant.enabled', true)) {
             return;
         }
 

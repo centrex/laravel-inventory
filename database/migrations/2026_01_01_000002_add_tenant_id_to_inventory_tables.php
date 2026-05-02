@@ -49,7 +49,7 @@ return new class() extends Migration
 
     public function up(): void
     {
-        $prefix     = config('inventory.table_prefix', 'inv_');
+        $prefix = config('inventory.table_prefix', 'inv_');
         $connection = config('inventory.drivers.database.connection', config('database.default'));
 
         foreach ($this->rootTables($prefix) as $table) {
@@ -61,7 +61,7 @@ return new class() extends Migration
 
     public function down(): void
     {
-        $prefix     = config('inventory.table_prefix', 'inv_');
+        $prefix = config('inventory.table_prefix', 'inv_');
         $connection = config('inventory.drivers.database.connection', config('database.default'));
 
         foreach ($this->rootTables($prefix) as $table) {

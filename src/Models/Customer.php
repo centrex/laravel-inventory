@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{HasTenant, AddTablePrefix, HasPrimaryImage};
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage, HasTenant};
 use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphTo};
@@ -15,9 +15,9 @@ use Spatie\MediaLibrary\HasMedia;
 class Customer extends Model implements Auditable, HasMedia
 {
     use AddTablePrefix;
-    use HasTenant;
     use AuditableTrait;
     use HasPrimaryImage;
+    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string

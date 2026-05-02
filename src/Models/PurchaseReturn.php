@@ -13,8 +13,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 class PurchaseReturn extends Model implements Auditable
 {
     use AddTablePrefix;
-    use HasTenant;
     use AuditableTrait;
+    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string

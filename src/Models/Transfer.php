@@ -14,8 +14,8 @@ use OwenIt\Auditing\Contracts\Auditable;
 class Transfer extends Model implements Auditable
 {
     use AddTablePrefix;
-    use HasTenant;
     use AuditableTrait;
+    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string
@@ -36,9 +36,9 @@ class Transfer extends Model implements Auditable
     ];
 
     protected $casts = [
-        'status'                 => TransferStatus::class,
-        'dispatched_at'          => 'datetime',
-        'estimated_delivery_at'  => 'datetime',
+        'status'                => TransferStatus::class,
+        'dispatched_at'         => 'datetime',
+        'estimated_delivery_at' => 'datetime',
     ];
 
     public function saleOrder(): BelongsTo

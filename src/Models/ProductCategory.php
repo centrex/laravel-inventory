@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{HasTenant, AddTablePrefix, HasPrimaryImage};
+use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage, HasTenant};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -14,9 +14,9 @@ use Spatie\MediaLibrary\HasMedia;
 class ProductCategory extends Model implements Auditable, HasMedia
 {
     use AddTablePrefix;
-    use HasTenant;
     use AuditableTrait;
     use HasPrimaryImage;
+    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string
