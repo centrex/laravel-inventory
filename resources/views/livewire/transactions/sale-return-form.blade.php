@@ -5,12 +5,12 @@
 <form wire:submit="save" class="space-y-4">
     <x-tallui-card title="Return Details" subtitle="Source document and return destination." icon="o-document-text" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <x-tallui-form-group label="Sale Order"><x-tallui-select wire:model.live="sale_order_id"><option value="">Optional</option>@foreach($saleOrders as $order)<option value="{{ $order->id }}">{{ $order->so_number }}{{ $order->customer?->name ? ' - ' . $order->customer->name : '' }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
+            <x-tallui-form-group label="Sale Order"><x-tallui-select wire:model.live="sale_order_id"><option value="">Optional</option>@foreach($saleOrders as $order)<option value="{{ $order->id }}">{{ $order->so_number }}{{ $order->customer?->organization_name ? ' - ' . $order->customer->organization_name : ' - ' . $order->customer?->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
             <x-tallui-form-group label="Warehouse *"><x-tallui-select wire:model="warehouse_id"><option value="">Select</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
             @if($selectedOrder)
                 <x-tallui-form-group label="Customer">
                     <div class="input input-bordered flex items-center bg-base-200/60 text-base-content/80">
-                        {{ $selectedOrder->customer?->name ?? '—' }}
+                        {{ $selectedOrder->customer?->organization_name ?? $selectedOrder->customer?->name ?? 'Walk-in customer' }}
                     </div>
                 </x-tallui-form-group>
             @else
@@ -32,14 +32,14 @@
                                     <x-tallui-select wire:model.live="items.{{ $index }}.sale_order_item_id">
                                         <option value="">Select</option>
                                         @foreach($products as $product)
-                                            <option value="{{ $product['id'] }}">
-                                                {{ $product['name'] }}
+                                            <option value="{{ is_array($product) ? $product['id'] : $product->id }}">
+                                                {{ is_array($product) ? $product['name'] : $product->name }}
                                             </option>
                                         @endforeach
                                     </x-tallui-select>
                                 @else
                                     <x-tallui-select wire:model.live="items.{{ $index }}.product_id">
-                                        <option value="">Select</option>
+                                        <option value="">Select</option>                                        
                                         @foreach($products as $product)
                                             <option value="{{ is_array($product) ? $product['id'] : $product->id }}">{{ is_array($product) ? $product['name'] : $product->name }}</option>
                                         @endforeach

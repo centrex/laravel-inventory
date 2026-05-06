@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
+use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, DispatchTerminalController, LogisticsDashboardController};
 use Centrex\Inventory\Http\Livewire\Entities\{EntityFormPage, EntityIndexPage};
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
@@ -14,6 +14,8 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
     ->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
         Route::get('/logistics', LogisticsDashboardController::class)->name('logistics.index');
+        Route::get('/dispatch', [DispatchTerminalController::class, 'index'])->name('dispatch.index');
+        Route::patch('/dispatch/orders/{saleOrder}', [DispatchTerminalController::class, 'update'])->name('dispatch.update');
         Route::get('/async-select/{resource}', AsyncSelectController::class)->name('async-select');
 
         foreach (InventoryEntityRegistry::masterDataEntities() as $entity) {

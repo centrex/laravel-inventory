@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Web;
 
-use Centrex\Inventory\Models\{Customer, Product, Supplier};
+use Centrex\Inventory\Models\{Customer, Product, ProductVariant, Supplier, WarehouseProduct};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
@@ -90,35 +90,20 @@ class AsyncSelectController extends Controller
     }
 
     /**
-     * @return array{data:array<int, array{value:int,label:string,sublabel:?string}>,has_more:bool}
+     * @return array{data:array<int, array{value:string,label:string,sublabel:?string}>,has_more:bool}
      */
     private function searchPurchaseProducts(string $term, int $page, int $perPage): array
     {
-        $products = Product::query()
-            ->where('is_active', true)
-            ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $builder) use ($term): void {
-                $builder->where('name', 'like', '%' . $term . '%')
-                    ->orWhere('sku', 'like', '%' . $term . '%')
-                    ->orWhere('barcode', 'like', '%' . $term . '%');
-            }))
-            ->orderBy('name')
-            ->offset(($page - 1) * $perPage)
-            ->limit($perPage + 1)
-            ->get(['id', 'name', 'barcode'])
-            ->map(fn (Product $product): array => [
-                'value'    => (int) $product->id,
-                'label'    => (string) $product->name,
-                'sublabel' => filled($product->barcode) ? (string) $product->barcode : null,
-            ]);
+        $options = $this->productLineOptions($term);
 
         return [
-            'data'     => $products->take($perPage)->values()->all(),
-            'has_more' => $products->count() > $perPage,
+            'data'     => $options->forPage($page, $perPage)->values()->all(),
+            'has_more' => $options->count() > $page * $perPage,
         ];
     }
 
     /**
-     * @return array{data:array<int, array{value:int,label:string,sublabel:?string}>,has_more:bool}
+     * @return array{data:array<int, array{value:string,label:string,sublabel:?string}>,has_more:bool}
      */
     private function searchSaleProducts(string $term, ?int $warehouseId, int $page, int $perPage): array
     {
@@ -126,29 +111,84 @@ class AsyncSelectController extends Controller
             return ['data' => [], 'has_more' => false];
         }
 
-        $products = Product::query()
-            ->where('is_active', true)
-            ->whereHas('warehouseProducts', fn (Builder $query) => $query
-                ->where('warehouse_id', $warehouseId)
-                ->whereRaw('(qty_on_hand - qty_reserved) > 0'))
+        $stockRows = WarehouseProduct::query()
+            ->with(['product', 'variant'])
+            ->where('warehouse_id', $warehouseId)
+            ->whereRaw('(qty_on_hand - qty_reserved) > 0')
+            ->whereHas('product', fn (Builder $query) => $query->where('is_active', true))
             ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $builder) use ($term): void {
-                $builder->where('name', 'like', '%' . $term . '%')
+                $builder->whereHas('product', fn (Builder $productQuery) => $productQuery
+                    ->where('name', 'like', '%' . $term . '%')
                     ->orWhere('sku', 'like', '%' . $term . '%')
-                    ->orWhere('barcode', 'like', '%' . $term . '%');
+                    ->orWhere('barcode', 'like', '%' . $term . '%'))
+                    ->orWhereHas('variant', fn (Builder $variantQuery) => $variantQuery
+                        ->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('sku', 'like', '%' . $term . '%')
+                        ->orWhere('barcode', 'like', '%' . $term . '%'));
             }))
-            ->orderBy('name')
             ->offset(($page - 1) * $perPage)
             ->limit($perPage + 1)
-            ->get(['id', 'name', 'barcode'])
-            ->map(fn (Product $product): array => [
-                'value'    => (int) $product->id,
-                'label'    => (string) $product->name,
-                'sublabel' => filled($product->barcode) ? (string) $product->barcode : null,
+            ->get()
+            ->sortBy(fn (WarehouseProduct $stock): string => strtolower($this->lineLabel($stock->product?->name, $stock->variant?->name)))
+            ->map(fn (WarehouseProduct $stock): array => [
+                'value'    => $stock->variant_id ? 'v:' . $stock->variant_id : 'p:' . $stock->product_id,
+                'label'    => $this->lineLabel($stock->product?->name, $stock->variant?->name),
+                'sublabel' => trim(collect([
+                    $stock->variant?->sku ?: $stock->product?->sku,
+                    'Available ' . number_format($stock->qtyAvailable(), 4),
+                ])->filter()->implode(' | ')),
             ]);
 
         return [
-            'data'     => $products->take($perPage)->values()->all(),
-            'has_more' => $products->count() > $perPage,
+            'data'     => $stockRows->take($perPage)->values()->all(),
+            'has_more' => $stockRows->count() > $perPage,
         ];
+    }
+
+    private function productLineOptions(string $term)
+    {
+        $products = Product::query()
+            ->where('is_active', true)
+            ->with(['variants' => fn ($query) => $query->active()->ordered()])
+            ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $builder) use ($term): void {
+                $builder->where('name', 'like', '%' . $term . '%')
+                    ->orWhere('sku', 'like', '%' . $term . '%')
+                    ->orWhere('barcode', 'like', '%' . $term . '%')
+                    ->orWhereHas('variants', fn (Builder $variantQuery) => $variantQuery
+                        ->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('sku', 'like', '%' . $term . '%')
+                        ->orWhere('barcode', 'like', '%' . $term . '%'));
+            }))
+            ->orderBy('name')
+            ->limit(100)
+            ->get();
+
+        return $products
+            ->flatMap(function (Product $product) {
+                if ($product->variants->isNotEmpty()) {
+                    return $product->variants->map(fn (ProductVariant $variant): array => [
+                        'value'    => 'v:' . $variant->id,
+                        'label'    => $this->lineLabel($product->name, $variant->name),
+                        'sublabel' => filled($variant->sku ?: $variant->barcode) ? (string) ($variant->sku ?: $variant->barcode) : null,
+                    ]);
+                }
+
+                return [[
+                    'value'    => 'p:' . $product->id,
+                    'label'    => (string) $product->name,
+                    'sublabel' => filled($product->sku ?: $product->barcode) ? (string) ($product->sku ?: $product->barcode) : null,
+                ]];
+            })
+            ->sortBy(fn (array $option): string => strtolower($option['label']))
+            ->values();
+    }
+
+    private function lineLabel(?string $productName, ?string $variantName = null): string
+    {
+        if (filled($variantName)) {
+            return trim(($productName ?: 'Product') . ' / ' . $variantName);
+        }
+
+        return (string) ($productName ?: 'Product');
     }
 }

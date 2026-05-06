@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
+use Centrex\Inventory\Concerns\{AddTablePrefix};
 use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +15,6 @@ class ProductPrice extends Model implements Auditable
 {
     use AddTablePrefix;
     use AuditableTrait;
-    use HasTenant;
 
     protected function getTableSuffix(): string
     {

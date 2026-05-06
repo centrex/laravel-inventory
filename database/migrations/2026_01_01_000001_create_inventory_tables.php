@@ -145,6 +145,7 @@ return new class() extends Migration
         Schema::connection($c)->create($p . 'suppliers', function (Blueprint $table): void {
             $table->id();
             $table->string('code', 30)->unique();
+            $table->string('organization_name', 300)->nullable()->index();
             $table->string('name', 300);
             $table->char('country_code', 2)->nullable();
             $table->json('geo')->nullable();

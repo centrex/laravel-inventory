@@ -30,8 +30,9 @@
     :tabs="[
         ['id' => 'overview', 'label' => 'Overview', 'icon' => 'o-squares-2x2'],
         ['id' => 'forecast', 'label' => 'Forecast', 'icon' => 'o-arrow-trending-up'],
+        ['id' => 'target', 'label' => 'Sales Target', 'icon' => 'o-trophy'],
     ]"
-    active="overview"
+    :active="request('dashboard_tab', 'overview')"
     variant="bordered"
     size="sm"
     class="mb-2"
@@ -242,6 +243,127 @@
             </x-tallui-card>
         @endif
     </x-slot:forecast>
+
+    <x-slot:target>
+        @if ($canViewForecast)
+            <form method="GET" action="{{ route('inventory.dashboard') }}" class="mb-6">
+                <input type="hidden" name="dashboard_tab" value="target">
+                <x-tallui-card
+                    title="Sales Target Inputs"
+                    subtitle="Tune the target period, gross margin, net profit, growth, and expense allocation."
+                    icon="o-adjustments-horizontal"
+                    :shadow="true"
+                >
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+                        <label class="form-control">
+                            <span class="label-text text-xs font-semibold">Lookback Days</span>
+                            <input type="number" min="7" max="730" name="target_lookback_days" value="{{ data_get($salesTarget, 'window.lookback_days', 90) }}" class="input input-bordered input-sm">
+                        </label>
+                        <label class="form-control">
+                            <span class="label-text text-xs font-semibold">Target Days</span>
+                            <input type="number" min="1" max="366" name="target_days" value="{{ data_get($salesTarget, 'window.target_days', 30) }}" class="input input-bordered input-sm">
+                        </label>
+                        <label class="form-control">
+                            <span class="label-text text-xs font-semibold">Gross Margin %</span>
+                            <input type="number" min="1" max="95" step="0.01" name="target_gross_margin_pct" value="{{ data_get($salesTarget, 'inputs.expected_gross_margin_pct', 25) }}" class="input input-bordered input-sm">
+                        </label>
+                        <label class="form-control">
+                            <span class="label-text text-xs font-semibold">Net Profit %</span>
+                            <input type="number" min="0" max="80" step="0.01" name="target_net_margin_pct" value="{{ data_get($salesTarget, 'inputs.desired_net_margin_pct', 10) }}" class="input input-bordered input-sm">
+                        </label>
+                        <label class="form-control">
+                            <span class="label-text text-xs font-semibold">Growth %</span>
+                            <input type="number" min="0" max="200" step="0.01" name="target_growth_pct" value="{{ data_get($salesTarget, 'inputs.growth_pct', 0) }}" class="input input-bordered input-sm">
+                        </label>
+                        <label class="form-control">
+                            <span class="label-text text-xs font-semibold">Expense Allocation %</span>
+                            <input type="number" min="0" max="100" step="0.01" name="target_expense_allocation_pct" value="{{ data_get($salesTarget, 'inputs.expense_allocation_pct', 100) }}" class="input input-bordered input-sm">
+                        </label>
+                    </div>
+                    <div class="mt-4 flex justify-end">
+                        <x-tallui-button type="submit" label="Recalculate" icon="o-calculator" class="btn-primary btn-sm" />
+                    </div>
+                </x-tallui-card>
+            </form>
+
+            <div class="stats shadow w-full mb-6">
+                <x-tallui-stat
+                    title="Target Revenue"
+                    :value="number_format((float) data_get($salesTarget, 'target.revenue', 0), 2)"
+                    :desc="data_get($salesTarget, 'window.target_days', 30) . ' day sales team target'"
+                    icon="o-trophy"
+                />
+                <x-tallui-stat
+                    title="Daily Target"
+                    :value="number_format((float) data_get($salesTarget, 'target.daily_revenue', 0), 2)"
+                    desc="Required average sales per day"
+                    icon="o-calendar-days"
+                />
+                <x-tallui-stat
+                    title="Target Net Profit"
+                    :value="number_format((float) data_get($salesTarget, 'target.net_profit', 0), 2)"
+                    :desc="'Cost base ' . number_format((float) data_get($salesTarget, 'target.cost_base', 0), 2)"
+                    icon="o-banknotes"
+                />
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 xl:grid-cols-3 mb-6">
+                <x-tallui-card
+                    title="Target Build"
+                    subtitle="Cost recovery plus margin and growth assumptions."
+                    icon="o-calculator"
+                    :shadow="true"
+                >
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-base-content/60">Target Expense</span><strong>{{ number_format((float) data_get($salesTarget, 'target.expense', 0), 2) }}</strong></div>
+                        <div class="flex justify-between"><span class="text-base-content/60">Target Payroll</span><strong>{{ number_format((float) data_get($salesTarget, 'target.payroll', 0), 2) }}</strong></div>
+                        <div class="flex justify-between"><span class="text-base-content/60">Cost Base</span><strong>{{ number_format((float) data_get($salesTarget, 'target.cost_base', 0), 2) }}</strong></div>
+                        <div class="flex justify-between"><span class="text-base-content/60">Contribution Rate</span><strong>{{ number_format((float) data_get($salesTarget, 'target.contribution_rate_pct', 0), 2) }}%</strong></div>
+                        <div class="flex justify-between"><span class="text-base-content/60">Gross Profit Target</span><strong>{{ number_format((float) data_get($salesTarget, 'target.gross_profit', 0), 2) }}</strong></div>
+                    </div>
+                </x-tallui-card>
+
+                <x-tallui-card
+                    title="Recent Baseline"
+                    subtitle="Actual sales, COGS, expense, and payroll from the lookback period."
+                    icon="o-chart-bar"
+                    :shadow="true"
+                    class="xl:col-span-2"
+                >
+                    <div class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Orders</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.orders_count', 0)) }}</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Revenue</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.revenue', 0), 2) }}</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Gross Margin</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.gross_margin_pct', 0), 2) }}%</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Daily Revenue</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.daily_revenue', 0), 2) }}</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Expense</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.expense', 0), 2) }}</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Allocated Expense</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.allocated_expense', 0), 2) }}</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Payroll</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.payroll', 0), 2) }}</div></div>
+                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Daily Lift</span><div class="font-semibold {{ (float) data_get($salesTarget, 'target.required_daily_lift_pct', 0) > 0 ? 'text-warning' : 'text-success' }}">{{ data_get($salesTarget, 'target.required_daily_lift_pct') === null ? '—' : number_format((float) data_get($salesTarget, 'target.required_daily_lift_pct', 0), 2) . '%' }}</div></div>
+                    </div>
+                    <div class="mt-3 text-xs text-base-content/50">
+                        Expense allocation auto baseline: {{ number_format((float) data_get($salesTarget, 'inputs.auto_expense_allocation_pct', 100), 2) }}%.
+                        Accounting: {{ data_get($salesTarget, 'availability.accounting_expenses') ? 'available' : 'not available' }}.
+                        Payroll: {{ data_get($salesTarget, 'availability.payroll') ? 'available' : 'not available' }}.
+                    </div>
+                </x-tallui-card>
+            </div>
+        @else
+            <x-tallui-card
+                title="Sales Target Access Required"
+                subtitle="Sales targets are available to users with the inventory reports permission."
+                icon="o-lock-closed"
+                :shadow="true"
+                class="mb-6"
+            >
+                <x-tallui-empty-state
+                    title="No target access"
+                    description="Ask an administrator to grant the `inventory.reports.view` permission to open sales target planning."
+                    icon="o-shield-exclamation"
+                    size="sm"
+                />
+            </x-tallui-card>
+        @endif
+    </x-slot:target>
 </x-tallui-tab>
 
 {{-- Quick actions --}}

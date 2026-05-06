@@ -5,12 +5,12 @@
 <form wire:submit="save" class="space-y-4">
     <x-tallui-card title="Return Details" subtitle="Supplier and warehouse context." icon="o-document-text" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <x-tallui-form-group label="Purchase Order"><x-tallui-select wire:model.live="purchase_order_id"><option value="">Optional</option>@foreach($purchaseOrders as $order)<option value="{{ $order->id }}">{{ $order->po_number }}{{ $order->supplier?->name ? ' - ' . $order->supplier->name : '' }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
+            <x-tallui-form-group label="Purchase Order"><x-tallui-select wire:model.live="purchase_order_id"><option value="">Optional</option>@foreach($purchaseOrders as $order)<option value="{{ $order->id }}">{{ $order->po_number }}{{ $order->supplier?->organization_name ? ' - ' . $order->supplier?->organization_name : ' - ' . $order->supplier?->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
             <x-tallui-form-group label="Warehouse *"><x-tallui-select wire:model="warehouse_id"><option value="">Select</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
             @if($selectedOrder)
                 <x-tallui-form-group label="Supplier *">
                     <div class="input input-bordered flex items-center bg-base-200/60 text-base-content/80">
-                        {{ $selectedOrder->supplier?->name ?? '—' }}
+                        {{ $selectedOrder->supplier?->organization_name ?? $selectedOrder->supplier?->name ?? '—' }}
                     </div>
                 </x-tallui-form-group>
             @else
@@ -27,9 +27,27 @@
                 <tbody>
                     @foreach($items as $index => $item)
                         <tr>
-                            <td class="pl-5"><x-tallui-select wire:model.live="items.{{ $index }}.product_id"><option value="">Select</option>@foreach($products as $product)<option value="{{ is_array($product) ? $product['id'] : $product->id }}">{{ is_array($product) ? $product['name'] : $product->name }}</option>@endforeach</x-tallui-select></td>
-                            <td class="text-sm text-base-content/60">{{ data_get($availableProducts, ($item['product_id'] ?? 0) . '.max_qty', '—') }}</td>
-                            <td><x-tallui-input type="number" step="0.0001" :max="data_get($availableProducts, ($item['product_id'] ?? 0) . '.max_qty')" wire:model.live="items.{{ $index }}.qty_returned" /></td>
+                            <td class="pl-5">
+                                @if($selectedOrder)
+                                    <x-tallui-select wire:model.live="items.{{ $index }}.purchase_order_item_id">
+                                        <option value="">Select</option>
+                                        @foreach($products as $product)
+                                            <option value="{{ is_array($product) ? $product['id'] : $product->id }}">{{ is_array($product) ? $product['name'] : $product->name }}</option>
+                                        @endforeach
+                                    </x-tallui-select>
+                                @else
+                                    <x-tallui-select wire:model.live="items.{{ $index }}.product_id">
+                                        <option value="">Select</option>
+                                        @foreach($products as $product)
+                                            <option value="{{ is_array($product) ? $product['id'] : $product->id }}">{{ is_array($product) ? $product['name'] : $product->name }}</option>
+                                        @endforeach
+                                    </x-tallui-select>
+                                @endif
+                                <input type="hidden" wire:model="items.{{ $index }}.product_id" />
+                                <input type="hidden" wire:model="items.{{ $index }}.variant_id" />
+                            </td>
+                            <td class="text-sm text-base-content/60">{{ data_get($availableProducts, ($selectedOrder ? ($item['purchase_order_item_id'] ?? 0) : ($item['product_id'] ?? 0)) . '.max_qty', '—') }}</td>
+                            <td><x-tallui-input type="number" step="0.0001" :max="data_get($availableProducts, ($selectedOrder ? ($item['purchase_order_item_id'] ?? 0) : ($item['product_id'] ?? 0)) . '.max_qty')" wire:model.live="items.{{ $index }}.qty_returned" /></td>
                             <td><x-tallui-input type="number" step="0.0001" wire:model="items.{{ $index }}.unit_cost_amount" /></td>
                             <td><x-tallui-input wire:model="items.{{ $index }}.notes" /></td>
                             <td class="pr-5 text-right"><x-tallui-button icon="o-trash" class="btn-ghost btn-xs text-error" type="button" wire:click="removeItem({{ $index }})" /></td>

@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
+use Centrex\Inventory\Concerns\{AddTablePrefix};
 use Centrex\Inventory\Enums\ShipmentStatus;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
@@ -15,7 +15,6 @@ class Shipment extends Model implements Auditable
 {
     use AddTablePrefix;
     use AuditableTrait;
-    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string

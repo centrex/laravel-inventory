@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
+use Centrex\Inventory\Concerns\{AddTablePrefix};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -14,7 +14,6 @@ class Coupon extends Model implements Auditable
 {
     use AddTablePrefix;
     use AuditableTrait;
-    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string

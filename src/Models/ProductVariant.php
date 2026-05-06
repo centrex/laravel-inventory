@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
+use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, HasMany};
@@ -15,7 +15,6 @@ class ProductVariant extends Model implements Auditable
 {
     use AddTablePrefix;
     use AuditableTrait;
-    use HasTenant;
     use SoftDeletes;
 
     protected function getTableSuffix(): string
@@ -109,7 +108,9 @@ class ProductVariant extends Model implements Auditable
 
     public function getDisplayNameAttribute(): string
     {
-        return trim(($this->product?->name ? $this->product->name . ' / ' : '') . $this->name);
+        $productName = $this->relationLoaded('product') ? $this->product?->name : null;
+
+        return trim(($productName ? $productName . ' / ' : '') . $this->name);
     }
 
     /** Returns an attribute value from the JSON bag by type slug (e.g. 'color'). */

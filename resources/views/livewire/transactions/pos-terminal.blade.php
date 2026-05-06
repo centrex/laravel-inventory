@@ -67,7 +67,7 @@
                 @endforeach
             </select>
 
-            <input wire:model.blur="currency" class="input input-sm input-bordered w-16 text-center font-mono uppercase" placeholder="BDT" maxlength="3" />
+            <input wire:model.blur="currency" class="input input-sm input-bordered w-16 text-center font-mono uppercase" placeholder="BDT" maxlength="3" readonly />
         </div>
 
         {{-- Fullscreen toggle --}}
@@ -190,7 +190,7 @@
                                 </figure>
 
                                 {{-- Info --}}
-                                <div class="p-2.5 space-y-1">
+                                <div class="p-2 space-y-1">
                                     <p class="text-sm font-semibold leading-snug line-clamp-2">{{ $product->name }}</p>
                                     <p class="text-xs text-base-content/40 font-mono">{{ $product->sku }}</p>
                                     @php

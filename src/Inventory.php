@@ -5,17 +5,18 @@ declare(strict_types = 1);
 namespace Centrex\Inventory;
 
 use Carbon\Carbon;
+use Centrex\Accounting\Models\{Bill, Invoice};
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
+use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, SalesTargetCalculator};
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
+use Centrex\ModelData\Data;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\{DB, Gate};
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\{DB, Gate, Schema};
 use Illuminate\Validation\ValidationException;
 
 class Inventory
@@ -1228,7 +1229,10 @@ class Inventory
                     $alreadyReturned = (float) SaleReturnItem::query()
                         ->where('sale_order_item_id', $saleOrderItem->getKey())
                         ->sum('qty_returned');
-                    $maxReturnable = max(0.0, round((float) $saleOrderItem->qty_fulfilled - $alreadyReturned, 4));
+                    $baseQty = (float) $saleOrderItem->qty_fulfilled > 0
+                        ? (float) $saleOrderItem->qty_fulfilled
+                        : (float) $saleOrderItem->qty_ordered;
+                    $maxReturnable = max(0.0, round($baseQty - $alreadyReturned, 4));
 
                     $referenceKey = $productId . ':' . (int) ($variantId ?? 0);
 
@@ -3015,6 +3019,24 @@ class Inventory
         ];
     }
 
+    public function salesTarget(
+        int $lookbackDays = 90,
+        int $targetDays = 30,
+        ?float $expectedGrossMarginPct = null,
+        float $desiredNetMarginPct = 10.0,
+        float $growthPct = 0.0,
+        ?float $expenseAllocationPct = null,
+    ): array {
+        return app(SalesTargetCalculator::class)->calculate(
+            lookbackDays: $lookbackDays,
+            targetDays: $targetDays,
+            expectedGrossMarginPct: $expectedGrossMarginPct,
+            desiredNetMarginPct: $desiredNetMarginPct,
+            growthPct: $growthPct,
+            expenseAllocationPct: $expenseAllocationPct,
+        );
+    }
+
     public function customerAnalytics(int $customerId, int $lookbackDays = 180, int $forecastDays = 90): array
     {
         $lookbackDays = max(7, $lookbackDays);
@@ -3096,7 +3118,7 @@ class Inventory
 
     private function historicalCustomerCollectionRatio(DateTimeInterface $startDate, DateTimeInterface $endDate): float
     {
-        $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
+        $invoiceClass = Invoice::class;
 
         if (!class_exists($invoiceClass)) {
             return 0.8;
@@ -3122,7 +3144,7 @@ class Inventory
 
     private function historicalSupplierPaymentRatio(DateTimeInterface $startDate, DateTimeInterface $endDate): float
     {
-        $billClass = \Centrex\Accounting\Models\Bill::class;
+        $billClass = Bill::class;
 
         if (!class_exists($billClass)) {
             return 0.7;
@@ -3454,7 +3476,7 @@ class Inventory
 
     private function modelDataReady(): bool
     {
-        return class_exists(\Centrex\ModelData\Data::class)
+        return class_exists(Data::class)
             && Schema::hasTable('model_datas');
     }
 
@@ -3464,7 +3486,7 @@ class Inventory
             return [];
         }
 
-        $record = \Centrex\ModelData\Data::query()
+        $record = Data::query()
             ->forModel($model)
             ->first();
 
@@ -3483,7 +3505,7 @@ class Inventory
             return;
         }
 
-        \Centrex\ModelData\Data::putForModel($model, $metadata);
+        Data::putForModel($model, $metadata);
     }
 
     // -------------------------------------------------------------------------

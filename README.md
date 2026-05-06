@@ -7,6 +7,8 @@
 
 Full multi-warehouse inventory management for Laravel. Supports weighted average costing (WAC), multi-currency purchasing and selling, inter-warehouse transfers with per-kg shipping costs, seven configurable sell price tiers per product per warehouse, and optional ERP integration with `laravel-accounting` for automatic journal entries.
 
+Developer architecture notes live in [docs/developer-architecture.md](docs/developer-architecture.md).
+
 ## Contents
 
 - [Installation](#installation)

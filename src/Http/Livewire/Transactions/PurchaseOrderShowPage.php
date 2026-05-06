@@ -26,7 +26,7 @@ class PurchaseOrderShowPage extends Component
     {
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
         $query = PurchaseOrder::query()
-            ->with(['supplier', 'warehouse', 'items.product'])
+            ->with(['supplier', 'warehouse', 'items.product', 'items.variant'])
             ->where('document_type', $this->documentType);
 
         CommercialTeamAccess::applyPurchaseScope($query);
@@ -39,7 +39,7 @@ class PurchaseOrderShowPage extends Component
 
     public function render(): View
     {
-        $this->record->loadMissing(['supplier', 'warehouse', 'items.product']);
+        $this->record->loadMissing(['supplier', 'warehouse', 'items.product', 'items.variant']);
 
         return view('inventory::livewire.transactions.purchase-order-show', [
             'record'                 => $this->record,
@@ -193,7 +193,7 @@ class PurchaseOrderShowPage extends Component
     private function refreshRecord(): void
     {
         $this->record = PurchaseOrder::query()
-            ->with(['supplier', 'warehouse', 'items.product'])
+            ->with(['supplier', 'warehouse', 'items.product', 'items.variant'])
             ->where('document_type', $this->documentType)
             ->findOrFail($this->record->getKey());
 

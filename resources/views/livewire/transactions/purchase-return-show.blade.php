@@ -27,7 +27,7 @@
     <div class="overflow-x-auto">
         <table class="table table-sm w-full">
             <thead><tr class="bg-base-50 text-xs uppercase"><th>Product</th><th>Qty</th><th>Unit Cost</th><th>Line Total</th></tr></thead>
-            <tbody>@foreach($record->items as $item)<tr><td>{{ $item->product?->name ?? 'Product' }}</td><td>{{ number_format((float) $item->qty_returned, 4) }}</td><td>{{ number_format((float) $item->unit_cost_amount, 2) }}</td><td>{{ number_format((float) $item->line_total_amount, 2) }}</td></tr>@endforeach</tbody>
+            <tbody>@foreach($record->items as $item)<tr><td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : ($item->product?->name ?? 'Product') }}</td><td>{{ number_format((float) $item->qty_returned, 4) }}</td><td>{{ number_format((float) $item->unit_cost_amount, 2) }}</td><td>{{ number_format((float) $item->line_total_amount, 2) }}</td></tr>@endforeach</tbody>
         </table>
     </div>
 </x-tallui-card>

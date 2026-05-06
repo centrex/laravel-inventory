@@ -48,6 +48,31 @@
                 </x-tallui-select>
             </x-tallui-form-group>
 
+            <x-tallui-form-group label="Customer">
+                <div class="flex items-start gap-2">
+                    <div class="flex-1" wire:key="sale-customer-select-{{ $customer_id ?? 'none' }}-{{ $form_refresh_key }}">
+                        <x-tallui-select
+                            name="customer_id"
+                            wire:model.live="customer_id"
+                            :value="$customer_id"
+                            searchable
+                            placeholder="Search customer or leave empty for walk-in"
+                            :options="$selectedCustomerOptions"
+                            :search-url="parse_url(route('inventory.async-select', ['resource' => 'customers']), PHP_URL_PATH)"
+                        />
+                    </div>
+                    @if ($customer_id)
+                        <x-tallui-button
+                            type="button"
+                            icon="o-x-mark"
+                            class="btn-ghost btn-sm mt-0.5"
+                            wire:click="$set('customer_id', null)"
+                            :tooltip="'Clear customer'"
+                        />
+                    @endif
+                </div>
+            </x-tallui-form-group>
+
             <x-tallui-form-group label="Default Price Tier">
                 <x-tallui-select name="price_tier_code" wire:model.live="price_tier_code">
                     @foreach ($priceTiers as $tier)
@@ -66,31 +91,6 @@
 
             <x-tallui-form-group label="Shipping (Local)">
                 <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" />
-            </x-tallui-form-group>
-
-            <x-tallui-form-group label="Customer">
-                <div class="flex items-start gap-2">
-                    <div class="flex-1" wire:key="sale-customer-select-{{ $customer_id ?? 'none' }}-{{ $form_refresh_key }}">
-                        <x-tallui-select
-                            name="customer_id"
-                            wire:model.live="customer_id"
-                            :value="$customer_id"
-                            searchable
-                            placeholder="Search customer or leave empty for walk-in"
-                            :options="$selectedCustomerOptions"
-                            :search-url="route('inventory.async-select', ['resource' => 'customers'])"
-                        />
-                    </div>
-                    @if ($customer_id)
-                        <x-tallui-button
-                            type="button"
-                            icon="o-x-mark"
-                            class="btn-ghost btn-sm mt-0.5"
-                            wire:click="$set('customer_id', null)"
-                            :tooltip="'Clear customer'"
-                        />
-                    @endif
-                </div>
             </x-tallui-form-group>
 
             <div class="md:col-span-2 lg:col-span-3">
@@ -215,26 +215,27 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="so-item-{{ $index }}" class="hover:bg-base-50">
                             <td class="pl-5 py-2">
-                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_id'] ?? 'none' }}-{{ $form_refresh_key }}">
+                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
-                                        name="items.{{ $index }}.product_id"
-                                        wire:model.live="items.{{ $index }}.product_id"
-                                        wire:change="refreshItemPrice({{ $index }})"
-                                        :value="$item['product_id'] ?? null"
+                                        name="items.{{ $index }}.product_key"
+                                        wire:model.live="items.{{ $index }}.product_key"
+                                        :value="$item['product_key'] ?? null"
                                         searchable
-                                        placeholder="Search product…"
-                                        :options="isset($selectedProductOptions[$item['product_id'] ?? 0]) ? [($item['product_id'] ?? 0) => $selectedProductOptions[$item['product_id'] ?? 0]] : []"
-                                        :search-url="route('inventory.async-select', ['resource' => 'sale-products', 'warehouse_id' => $warehouse_id])"
-                                        :disabled="filled($item['product_id'] ?? null)"
+                                        placeholder="Search product or variant…"
+                                        :options="isset($selectedProductOptions[$item['product_key'] ?? '']) ? [($item['product_key'] ?? '') => $selectedProductOptions[$item['product_key'] ?? '']] : []"
+                                        :search-url="parse_url(route('inventory.async-select', ['resource' => 'sale-products']), PHP_URL_PATH) . ($warehouse_id ? '?warehouse_id=' . $warehouse_id : '')"
+                                        :disabled="filled($item['product_key'] ?? null)"
                                         class="select-sm w-full"
                                     />
+                                    <input type="hidden" wire:model="items.{{ $index }}.product_id" />
+                                    <input type="hidden" wire:model="items.{{ $index }}.variant_id" />
                                 </div>
                             </td>
                             <td class="py-2">
                                 <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="0.0001" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" />
                             </td>
                             <td class="py-2 text-sm text-base-content/70">
-                                {{ number_format((float) ($availableStock->get($item['product_id'] ?? 0)?->qtyAvailable() ?? 0), 4) }}
+                                {{ number_format((float) ($availableStock->get(($item['product_id'] ?? 0) . ':' . (int) ($item['variant_id'] ?? 0))?->qtyAvailable() ?? 0), 4) }}
                             </td>
                             <td class="py-2">
                                 <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model.live="items.{{ $index }}.price_tier_code" class="select-sm w-full">

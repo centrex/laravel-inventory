@@ -7,6 +7,8 @@ public/*.hot
 composer.lock
 coverage
 docs
+!docs/
+!docs/developer-architecture.md
 phpunit.xml
 phpstan.neon
 testbench.yaml

@@ -17,7 +17,7 @@ class SaleReturnShowPage extends Component
     public function mount(int $recordId): void
     {
         $this->record = SaleReturn::query()
-            ->with(['warehouse', 'customer', 'saleOrder', 'items.product'])
+            ->with(['warehouse', 'customer', 'saleOrder', 'items.product', 'items.variant'])
             ->findOrFail($recordId);
     }
 

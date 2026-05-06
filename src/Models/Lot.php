@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
-use Centrex\Inventory\Concerns\{AddTablePrefix, HasTenant};
+use Centrex\Inventory\Concerns\{AddTablePrefix};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -14,7 +14,6 @@ class Lot extends Model implements Auditable
 {
     use AddTablePrefix;
     use AuditableTrait;
-    use HasTenant;
 
     protected function getTableSuffix(): string
     {

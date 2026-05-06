@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{PriceTierCode, PurchaseOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
@@ -77,6 +77,12 @@ class PurchaseOrderFormPage extends Component
             return;
         }
 
+        if (preg_match('/^items\.(\d+)\.product_key$/', $property, $matches)) {
+            $this->applyProductKey((int) $matches[1]);
+
+            return;
+        }
+
         if (preg_match('/^items\.(\d+)\.product_id$/', $property, $matches)) {
             $this->syncItemPrice((int) $matches[1]);
         }
@@ -128,17 +134,25 @@ class PurchaseOrderFormPage extends Component
     public function render(): View
     {
         $selectedProductIds = collect($this->items)->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->all();
+        $selectedVariantIds = collect($this->items)->pluck('variant_id')->filter()->map(fn ($id) => (int) $id)->all();
         $onHandStock = $this->warehouse_id
             ? WarehouseProduct::query()
                 ->where('warehouse_id', $this->warehouse_id)
                 ->get()
-                ->keyBy('product_id')
+                ->keyBy(fn (WarehouseProduct $stock): string => $this->stockKey((int) $stock->product_id, $stock->variant_id !== null ? (int) $stock->variant_id : null))
             : collect();
         $selectedProducts = $selectedProductIds === []
             ? collect()
             : Product::query()
                 ->whereIn('id', $selectedProductIds)
                 ->orderBy('name')
+                ->get()
+                ->keyBy('id');
+        $selectedVariants = $selectedVariantIds === []
+            ? collect()
+            : ProductVariant::query()
+                ->with('product')
+                ->whereIn('id', $selectedVariantIds)
                 ->get()
                 ->keyBy('id');
         $selectedSupplier = $this->supplier_id ? Supplier::query()->find($this->supplier_id) : null;
@@ -148,28 +162,52 @@ class PurchaseOrderFormPage extends Component
             'selectedSupplierOptions' => $selectedSupplier
                 ? [$selectedSupplier->id => $selectedSupplier->name]
                 : [],
-            'selectedProductOptions' => $selectedProducts->mapWithKeys(
-                fn (Product $product): array => [$product->id => $product->name],
-            )->all(),
-            'onHandStock'   => $onHandStock,
-            'isEditing'     => $this->recordId !== null,
-            'editable'      => $this->canEdit(),
-            'record'        => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
-            'documentLabel' => $this->documentLabel(),
-            'routeBase'     => $this->routeBase(),
+            'selectedProductOptions' => $this->selectedProductOptions($selectedProducts, $selectedVariants),
+            'onHandStock'            => $onHandStock,
+            'isEditing'              => $this->recordId !== null,
+            'editable'               => $this->canEdit(),
+            'record'                 => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
+            'documentLabel'          => $this->documentLabel(),
+            'routeBase'              => $this->routeBase(),
         ]);
+    }
+
+    private function selectedProductOptions($selectedProducts, $selectedVariants): array
+    {
+        $variantOptions = $selectedVariants->mapWithKeys(
+            fn (ProductVariant $variant): array => [
+                $this->productKey((int) $variant->product_id, (int) $variant->id) => [
+                    'label'    => (string) $variant->display_name,
+                    'sublabel' => filled($variant->sku ?: $variant->barcode) ? (string) ($variant->sku ?: $variant->barcode) : null,
+                ],
+            ],
+        );
+
+        $productOptions = $selectedProducts->mapWithKeys(
+            fn (Product $product): array => [
+                $this->productKey((int) $product->id) => [
+                    'label'    => (string) $product->name,
+                    'sublabel' => filled($product->sku ?: $product->barcode) ? (string) ($product->sku ?: $product->barcode) : null,
+                ],
+            ],
+        );
+
+        return $variantOptions->union($productOptions)->all();
     }
 
     private function syncItemPrice(int $index): void
     {
         $productId = (int) ($this->items[$index]['product_id'] ?? 0);
+        $variantId = ($this->items[$index]['variant_id'] ?? null) !== null
+            ? (int) $this->items[$index]['variant_id']
+            : null;
 
         if (!$productId) {
             return;
         }
 
         try {
-            $price = app(Inventory::class)->resolvePrice($productId, PriceTierCode::BASE->value, (int) ($this->warehouse_id ?? 0));
+            $price = app(Inventory::class)->resolvePrice($productId, PriceTierCode::BASE->value, (int) ($this->warehouse_id ?? 0), null, $variantId);
             $this->items[$index]['unit_price_local'] = (float) ($price->price_local ?: app(Inventory::class)->convertFromBase((float) $price->price_amount, $this->currency ?: 'BDT'));
         } catch (\Throwable) {
             $defaultPrice = (float) (Product::find($productId)?->meta['default_price'] ?? 0);
@@ -193,7 +231,9 @@ class PurchaseOrderFormPage extends Component
             'expected_at'              => ['nullable', 'date'],
             'notes'                    => ['nullable', 'string'],
             'items'                    => ['required', 'array', 'min:1'],
+            'items.*.product_key'      => ['nullable', 'string'],
             'items.*.product_id'       => ['required', 'integer'],
+            'items.*.variant_id'       => ['nullable', 'integer'],
             'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
             'items.*.unit_price_local' => ['required', 'numeric', 'min:0'],
             'items.*.notes'            => ['nullable', 'string'],
@@ -204,6 +244,8 @@ class PurchaseOrderFormPage extends Component
     {
         return [
             'product_id'       => null,
+            'product_key'      => '',
+            'variant_id'       => null,
             'qty_ordered'      => 1,
             'unit_price_local' => 0,
             'notes'            => '',
@@ -213,7 +255,7 @@ class PurchaseOrderFormPage extends Component
 
     private function loadOrder(int $recordId): void
     {
-        $query = PurchaseOrder::query()->with('items');
+        $query = PurchaseOrder::query()->with(['items.product', 'items.variant']);
         CommercialTeamAccess::applyPurchaseScope($query);
         $order = $query->findOrFail($recordId);
 
@@ -230,6 +272,8 @@ class PurchaseOrderFormPage extends Component
         $this->show_notes = false;
         $this->items = $order->items->map(fn ($item): array => [
             'product_id'       => $item->product_id,
+            'product_key'      => $this->productKey((int) $item->product_id, $item->variant_id !== null ? (int) $item->variant_id : null),
+            'variant_id'       => $item->variant_id !== null ? (int) $item->variant_id : null,
             'qty_ordered'      => (float) $item->qty_ordered,
             'unit_price_local' => (float) $item->unit_price_local,
             'notes'            => (string) ($item->notes ?? ''),
@@ -267,6 +311,7 @@ class PurchaseOrderFormPage extends Component
 
             $itemsPayload[] = [
                 'product_id'        => (int) $item['product_id'],
+                'variant_id'        => ($item['variant_id'] ?? null) !== null ? (int) $item['variant_id'] : null,
                 'qty_ordered'       => $qty,
                 'qty_received'      => 0,
                 'unit_price_local'  => $unitPrice,
@@ -309,7 +354,7 @@ class PurchaseOrderFormPage extends Component
             $purchaseOrder->items()->createMany($itemsPayload);
         });
 
-        $purchaseOrder = $purchaseOrder->fresh(['items.product', 'supplier', 'warehouse']);
+        $purchaseOrder = $purchaseOrder->fresh(['items.product', 'items.variant', 'supplier', 'warehouse']);
         app(ErpIntegration::class)->syncPurchaseOrderDocument($purchaseOrder);
 
         return $purchaseOrder;
@@ -354,6 +399,46 @@ class PurchaseOrderFormPage extends Component
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function applyProductKey(int $index): void
+    {
+        [$productId, $variantId] = $this->parseProductKey((string) ($this->items[$index]['product_key'] ?? ''));
+
+        $this->items[$index]['product_id'] = $productId;
+        $this->items[$index]['variant_id'] = $variantId;
+        $this->syncItemPrice($index);
+    }
+
+    private function parseProductKey(string $key): array
+    {
+        if (str_starts_with($key, 'v:')) {
+            $variant = ProductVariant::query()->find((int) substr($key, 2));
+
+            return $variant
+                ? [(int) $variant->product_id, (int) $variant->id]
+                : [null, null];
+        }
+
+        if (str_starts_with($key, 'p:')) {
+            $productId = (int) substr($key, 2);
+
+            return $productId > 0 ? [$productId, null] : [null, null];
+        }
+
+        $productId = (int) $key;
+
+        return $productId > 0 ? [$productId, null] : [null, null];
+    }
+
+    private function productKey(int $productId, ?int $variantId = null): string
+    {
+        return $variantId ? 'v:' . $variantId : 'p:' . $productId;
+    }
+
+    private function stockKey(int $productId, ?int $variantId = null): string
+    {
+        return $productId . ':' . (int) ($variantId ?? 0);
     }
 
     private function routeBase(): string

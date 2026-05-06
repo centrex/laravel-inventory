@@ -94,7 +94,7 @@ class SaleReturnFormPage extends Component
         $availableProducts = $this->availableProducts();
 
         return view('inventory::livewire.transactions.sale-return-form', [
-            'saleOrders' => SaleOrder::query()->with('customer')->where('document_type', 'order')->orderByDesc('ordered_at')->limit(100)->get(),
+            'saleOrders' => SaleOrder::query()->with('customer')->where('document_type', 'order')->whereNotIn('status', ['draft', 'cancelled'])->orderByDesc('ordered_at')->limit(100)->get(),
             'warehouses' => Warehouse::query()->orderBy('name')->get(),
             'customers'  => Customer::query()->orderBy('name')->get(),
             'products'   => $selectedOrder
@@ -156,6 +156,7 @@ class SaleReturnFormPage extends Component
         return SaleOrder::query()
             ->with(['customer', 'warehouse', 'items.product', 'items.variant'])
             ->where('document_type', 'order')
+            ->whereNotIn('status', ['draft', 'cancelled'])
             ->find($this->sale_order_id);
     }
 
@@ -175,13 +176,16 @@ class SaleReturnFormPage extends Component
 
         return $saleOrder->items
             ->map(function ($item) use ($returnedByItem): array {
+                $baseQty = (float) $item->qty_fulfilled > 0
+                    ? (float) $item->qty_fulfilled
+                    : (float) $item->qty_ordered;
                 $maxQty = max(0.0, round(
-                    (float) $item->qty_fulfilled - (float) ($returnedByItem[$item->getKey()] ?? 0),
+                    $baseQty - (float) ($returnedByItem[$item->getKey()] ?? 0),
                     4,
                 ));
 
                 $productLabel = $item->variant
-                    ? ($item->variant->display_name ?: ($item->product?->name ?? 'Product'))
+                    ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name)
                     : ($item->product?->name ?? 'Product');
 
                 return [

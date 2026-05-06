@@ -17,7 +17,7 @@ class PurchaseReturnShowPage extends Component
     public function mount(int $recordId): void
     {
         $this->record = PurchaseReturn::query()
-            ->with(['warehouse', 'supplier', 'purchaseOrder', 'items.product'])
+            ->with(['warehouse', 'supplier', 'purchaseOrder', 'items.product', 'items.variant'])
             ->findOrFail($recordId);
     }
 

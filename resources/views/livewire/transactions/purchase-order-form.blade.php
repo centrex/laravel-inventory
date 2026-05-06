@@ -47,7 +47,7 @@
                         searchable
                         placeholder="Search supplier…"
                         :options="$selectedSupplierOptions"
-                        :search-url="route('inventory.async-select', ['resource' => 'suppliers'])"
+                        :search-url="parse_url(route('inventory.async-select', ['resource' => 'suppliers']), PHP_URL_PATH)"
                         class="{{ $errors->has('supplier_id') ? 'select-error' : '' }}"
                     />
                 </div>
@@ -131,17 +131,19 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="po-item-{{ $index }}" class="hover:bg-base-50">
                             <td class="pl-5 py-2">
-                                <div wire:key="purchase-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_id'] ?? 'none' }}-{{ $form_refresh_key }}">
+                                <div wire:key="purchase-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
-                                        name="items.{{ $index }}.product_id"
-                                        wire:model.live="items.{{ $index }}.product_id"
-                                        :value="$item['product_id'] ?? null"
+                                        name="items.{{ $index }}.product_key"
+                                        wire:model.live="items.{{ $index }}.product_key"
+                                        :value="$item['product_key'] ?? null"
                                         searchable
-                                        placeholder="Search product…"
-                                        :options="isset($selectedProductOptions[$item['product_id'] ?? 0]) ? [($item['product_id'] ?? 0) => $selectedProductOptions[$item['product_id'] ?? 0]] : []"
-                                        :search-url="route('inventory.async-select', ['resource' => 'purchase-products'])"
+                                        placeholder="Search product or variant…"
+                                        :options="isset($selectedProductOptions[$item['product_key'] ?? '']) ? [($item['product_key'] ?? '') => $selectedProductOptions[$item['product_key'] ?? '']] : []"
+                                        :search-url="parse_url(route('inventory.async-select', ['resource' => 'purchase-products']), PHP_URL_PATH)"
                                         class="select-sm w-full"
                                     />
+                                    <input type="hidden" wire:model="items.{{ $index }}.product_id" />
+                                    <input type="hidden" wire:model="items.{{ $index }}.variant_id" />
                                 </div>
                             </td>
                             <td class="py-2">
@@ -153,7 +155,7 @@
                                 />
                             </td>
                             <td class="py-2 text-sm text-base-content/70">
-                                {{ number_format((float) ($onHandStock->get($item['product_id'] ?? 0)?->qty_on_hand ?? 0), 4) }}
+                                {{ number_format((float) ($onHandStock->get(($item['product_id'] ?? 0) . ':' . (int) ($item['variant_id'] ?? 0))?->qty_on_hand ?? 0), 4) }}
                             </td>
                             <td class="py-2">
                                 <x-tallui-input

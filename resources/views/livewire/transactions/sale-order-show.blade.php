@@ -172,8 +172,8 @@
                 <tbody>
                     @foreach ($record->items as $item)
                         <tr>
-                            <td>{{ $item->product?->name ?? 'Product' }}</td>
-                            <td>{{ $item->product?->sku ?? '—' }}</td>
+                            <td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : ($item->product?->name ?? 'Product') }}</td>
+                            <td>{{ $item->variant?->sku ?? $item->product?->sku ?? '—' }}</td>
                             <td>{{ rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.') }}</td>
                             <td>{{ number_format((float) $item->unit_price_local, 2) }}</td>
                             <td>{{ number_format((float) $item->discount_pct, 2) }}</td>
