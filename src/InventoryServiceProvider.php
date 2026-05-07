@@ -150,6 +150,30 @@ class InventoryServiceProvider extends ServiceProvider
             }
         }
 
+        // Dispatch terminal tab gates — fall back to admin super-gate.
+        $terminalTabGates = [
+            'inventory.dispatch.dispatcher-tab' => 'dispatcher_roles',
+            'inventory.dispatch.updater-tab'    => 'updater_roles',
+        ];
+
+        foreach ($terminalTabGates as $ability => $configKey) {
+            if (!Gate::has($ability)) {
+                Gate::define($ability, function ($user) use ($ability, $configKey): bool {
+                    if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
+                        return true;
+                    }
+
+                    if (method_exists($user, 'hasRole')) {
+                        $roles = $this->normalizeAdminRoles(config("inventory.{$configKey}", []));
+
+                        return !empty($roles) && $user->hasRole($roles);
+                    }
+
+                    return false;
+                });
+            }
+        }
+
         foreach ($abilities as $ability) {
             if (!Gate::has($ability)) {
                 Gate::define($ability, function ($user) use ($ability): bool {
@@ -246,8 +270,11 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-transfer-index', Http\Livewire\Transactions\TransferIndexPage::class);
         Livewire::component('inventory-transfer-form', Http\Livewire\Transactions\TransferFormPage::class);
         Livewire::component('inventory-transfer-show', Http\Livewire\Transactions\TransferShowPage::class);
+        Livewire::component('inventory-shipment-index', Http\Livewire\Transactions\ShipmentIndexPage::class);
+        Livewire::component('inventory-shipment-show', Http\Livewire\Transactions\ShipmentShowPage::class);
         Livewire::component('inventory-reports-page', Http\Livewire\Transactions\InventoryReportsPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
+        Livewire::component('inventory-dispatch-terminal', Http\Livewire\Transactions\DispatchTerminalPage::class);
     }
 }

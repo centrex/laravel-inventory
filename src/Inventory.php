@@ -326,6 +326,7 @@ class Inventory
         $today = now()->format('Ymd');
         $latest = $model::query()
             ->where($column, 'like', "{$prefix}-{$today}-%")
+            ->orWhere($column, 'like', "{$prefix}-%") // In case of different date formats
             ->orderByDesc($column)
             ->value($column);
 

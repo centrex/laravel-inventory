@@ -20,7 +20,7 @@
 </x-tallui-page-header>
 
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-    <x-tallui-card title="Shipment Summary" subtitle="Route, status, and shipping cost." icon="o-map" :shadow="true">
+    <x-tallui-card title="Transfer Summary" subtitle="Route, status, and shipping cost." icon="o-map" :shadow="true">
         <div class="space-y-3 text-sm">
             <div><span class="text-base-content/50">From</span><div class="font-medium">{{ $record->fromWarehouse?->name ?? '—' }}</div></div>
             <div><span class="text-base-content/50">To</span><div class="font-medium">{{ $record->toWarehouse?->name ?? '—' }}</div></div>

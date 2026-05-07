@@ -2,8 +2,10 @@
 
 declare(strict_types = 1);
 
+use Centrex\Inventory\Http\Livewire\Transactions\DispatchTerminalPage;
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Coupon, Customer, Product, PurchaseOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Coupon, Customer, Product, PurchaseOrderItem, SaleOrder, SaleOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
+use Livewire\Livewire;
 
 it('prevents crossing purchase order items when creating stock receipts', function (): void {
     $inventory = app(Inventory::class);
@@ -54,6 +56,66 @@ it('prevents crossing purchase order items when creating stock receipts', functi
         'qty_received'           => 1,
     ]]);
 })->throws(InvalidArgumentException::class);
+
+it('updates dispatch terminal orders through livewire', function (): void {
+    $warehouse = Warehouse::create([
+        'code'         => 'W-DISPATCH-1',
+        'name'         => 'Dispatch Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'              => 'CUS-DISPATCH-1',
+        'name'              => 'Dispatch Customer',
+        'organization_name' => 'Dispatch Org',
+        'currency'          => 'BDT',
+        'price_tier_code'   => 'b2c_retail',
+        'is_active'         => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-DISPATCH-1',
+        'name'         => 'Dispatch Product',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+    $saleOrder = SaleOrder::create([
+        'so_number'       => 'SO-DISPATCH-1',
+        'document_type'   => 'order',
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'price_tier_code' => 'b2c_retail',
+        'currency'        => 'BDT',
+        'exchange_rate'   => 1,
+        'total_local'     => 100,
+        'total_amount'    => 100,
+        'status'          => 'confirmed',
+        'ordered_at'      => now(),
+    ]);
+
+    SaleOrderItem::create([
+        'sale_order_id'     => $saleOrder->id,
+        'product_id'        => $product->id,
+        'price_tier_code'   => 'b2c_retail',
+        'qty_ordered'       => 1,
+        'unit_price_local'  => 100,
+        'unit_price_amount' => 100,
+        'line_total_local'  => 100,
+        'line_total_amount' => 100,
+    ]);
+
+    Livewire::test(DispatchTerminalPage::class)
+        ->assertSee('SO-DISPATCH-1')
+        ->set("orderForms.{$saleOrder->id}.tracking_number", 'TRK-100')
+        ->set("orderForms.{$saleOrder->id}.carrier", 'Courier One')
+        ->set("orderForms.{$saleOrder->id}.parcel_status", 'Dispatched')
+        ->set("orderForms.{$saleOrder->id}.order_status", 'shipped')
+        ->set("orderForms.{$saleOrder->id}.location", 'Hub A')
+        ->call('updateOrder', $saleOrder->id)
+        ->assertHasNoErrors()
+        ->assertSee('SO-DISPATCH-1 dispatch updated.');
+
+    expect($saleOrder->fresh()->status->value)->toBe('shipped');
+});
 
 it('prevents fulfilling more than the remaining sale order quantity', function (): void {
     $inventory = app(Inventory::class);

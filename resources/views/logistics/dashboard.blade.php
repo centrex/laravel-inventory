@@ -14,6 +14,7 @@
     </x-slot:breadcrumbs>
     <x-slot:actions>
         <x-tallui-button label="Transfers" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Shipments" icon="o-paper-airplane" :link="route('inventory.shipments.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Purchases" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Sales" icon="o-shopping-cart" :link="route('inventory.sale-orders.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-primary btn-sm" />
@@ -21,10 +22,10 @@
 </x-tallui-page-header>
 
 <div class="stats shadow w-full mb-6">
-    <x-tallui-stat title="Open Transfers" :value="$metrics['open_transfers']" desc="Draft or shipped movements" icon="o-arrows-right-left" />
+    <x-tallui-stat title="Open Transfers" :value="$metrics['open_transfers']" desc="Draft, in transit, or partial transfers" icon="o-arrows-right-left" />
+    <x-tallui-stat title="Open Shipments" :value="$metrics['open_shipments']" desc="Draft, in transit, or partial shipments" icon="o-paper-airplane" />
     <x-tallui-stat title="Pending Receipts" :value="$metrics['pending_receipts']" desc="Draft stock receipts" icon="o-inbox-arrow-down" />
     <x-tallui-stat title="Open Purchases" :value="$metrics['open_purchases']" desc="Submitted, confirmed, or partial POs" icon="o-arrow-down-tray" />
-    <x-tallui-stat title="Fulfillment Queue" :value="$metrics['fulfillment_due']" desc="Confirmed or processing sales" icon="o-truck" />
 </div>
 
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -72,6 +73,22 @@
                 </div>
             @empty
                 <p class="text-sm text-base-content/60">No recent transfers.</p>
+            @endforelse
+        </div>
+    </x-tallui-card>
+
+    <x-tallui-card title="Shipments" subtitle="Recent shipment records tracked outside transfer workflows." icon="o-paper-airplane" :shadow="true">
+        <div class="space-y-3 text-sm">
+            @forelse ($shipments as $shipment)
+                <div class="flex items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-100 p-3">
+                    <div>
+                        <div class="font-medium">{{ $shipment->shipment_number }}</div>
+                        <div class="text-xs text-base-content/60">{{ $shipment->fromWarehouse?->name ?? '—' }} to {{ $shipment->toWarehouse?->name ?? '—' }}</div>
+                    </div>
+                    <x-tallui-badge type="info">{{ $shipment->status?->label() ?? $shipment->status }}</x-tallui-badge>
+                </div>
+            @empty
+                <p class="text-sm text-base-content/60">No recent shipments.</p>
             @endforelse
         </div>
     </x-tallui-card>

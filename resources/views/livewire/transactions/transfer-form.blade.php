@@ -2,8 +2,8 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    title="New Transfer Shipment"
-    subtitle="Prepare inter-warehouse shipments with landed-cost allocation."
+    title="New Transfer"
+    subtitle="Prepare inter-warehouse transfers with landed-cost allocation."
     icon="o-arrows-right-left"
 >
     <x-slot:breadcrumbs>
@@ -46,7 +46,7 @@
 
             <div class="md:col-span-2 lg:col-span-3">
                 <x-tallui-form-group label="Notes">
-                    <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Shipment instructions, reference…" />
+                    <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Transfer instructions, reference…" />
                 </x-tallui-form-group>
             </div>
         </div>

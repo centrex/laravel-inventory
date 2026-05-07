@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Web;
 
-use Centrex\Inventory\Models\{PurchaseOrder, SaleOrder, StockReceipt, Transfer, WarehouseProduct};
+use Centrex\Inventory\Models\{PurchaseOrder, SaleOrder, Shipment, StockReceipt, Transfer, WarehouseProduct};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 
@@ -15,6 +15,7 @@ class LogisticsDashboardController
         Gate::authorize('inventory.logistics.view');
 
         $transfers = Transfer::query()->with(['fromWarehouse', 'toWarehouse'])->latest('id')->limit(8)->get();
+        $shipments = Shipment::query()->with(['fromWarehouse', 'toWarehouse'])->latest('id')->limit(8)->get();
         $receipts = StockReceipt::query()->with(['warehouse', 'purchaseOrder'])->latest('received_at')->limit(8)->get();
         $openPurchases = PurchaseOrder::query()
             ->with(['supplier', 'warehouse'])
@@ -39,12 +40,14 @@ class LogisticsDashboardController
 
         return view('inventory::logistics.dashboard', [
             'transfers'        => $transfers,
+            'shipments'        => $shipments,
             'receipts'         => $receipts,
             'openPurchases'    => $openPurchases,
             'fulfillmentQueue' => $fulfillmentQueue,
             'lowStock'         => $lowStock,
             'metrics'          => [
-                'open_transfers'   => Transfer::query()->whereIn('status', ['draft', 'shipped'])->count(),
+                'open_transfers'   => Transfer::query()->whereIn('status', ['draft', 'in_transit', 'partial'])->count(),
+                'open_shipments'   => Shipment::query()->whereIn('status', ['draft', 'in_transit', 'partial'])->count(),
                 'pending_receipts' => StockReceipt::query()->where('status', 'draft')->count(),
                 'open_purchases'   => PurchaseOrder::query()->where('document_type', 'order')->whereIn('status', ['submitted', 'confirmed', 'partial'])->count(),
                 'fulfillment_due'  => SaleOrder::query()->where('document_type', 'order')->whereIn('status', ['confirmed', 'processing', 'partial'])->count(),

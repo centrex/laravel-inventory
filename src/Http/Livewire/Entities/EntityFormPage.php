@@ -121,13 +121,14 @@ class EntityFormPage extends Component
     public function render(): View
     {
         $record = $this->recordId ? $this->record(false) : null;
+        $supportsPrimaryImage = $this->supportsPrimaryImage($record);
 
         return view('inventory::livewire.entities.form-page', [
             'definition'                => InventoryEntityRegistry::definition($this->entity),
             'options'                   => InventoryEntityRegistry::formOptions($this->entity),
-            'supportsPrimaryImage'      => $this->supportsPrimaryImage(),
-            'currentPrimaryImageUrl'    => $record?->primary_image_url ?: null,
-            'currentPrimaryImageSrcset' => $record?->primary_image_srcset ?: null,
+            'supportsPrimaryImage'      => $supportsPrimaryImage,
+            'currentPrimaryImageUrl'    => $supportsPrimaryImage ? ($record?->primary_image_url ?: null) : null,
+            'currentPrimaryImageSrcset' => $supportsPrimaryImage ? ($record?->primary_image_srcset ?: null) : null,
             'customerHistory'           => $this->entity === 'customers' && $this->recordId
                 ? app(Inventory::class)->customerHistory($this->recordId)
                 : collect(),
@@ -158,9 +159,13 @@ class EntityFormPage extends Component
             : $query->find($this->recordId);
     }
 
-    private function supportsPrimaryImage(): bool
+    private function supportsPrimaryImage(?Model $record = null): bool
     {
-        return in_array($this->entity, ['products', 'product-categories', 'product-brands', 'customers', 'suppliers'], true);
+        $model = $record ?? InventoryEntityRegistry::makeModel($this->entity);
+
+        return method_exists($model, 'primaryImageCollectionName')
+            && method_exists($model, 'getPrimaryImageUrlAttribute')
+            && method_exists($model, 'getPrimaryImageSrcsetAttribute');
     }
 
     private function storePrimaryImage(Model $record): void

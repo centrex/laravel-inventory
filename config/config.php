@@ -130,6 +130,12 @@ return [
 
     // Roles that grant back-office partner access (view own orders, create partner orders)
     'partner_roles'           => env('INVENTORY_PARTNER_ROLES', 'dropshipper,ecom-partner'),
+
+    // Roles that can see the Dispatcher tab on the dispatch terminal
+    'dispatcher_roles'        => env('INVENTORY_DISPATCHER_ROLES', 'dispatcher'),
+
+    // Roles that can see the Sale Updater tab on the dispatch terminal
+    'updater_roles'           => env('INVENTORY_UPDATER_ROLES', 'sales-manager,logistics-manager'),
     // Middleware for the partner API key endpoints (no session required — uses X-Partner-Key header)
     'partner_api_middleware'  => ['api'],
 

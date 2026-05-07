@@ -16,6 +16,10 @@
         <x-tallui-button label="Quotation" icon="o-document-duplicate" :link="route('inventory.quotations.create')" class="btn-outline btn-sm" />
         <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" target="_blank" />
         <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Shipment" icon="o-paper-airplane" :link="route('inventory.shipments.index')" class="btn-outline btn-sm" />
+        @if(Route::has('inventory.entities.warehouse-products.index'))
+        <x-tallui-button label="Warehouse Stock" icon="o-cube" :link="route('inventory.entities.warehouse-products.index')" class="btn-outline btn-sm" />
+        @endif
         @if ($canViewForecast)
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
         @endif
@@ -47,8 +51,8 @@
             />
             <x-tallui-stat
                 title="Transaction Workflows"
-                value="8"
-                desc="Employees · PO · SO · POS · Transfer · Adjustment · Expense · Payroll"
+                value="9"
+                desc="Employees · PO · SO · POS · Transfer · Shipment · Adjustment · Expense · Payroll"
                 icon="o-bolt"
             />
             <x-tallui-stat
@@ -404,6 +408,11 @@
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-arrows-right-left class="w-7 h-7 text-info" />
         <span class="text-sm font-medium">Transfers</span>
+    </a>
+    <a href="{{ route('inventory.shipments.index') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-paper-airplane class="w-7 h-7 text-primary" />
+        <span class="text-sm font-medium">Shipments</span>
     </a>
     @if ($canViewForecast)
     <a href="{{ route('inventory.reports.index') }}"
