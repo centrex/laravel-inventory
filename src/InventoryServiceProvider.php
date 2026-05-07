@@ -158,7 +158,7 @@ class InventoryServiceProvider extends ServiceProvider
 
         foreach ($terminalTabGates as $ability => $configKey) {
             if (!Gate::has($ability)) {
-                Gate::define($ability, function ($user) use ($ability, $configKey): bool {
+                Gate::define($ability, function ($user) use ($configKey): bool {
                     if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
                         return true;
                     }

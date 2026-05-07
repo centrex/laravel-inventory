@@ -861,7 +861,7 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
     $inventory->fulfillSaleOrder($saleOrder->id);
 
     expect(
-        $entryClass::where('source_type', Centrex\Inventory\Models\SaleOrder::class)
+        $entryClass::where('source_type', SaleOrder::class)
             ->where('source_id', $saleOrder->id)
             ->where('source_action', 'sale_fulfillment')
             ->exists(),
