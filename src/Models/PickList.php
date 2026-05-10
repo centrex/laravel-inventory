@@ -7,10 +7,13 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class PickList extends Model
+class PickList extends Model implements Auditable
 {
     use AddTablePrefix;
+    use AuditableTrait;
 
     protected function getTableSuffix(): string
     {

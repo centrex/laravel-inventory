@@ -21,11 +21,15 @@
                         <td>{{ $return->customer?->name ?? '—' }}</td>
                         <td>{{ $return->warehouse?->name ?? '—' }}</td>
                         <td>{{ ucfirst((string) $return->status) }}</td>
-                        <td class="pr-5 text-right"><x-tallui-button icon="o-eye" :link="route('inventory.sale-returns.show', ['recordId' => $return->getKey()])" class="btn-ghost btn-xs" label="Open" :responsive="true" /></td>
+                        <td class="pr-5 text-right">
+                            <x-tallui-button icon="o-eye" :link="route('inventory.sale-returns.show', ['recordId' => $return->getKey()])" class="btn-ghost btn-xs" label="Open" :responsive="true" />
+                            <x-tallui-button icon="o-clock" wire:click="openAuditTrail(@js($return::class), {{ $return->getKey() }}, @js($return->return_number))" class="btn-ghost btn-xs" label="Audit" :responsive="true" />
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
 </x-tallui-card>
+@include('inventory::livewire.shared.audit-trail-modal')
 </div>

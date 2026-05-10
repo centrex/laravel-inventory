@@ -56,6 +56,7 @@
                         <td class="pr-5">
                             <div class="flex justify-end gap-1">
                                 <x-tallui-button icon="o-eye" :link="route($routeBase . '.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
+                                <x-tallui-button icon="o-clock" wire:click="openAuditTrail(@js($order::class), {{ $order->getKey() }}, @js($order->po_number))" class="btn-ghost btn-xs" label="Audit" :responsive="true" />
                                 <x-tallui-button icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="Edit" :responsive="true" />
                                 @if (Route::has('erp.documents.purchases.print'))
                                     <x-tallui-button icon="o-printer" :link="route('erp.documents.purchases.print', ['purchaseOrder' => $order->getKey()])" class="btn-ghost btn-xs" label="Print" :responsive="true" />
@@ -85,4 +86,5 @@
         </div>
     @endif
 </x-tallui-card>
+@include('inventory::livewire.shared.audit-trail-modal')
 </div>

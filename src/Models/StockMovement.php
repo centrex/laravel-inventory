@@ -8,10 +8,13 @@ use Centrex\Inventory\Concerns\AddTablePrefix;
 use Centrex\Inventory\Enums\MovementType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, MorphTo};
+use OwenIt\Auditing\Auditable as AuditableTrait;
+use OwenIt\Auditing\Contracts\Auditable;
 
-class StockMovement extends Model
+class StockMovement extends Model implements Auditable
 {
     use AddTablePrefix;
+    use AuditableTrait;
 
     public const UPDATED_AT = null; // append-only — no updated_at
 

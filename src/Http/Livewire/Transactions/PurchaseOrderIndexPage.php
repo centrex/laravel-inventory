@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Models\PurchaseOrder;
 use Centrex\Inventory\Support\CommercialTeamAccess;
 use Illuminate\Contracts\View\View;
@@ -13,6 +14,7 @@ use Livewire\{Component, WithPagination};
 #[Layout('layouts.app')]
 class PurchaseOrderIndexPage extends Component
 {
+    use ShowsAuditTrail;
     use WithPagination;
 
     public string $documentType = 'order';

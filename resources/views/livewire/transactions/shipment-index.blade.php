@@ -54,6 +54,7 @@
                         <td>{{ number_format((float) $shipment->shipping_cost_amount, 2) }}</td>
                         <td class="pr-5 text-right">
                             <x-tallui-button icon="o-eye" :link="route('inventory.shipments.show', ['recordId' => $shipment->getKey()])" class="btn-ghost btn-xs" label="Open" :responsive="true" />
+                            <x-tallui-button icon="o-clock" wire:click="openAuditTrail(@js($shipment::class), {{ $shipment->getKey() }}, @js($shipment->shipment_number))" class="btn-ghost btn-xs" label="Audit" :responsive="true" />
                         </td>
                     </tr>
                 @empty
@@ -67,4 +68,5 @@
         </table>
     </div>
 </x-tallui-card>
+@include('inventory::livewire.shared.audit-trail-modal')
 </div>

@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Enums\ShipmentStatus;
 use Centrex\Inventory\Models\Shipment;
 use Centrex\Inventory\Support\ShipmentExcelExporter;
@@ -16,6 +17,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 #[Layout('layouts.app')]
 class ShipmentIndexPage extends Component
 {
+    use ShowsAuditTrail;
     use WithPagination;
 
     public string $search = '';

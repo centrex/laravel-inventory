@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
+use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
@@ -13,6 +14,7 @@ use Livewire\{Component, WithPagination};
 #[Layout('layouts.app')]
 class EntityIndexPage extends Component
 {
+    use ShowsAuditTrail;
     use WithPagination;
 
     public string $entity = '';

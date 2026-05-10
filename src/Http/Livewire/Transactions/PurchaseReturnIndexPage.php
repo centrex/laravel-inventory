@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Models\PurchaseReturn;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -12,6 +13,7 @@ use Livewire\{Component, WithPagination};
 #[Layout('layouts.app')]
 class PurchaseReturnIndexPage extends Component
 {
+    use ShowsAuditTrail;
     use WithPagination;
 
     public string $search = '';

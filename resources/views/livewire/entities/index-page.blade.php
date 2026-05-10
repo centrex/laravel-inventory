@@ -101,6 +101,15 @@
                                         label="History"
                                     />
                                 @endif
+                                @if ($this->supportsAuditTrail($record::class))
+                                    <x-tallui-button
+                                        icon="o-clock"
+                                        wire:click="openAuditTrail(@js($record::class), {{ $record->getKey() }}, @js((string) ($record->name ?? $record->sku ?? $record->code ?? ($definition['singular'] . ' #' . $record->getKey()))))"
+                                        class="btn-ghost btn-xs"
+                                        :responsive="true"
+                                        label="Audit"
+                                    />
+                                @endif
                                 <x-tallui-button
                                     icon="o-pencil-square"
                                     :link="route('inventory.entities.' . $entity . '.edit', ['recordId' => $record->getKey()])"
@@ -149,4 +158,5 @@
         </div>
     @endif
 </x-tallui-card>
+@include('inventory::livewire.shared.audit-trail-modal')
 </div>
