@@ -5,11 +5,13 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
 use Centrex\Inventory\Concerns\ShowsAuditTrail;
-use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
+use Centrex\Inventory\Models\{Customer, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Support\{CommercialTeamAccess, CustomerClvService, CustomerExporter, InventoryEntityRegistry, SupplierExporter, WarehouseStockExporter};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 #[Layout('layouts.app')]
 class EntityIndexPage extends Component
@@ -21,6 +23,8 @@ class EntityIndexPage extends Component
 
     public string $search = '';
 
+    public ?int $filterWarehouseId = null;
+
     public function mount(string $entity): void
     {
         InventoryEntityRegistry::definition($entity);
@@ -31,6 +35,103 @@ class EntityIndexPage extends Component
     public function updatingSearch(): void
     {
         $this->resetPage();
+    }
+
+    public function updatingFilterWarehouseId(): void
+    {
+        $this->resetPage();
+    }
+
+    public function downloadExcel(): ?StreamedResponse
+    {
+        abort_unless(in_array($this->entity, ['warehouse-products', 'customers', 'suppliers'], true), 403);
+
+        if ($this->entity === 'customers') {
+            $query = Customer::query()
+                ->with(['salesOwner'])
+                ->withCount([
+                    'saleOrders as sale_count_total' => fn ($q) => $q
+                        ->where('document_type', 'order'),
+                    'saleOrders as sale_count_last_month' => fn ($q) => $q
+                        ->where('document_type', 'order')
+                        ->where('ordered_at', '>=', now()->subMonth()),
+                ])
+                ->withSum([
+                    'saleOrders as sale_value_last_month' => fn ($q) => $q
+                        ->where('document_type', 'order')
+                        ->where('ordered_at', '>=', now()->subMonth()),
+                ], 'total_local')
+                ->withMax([
+                    'saleOrders as last_sale_date' => fn ($q) => $q
+                        ->where('document_type', 'order'),
+                ], 'ordered_at')
+                ->orderBy('name');
+            $this->applyEntityScope($query);
+
+            if ($this->search !== '') {
+                $search = $this->search;
+                $query->where(function ($builder) use ($search): void {
+                    $builder->where('code', 'like', '%' . $search . '%')
+                        ->orWhere('name', 'like', '%' . $search . '%')
+                        ->orWhere('organization_name', 'like', '%' . $search . '%')
+                        ->orWhere('email', 'like', '%' . $search . '%')
+                        ->orWhere('phone', 'like', '%' . $search . '%')
+                        ->orWhere('zone', 'like', '%' . $search . '%')
+                        ->orWhere('area', 'like', '%' . $search . '%');
+                });
+            }
+
+            $customers = $query->get();
+            $clvData   = CustomerClvService::computeForCustomers($customers);
+
+            return CustomerExporter::download($customers, 'customers-' . now()->format('Ymd-His') . '.xls', $clvData);
+        }
+
+        if ($this->entity === 'suppliers') {
+            $query = Supplier::query()
+                ->with(['purchaseManager'])
+                ->withCount([
+                    'purchaseOrders as po_count_total' => fn ($q) => $q
+                        ->where('document_type', 'order'),
+                    'purchaseOrders as po_count_last_month' => fn ($q) => $q
+                        ->where('document_type', 'order')
+                        ->where('ordered_at', '>=', now()->subMonth()),
+                ])
+                ->withSum([
+                    'purchaseOrders as po_value_last_month' => fn ($q) => $q
+                        ->where('document_type', 'order')
+                        ->where('ordered_at', '>=', now()->subMonth()),
+                ], 'total_local')
+                ->withMax([
+                    'purchaseOrders as last_po_date' => fn ($q) => $q
+                        ->where('document_type', 'order'),
+                ], 'ordered_at')
+                ->orderBy('name');
+
+            if ($this->search !== '') {
+                $search = $this->search;
+                $query->where(function ($builder) use ($search): void {
+                    $builder->where('code', 'like', '%' . $search . '%')
+                        ->orWhere('name', 'like', '%' . $search . '%')
+                        ->orWhere('contact_email', 'like', '%' . $search . '%')
+                        ->orWhere('contact_phone', 'like', '%' . $search . '%')
+                        ->orWhere('demographic_segment', 'like', '%' . $search . '%');
+                });
+            }
+
+            return SupplierExporter::download($query->get(), 'suppliers-' . now()->format('Ymd-His') . '.xls');
+        }
+
+        $query = WarehouseProduct::query()->with(['warehouse', 'product', 'variant']);
+
+        if ($this->filterWarehouseId !== null) {
+            $query->where('warehouse_id', $this->filterWarehouseId);
+        }
+
+        $records = $query->orderBy('warehouse_id')->orderBy('product_id')->get();
+        $suffix  = $this->filterWarehouseId ? '-wh' . $this->filterWarehouseId : '';
+
+        return WarehouseStockExporter::download($records, 'warehouse-stock' . $suffix . '-' . now()->format('Ymd-His') . '.xls');
     }
 
     public function delete(int $recordId): void
@@ -60,6 +161,10 @@ class EntityIndexPage extends Component
             ->values()
             ->all();
 
+        if ($this->entity === 'warehouse-products') {
+            $relations = array_unique(array_merge($relations, ['product', 'variant']));
+        }
+
         if ($relations !== []) {
             $query->with($relations);
         }
@@ -73,12 +178,21 @@ class EntityIndexPage extends Component
             });
         }
 
+        if ($this->entity === 'warehouse-products' && $this->filterWarehouseId !== null) {
+            $query->where('warehouse_id', $this->filterWarehouseId);
+        }
+
+        $warehouses = $this->entity === 'warehouse-products'
+            ? Warehouse::query()->orderBy('name')->get(['id', 'name'])
+            : collect();
+
         return view('inventory::livewire.entities.index-page', [
             'definition'       => $definition,
             'columns'          => InventoryEntityRegistry::indexColumns($this->entity),
             'fieldDefinitions' => $fieldDefinitions,
             'showImageThumb'   => $this->showsImageThumb(),
             'records'          => $query->paginate(15),
+            'warehouses'       => $warehouses,
         ]);
     }
 
@@ -97,7 +211,7 @@ class EntityIndexPage extends Component
             : null;
     }
 
-    private function applyEntityScope($query): void
+    private function applyEntityScope(\Illuminate\Database\Eloquent\Builder $query): void
     {
         if ($this->entity === 'customers') {
             CommercialTeamAccess::applySalesScope($query);

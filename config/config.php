@@ -136,6 +136,14 @@ return [
 
     // Roles that can see the Sale Updater tab on the dispatch terminal
     'updater_roles'           => env('INVENTORY_UPDATER_ROLES', 'sales-manager,logistics-manager'),
+
+    // Roles allowed to override the system-resolved unit price on a sale order line.
+    // Admins (inventory.admin_roles) always bypass this check.
+    'price_override_roles'    => env('INVENTORY_PRICE_OVERRIDE_ROLES', ''),
+
+    // Roles allowed to apply a line-level discount % or an order-level discount amount.
+    // Admins (inventory.admin_roles) always bypass this check.
+    'discount_roles'          => env('INVENTORY_DISCOUNT_ROLES', ''),
     // Middleware for the partner API key endpoints (no session required — uses X-Partner-Key header)
     'partner_api_middleware'  => ['api'],
 

@@ -1,8 +1,4 @@
 <x-tallui-modal id="inventory-audit-trail-modal" title="Audit trail" icon="o-clock" size="xl">
-    <x-slot:trigger>
-        <span x-effect="if ($wire.showAuditTrailModal) $dispatch('open-modal', 'inventory-audit-trail-modal'); else $dispatch('close-modal', 'inventory-audit-trail-modal')"></span>
-    </x-slot:trigger>
-
     <div class="space-y-4">
         <div>
             <p class="text-sm font-semibold text-base-content">{{ $auditTrailSubjectLabel ?: 'Selected record' }}</p>

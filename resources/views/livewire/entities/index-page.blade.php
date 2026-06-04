@@ -13,6 +13,23 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
+        @if ($entity === 'warehouse-products' && $warehouses->isNotEmpty())
+            <div class="w-48">
+                <x-tallui-select wire:model.live="filterWarehouseId" class="select-sm">
+                    <option value="">All warehouses</option>
+                    @foreach ($warehouses as $warehouse)
+                        <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                    @endforeach
+                </x-tallui-select>
+            </div>
+            <x-tallui-button
+                label="Export"
+                icon="o-arrow-down-tray"
+                class="btn-ghost btn-sm"
+                wire:click="downloadExcel"
+                :spinner="'downloadExcel'"
+            />
+        @endif
         <div class="w-64">
             <x-tallui-input
                 placeholder="Search {{ strtolower($definition['label']) }}…"
@@ -20,6 +37,15 @@
                 class="input-sm"
             />
         </div>
+        @if (in_array($entity, ['customers', 'suppliers', 'warehouse-products']))
+            <x-tallui-button
+                label="Export"
+                icon="o-arrow-down-tray"
+                class="btn-ghost btn-sm"
+                wire:click="downloadExcel"
+                :spinner="'downloadExcel'"
+            />
+        @endif
         <x-tallui-button
             :label="'New ' . $definition['singular']"
             icon="o-plus"

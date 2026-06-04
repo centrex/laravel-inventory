@@ -85,8 +85,8 @@
                 <x-tallui-input name="tax_local" type="number" step="0.0001" wire:model="tax_local" placeholder="0.00" />
             </x-tallui-form-group>
 
-            <x-tallui-form-group label="Discount (Local)">
-                <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" />
+            <x-tallui-form-group label="Discount (Local)" :helper="!$canApplyDiscount ? 'Requires discount permission' : null">
+                <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" :disabled="!$canApplyDiscount" />
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Shipping (Local)">
@@ -263,10 +263,23 @@
                                     min="0"
                                     wire:model="items.{{ $index }}.unit_price_local"
                                     class="input-sm text-right w-full"
+                                    :disabled="!$canOverridePrice"
+                                    :tooltip="!$canOverridePrice ? 'Price override requires special permission' : null"
                                 />
                             </td>
                             <td class="py-2">
-                                <x-tallui-input name="items.{{ $index }}.discount_pct" type="number" step="0.01" min="0" max="100" wire:model="items.{{ $index }}.discount_pct" class="input-sm text-right w-full" placeholder="0" />
+                                <x-tallui-input
+                                    name="items.{{ $index }}.discount_pct"
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max="100"
+                                    wire:model="items.{{ $index }}.discount_pct"
+                                    class="input-sm text-right w-full"
+                                    placeholder="0"
+                                    :disabled="!$canApplyDiscount"
+                                    :tooltip="!$canApplyDiscount ? 'Discount requires special permission' : null"
+                                />
                             </td>
                             <td class="pr-5 py-2 text-right">
                                 <div class="flex items-center justify-end gap-1">

@@ -10,6 +10,7 @@ use Centrex\Inventory\Support\CommercialTeamAccess;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
+use OwenIt\Auditing\Models\Audit as DefaultAudit;
 
 #[Layout('layouts.app')]
 class SaleOrderIndexPage extends Component
@@ -31,6 +32,32 @@ class SaleOrderIndexPage extends Component
     public function updatingStatus(): void
     {
         $this->resetPage();
+    }
+
+    /** Returns the subset of the given IDs that have at least one audit record. One query per page load. */
+    private function resolveAuditedIds(array $ids): array
+    {
+        if (empty($ids) || !$this->supportsAuditTrail(SaleOrder::class)) {
+            return [];
+        }
+
+        $auditClass = config('audit.implementation', DefaultAudit::class);
+
+        if (!is_string($auditClass) || !class_exists($auditClass)) {
+            return [];
+        }
+
+        try {
+            return $auditClass::query()
+                ->where('auditable_type', SaleOrder::class)
+                ->whereIn('auditable_id', $ids)
+                ->distinct()
+                ->pluck('auditable_id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 
     public function mount(string $documentType = 'order'): void
@@ -63,8 +90,13 @@ class SaleOrderIndexPage extends Component
             $query->where('status', $this->status);
         }
 
+        $orders = $query->paginate(15);
+
+        $auditedIds = $this->resolveAuditedIds($orders->getCollection()->pluck('id')->all());
+
         return view('inventory::livewire.transactions.sale-order-index', [
-            'orders'        => $query->paginate(15),
+            'orders'        => $orders,
+            'auditedIds'    => $auditedIds,
             'documentLabel' => $this->documentType === 'quotation' ? 'Quotations' : 'Sale Orders',
             'routeBase'     => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
             'statusOptions' => [

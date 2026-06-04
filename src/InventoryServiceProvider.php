@@ -50,6 +50,7 @@ class InventoryServiceProvider extends ServiceProvider
             $this->commands([
                 InventoryCommand::class,
                 SnapshotTrendsCommand::class,
+                \Centrex\Inventory\Commands\FitCustomerClvCommand::class,
             ]);
         }
     }
@@ -143,6 +144,31 @@ class InventoryServiceProvider extends ServiceProvider
 
                     if (method_exists($user, 'hasRole') && !empty($partnerRoles)) {
                         return $user->hasRole($partnerRoles);
+                    }
+
+                    return false;
+                });
+            }
+        }
+
+        // Sale order field-level permission gates — fall back to admin super-gate.
+        // Configure allowed roles via INVENTORY_PRICE_OVERRIDE_ROLES / INVENTORY_DISCOUNT_ROLES.
+        $saleOrderFieldGates = [
+            'inventory.sale-orders.override-price' => 'price_override_roles',
+            'inventory.sale-orders.apply-discount'  => 'discount_roles',
+        ];
+
+        foreach ($saleOrderFieldGates as $ability => $configKey) {
+            if (!Gate::has($ability)) {
+                Gate::define($ability, function ($user) use ($configKey): bool {
+                    if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
+                        return true;
+                    }
+
+                    if (method_exists($user, 'hasRole')) {
+                        $roles = $this->normalizeAdminRoles(config("inventory.{$configKey}", []));
+
+                        return !empty($roles) && $user->hasRole($roles);
                     }
 
                     return false;

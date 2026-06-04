@@ -240,7 +240,7 @@ class InventoryEntityRegistry
                 'singular'      => 'Warehouse Stock',
                 'model'         => WarehouseProduct::class,
                 'search'        => [],
-                'index_columns' => ['warehouse_id', 'product_id', 'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'wac_amount', 'reorder_point'],
+                'index_columns' => ['warehouse_id', 'product_id', 'sku', 'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'wac_amount', 'reorder_point'],
                 'form_fields'   => [
                     self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . (new Warehouse())->getTable() . ',id'], null, Warehouse::class, 'name'),
                     self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),

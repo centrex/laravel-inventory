@@ -10,6 +10,7 @@ use Centrex\Inventory\Models\{Customer, Product, ProductPrice, ProductVariant, S
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -129,6 +130,21 @@ class SaleOrderFormPage extends Component
 
     public function save()
     {
+        // Strip unauthorized price/discount values before any processing so
+        // manipulated requests cannot bypass the UI guards.
+        if (!$this->canOverridePrice()) {
+            foreach (array_keys($this->items) as $index) {
+                $this->items[$index]['unit_price_local'] = null; // triggers system-price re-sync below
+            }
+        }
+
+        if (!$this->canApplyDiscount()) {
+            foreach (array_keys($this->items) as $index) {
+                $this->items[$index]['discount_pct'] = 0;
+            }
+            $this->discount_local = 0;
+        }
+
         $this->prepareDerivedPricingFields();
 
         $validated = $this->validate($this->rules());
@@ -204,6 +220,8 @@ class SaleOrderFormPage extends Component
             'customerCreditSnapshot' => $selectedCustomer ? app(Inventory::class)->customerCreditSnapshot($selectedCustomer->id) : null,
             'isEditing'              => $this->recordId !== null,
             'editable'               => $this->canEdit(),
+            'canOverridePrice'       => $this->canOverridePrice(),
+            'canApplyDiscount'       => $this->canApplyDiscount(),
             'record'                 => $this->recordId ? SaleOrder::query()->with(['customer', 'warehouse'])->find($this->recordId) : null,
             'documentLabel'          => $this->documentLabel(),
             'routeBase'              => $this->routeBase(),
@@ -349,6 +367,16 @@ class SaleOrderFormPage extends Component
         $order = SaleOrder::query()->find($this->recordId);
 
         return in_array($order?->status?->value, [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CONFIRMED->value], true);
+    }
+
+    private function canOverridePrice(): bool
+    {
+        return Gate::allows('inventory.sale-orders.override-price');
+    }
+
+    private function canApplyDiscount(): bool
+    {
+        return Gate::allows('inventory.sale-orders.apply-discount');
     }
 
     private function updateOrder(array $validated): SaleOrder

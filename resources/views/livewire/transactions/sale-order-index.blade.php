@@ -65,7 +65,9 @@
                         <td class="pr-5">
                             <div class="flex justify-end gap-1">
                                 <x-tallui-button icon="o-eye" :link="route($routeBase . '.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
-                                <x-tallui-button icon="o-clock" wire:click="openAuditTrail(@js($order::class), {{ $order->getKey() }}, @js($order->so_number))" class="btn-ghost btn-xs" label="Audit" :responsive="true" />
+                                @if(in_array($order->getKey(), $auditedIds))
+                                    <x-tallui-button icon="o-clock" wire:click="openAuditTrail(@js($order::class), {{ $order->getKey() }}, @js($order->so_number))" class="btn-ghost btn-xs" label="Audit" :responsive="true" />
+                                @endif
                                 <x-tallui-button icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="Edit" :responsive="true" />
                                 @if (Route::has('erp.documents.sales.print'))
                                     <x-tallui-button icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $order->getKey()])" class="btn-ghost btn-xs" label="Print" :responsive="true" />

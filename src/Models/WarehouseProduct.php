@@ -57,6 +57,19 @@ class WarehouseProduct extends Model implements Auditable
         return $this->belongsTo(ProductVariant::class, 'variant_id');
     }
 
+    public function getSkuAttribute(): ?string
+    {
+        if ($this->relationLoaded('variant') && $this->variant !== null) {
+            return $this->variant->sku;
+        }
+
+        if ($this->relationLoaded('product')) {
+            return $this->product?->sku;
+        }
+
+        return null;
+    }
+
     public function qtyAvailable(): float
     {
         return (float) $this->qty_on_hand - (float) $this->qty_reserved;

@@ -37,6 +37,8 @@ trait ShowsAuditTrail
         $this->auditTrailSubjectId = (int) $record->getKey();
         $this->auditTrailSubjectLabel = $label ?: $this->auditTrailLabelFor($record);
         $this->showAuditTrailModal = true;
+
+        $this->dispatch('open-modal', 'inventory-audit-trail-modal');
     }
 
     public function closeAuditTrail(): void
@@ -45,6 +47,8 @@ trait ShowsAuditTrail
         $this->auditTrailSubjectType = null;
         $this->auditTrailSubjectId = null;
         $this->auditTrailSubjectLabel = '';
+
+        $this->dispatch('close-modal', 'inventory-audit-trail-modal');
     }
 
     public function getAuditTrailProperty(): Collection
