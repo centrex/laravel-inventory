@@ -82,7 +82,7 @@ class EntityIndexPage extends Component
             }
 
             $customers = $query->get();
-            $clvData   = CustomerClvService::computeForCustomers($customers);
+            $clvData = CustomerClvService::computeForCustomers($customers);
 
             return CustomerExporter::download($customers, 'customers-' . now()->format('Ymd-His') . '.xls', $clvData);
         }
@@ -129,7 +129,7 @@ class EntityIndexPage extends Component
         }
 
         $records = $query->orderBy('warehouse_id')->orderBy('product_id')->get();
-        $suffix  = $this->filterWarehouseId ? '-wh' . $this->filterWarehouseId : '';
+        $suffix = $this->filterWarehouseId ? '-wh' . $this->filterWarehouseId : '';
 
         return WarehouseStockExporter::download($records, 'warehouse-stock' . $suffix . '-' . now()->format('Ymd-His') . '.xls');
     }

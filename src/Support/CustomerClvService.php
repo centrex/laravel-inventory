@@ -66,8 +66,8 @@ class CustomerClvService
 
             $result[$customerId] = [
                 'clv_' . $horizonMonths . 'm' => $btyd->customerClv($summary, $horizonMonths),
-                'prob_alive'                   => round($btyd->probabilityAlive($summary), 4),
-                'expected_tx'                  => round($btyd->expectedTransactions($summary, $horizonMonths), 2),
+                'prob_alive'                  => round($btyd->probabilityAlive($summary), 4),
+                'expected_tx'                 => round($btyd->expectedTransactions($summary, $horizonMonths), 2),
             ];
         }
 

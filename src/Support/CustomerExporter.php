@@ -12,7 +12,7 @@ class CustomerExporter
 {
     /**
      * @param  Collection<int, Customer>  $records
-     * @param  array<int, array{clv_12m?: float, prob_alive?: float, expected_tx?: float}>  $clvData keyed by customer id
+     * @param  array<int, array{clv_12m?: float, prob_alive?: float, expected_tx?: float}>  $clvData  keyed by customer id
      */
     public static function download(Collection $records, string $filename, array $clvData = []): StreamedResponse
     {

@@ -26,8 +26,8 @@ class FitCustomerClvCommand extends Command
         }
 
         $minCustomers = max(1, (int) $this->option('min'));
-        $horizon      = max(1, (int) $this->option('horizon'));
-        $persist      = !$this->option('dry-run');
+        $horizon = max(1, (int) $this->option('horizon'));
+        $persist = !$this->option('dry-run');
 
         $this->info('Loading sale order history from inventory…');
 

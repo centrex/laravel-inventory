@@ -5,8 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Models\Supplier;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
+use Illuminate\Support\{Carbon, Collection};
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SupplierExporter

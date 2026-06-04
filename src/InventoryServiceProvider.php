@@ -50,7 +50,7 @@ class InventoryServiceProvider extends ServiceProvider
             $this->commands([
                 InventoryCommand::class,
                 SnapshotTrendsCommand::class,
-                \Centrex\Inventory\Commands\FitCustomerClvCommand::class,
+                Commands\FitCustomerClvCommand::class,
             ]);
         }
     }
@@ -155,7 +155,7 @@ class InventoryServiceProvider extends ServiceProvider
         // Configure allowed roles via INVENTORY_PRICE_OVERRIDE_ROLES / INVENTORY_DISCOUNT_ROLES.
         $saleOrderFieldGates = [
             'inventory.sale-orders.override-price' => 'price_override_roles',
-            'inventory.sale-orders.apply-discount'  => 'discount_roles',
+            'inventory.sale-orders.apply-discount' => 'discount_roles',
         ];
 
         foreach ($saleOrderFieldGates as $ability => $configKey) {
