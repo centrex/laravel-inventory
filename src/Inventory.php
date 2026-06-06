@@ -3042,7 +3042,7 @@ class Inventory
     {
         $lookbackDays = max(7, $lookbackDays);
         $forecastDays = max(7, $forecastDays);
-        $historyEnd   = now()->endOfDay();
+        $historyEnd = now()->endOfDay();
         $historyStart = now()->copy()->subDays($lookbackDays - 1)->startOfDay();
         $observedDays = max(1, (int) floor($historyStart->diffInDays($historyEnd)) + 1);
 
@@ -3056,16 +3056,16 @@ class Inventory
 
         CommercialTeamAccess::applySalesScope($ordersQuery);
 
-        $orders   = $ordersQuery->get();
+        $orders = $ordersQuery->get();
         $customer = $orders->first()?->customer ?? Customer::query()->find($customerId);
-        $qty      = (float) $orders->sum(fn (SaleOrder $o): float => (float) $o->items->sum('qty_ordered'));
-        $revenue  = (float) $orders->sum('total_local');
+        $qty = (float) $orders->sum(fn (SaleOrder $o): float => (float) $o->items->sum('qty_ordered'));
+        $revenue = (float) $orders->sum('total_local');
 
         $avgDailyRevenue = $revenue > 0 ? $revenue / $observedDays : 0.0;
-        $avgDailyQty     = $qty > 0 ? $qty / $observedDays : 0.0;
-        $lastOrder       = $orders->sortByDesc(fn (SaleOrder $o) => $o->ordered_at?->getTimestamp() ?? 0)->first();
-        $daysSince       = $lastOrder?->ordered_at ? (int) $lastOrder->ordered_at->diffInDays(now()) : null;
-        $avgOrderValue   = $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0;
+        $avgDailyQty = $qty > 0 ? $qty / $observedDays : 0.0;
+        $lastOrder = $orders->sortByDesc(fn (SaleOrder $o) => $o->ordered_at?->getTimestamp() ?? 0)->first();
+        $daysSince = $lastOrder?->ordered_at ? (int) $lastOrder->ordered_at->diffInDays(now()) : null;
+        $avgOrderValue = $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0;
 
         // All-time — lightweight query (order-level only) for CLV and RFM
         $allTimeQuery = SaleOrder::query()
@@ -3076,15 +3076,15 @@ class Inventory
 
         CommercialTeamAccess::applySalesScope($allTimeQuery);
 
-        $allTimeOrders  = $allTimeQuery->get(['id', 'ordered_at', 'total_local']);
-        $allTimeCount   = $allTimeOrders->count();
+        $allTimeOrders = $allTimeQuery->get(['id', 'ordered_at', 'total_local']);
+        $allTimeCount = $allTimeOrders->count();
         $allTimeRevenue = (float) $allTimeOrders->sum('total_local');
-        $firstOrderAt   = $allTimeOrders->first()?->ordered_at;
+        $firstOrderAt = $allTimeOrders->first()?->ordered_at;
         $customerAgeDays = $firstOrderAt ? max(1, (int) $firstOrderAt->diffInDays(now())) : 1;
 
         // Purchase frequency
         $ordersPerMonth = ($orders->count() / max(1, $observedDays)) * 30;
-        $ordersPerYear  = $ordersPerMonth * 12;
+        $ordersPerYear = $ordersPerMonth * 12;
 
         // Average purchase interval (all-time)
         $avgPurchaseInterval = $allTimeCount > 1
@@ -3092,7 +3092,7 @@ class Inventory
             : null;
 
         // CLV — avg order value × annual frequency × projected lifespan
-        $segment       = $this->customerSegment($revenue, $orders->count());
+        $segment = $this->customerSegment($revenue, $orders->count());
         $lifespanYears = match ($segment) {
             'Strategic' => 5.0,
             'Growth'    => 3.0,
@@ -3103,9 +3103,10 @@ class Inventory
 
         // Churn risk
         $churnRisk = 'none';
+
         if ($daysSince !== null) {
             if ($avgPurchaseInterval !== null && $avgPurchaseInterval > 0) {
-                $ratio     = $daysSince / $avgPurchaseInterval;
+                $ratio = $daysSince / $avgPurchaseInterval;
                 $churnRisk = match (true) {
                     $ratio >= 3.0 => 'high',
                     $ratio >= 2.0 => 'medium',
@@ -3125,11 +3126,11 @@ class Inventory
         // RFM scores (1–5)
         $rfmRecency = match (true) {
             $daysSince === null => 1,
-            $daysSince <= 7    => 5,
-            $daysSince <= 30   => 4,
-            $daysSince <= 90   => 3,
-            $daysSince <= 180  => 2,
-            default            => 1,
+            $daysSince <= 7     => 5,
+            $daysSince <= 30    => 4,
+            $daysSince <= 90    => 3,
+            $daysSince <= 180   => 2,
+            default             => 1,
         };
         $rfmFrequency = match (true) {
             $allTimeCount >= 24 => 5,
@@ -3145,16 +3146,16 @@ class Inventory
             $allTimeRevenue >= 5000   => 2,
             default                   => 1,
         };
-        $rfmAvg   = ($rfmRecency + $rfmFrequency + $rfmMonetary) / 3.0;
+        $rfmAvg = ($rfmRecency + $rfmFrequency + $rfmMonetary) / 3.0;
         $rfmLabel = match (true) {
             $rfmRecency >= 4 && $rfmFrequency >= 4 && $rfmMonetary >= 4 => 'VIP',
-            $rfmAvg >= 4.0                                               => 'Loyal',
+            $rfmAvg >= 4.0                                              => 'Loyal',
             $rfmRecency <= 2 && $rfmFrequency >= 3 && $rfmMonetary >= 4 => 'Cannot Lose',
             $rfmRecency <= 2 && $rfmAvg >= 3.0                          => 'At Risk',
-            $rfmRecency <= 2                                             => 'Lost',
+            $rfmRecency <= 2                                            => 'Lost',
             $rfmRecency >= 4 && $rfmFrequency <= 2                      => 'Promising',
-            $rfmFrequency >= 3                                           => 'Potential Loyal',
-            default                                                      => 'Active',
+            $rfmFrequency >= 3                                          => 'Potential Loyal',
+            default                                                     => 'Active',
         };
 
         // Monthly trend (lookback window, ascending)
