@@ -22,7 +22,7 @@ class CustomerHeatMapPage extends Component
     public function mount(): void
     {
         Gate::authorize('inventory.reports.view');
-        $this->endDate   = now()->toDateString();
+        $this->endDate = now()->toDateString();
         $this->startDate = now()->subDays(89)->toDateString();
     }
 
@@ -30,8 +30,8 @@ class CustomerHeatMapPage extends Component
     {
         $heatmap = app(Inventory::class)->customerSalesHeatmap(
             startDate: $this->startDate,
-            endDate:   $this->endDate,
-            metric:    $this->metric,
+            endDate: $this->endDate,
+            metric: $this->metric,
         );
 
         return view('inventory::livewire.transactions.customer-heat-map', [
