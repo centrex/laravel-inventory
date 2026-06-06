@@ -7,7 +7,8 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
-        <div class="flex flex-wrap gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+            <x-tallui-button label="Customer Heat Map" icon="o-map" :link="route('inventory.reports.customer-heatmap')" class="btn-ghost btn-sm" />
             <x-tallui-input type="date" wire:model.live="startDate" class="input-sm" />
             <x-tallui-input type="date" wire:model.live="endDate" class="input-sm" />
         </div>

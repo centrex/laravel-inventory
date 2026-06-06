@@ -22,6 +22,7 @@
         @endif
         @if ($canViewForecast)
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Heat Map" icon="o-map" :link="route('inventory.reports.customer-heatmap')" class="btn-outline btn-sm" />
         @endif
         @if(Route::has('payroll.entries.index'))
         <x-tallui-button label="Payroll" icon="o-users" :link="route('payroll.entries.index')" class="btn-outline btn-sm" />
@@ -419,6 +420,11 @@
        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
         <x-heroicon-o-chart-bar class="w-7 h-7 text-secondary" />
         <span class="text-sm font-medium">Reports</span>
+    </a>
+    <a href="{{ route('inventory.reports.customer-heatmap') }}"
+       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+        <x-heroicon-o-map class="w-7 h-7 text-accent" />
+        <span class="text-sm font-medium">Heat Map</span>
     </a>
     @endif
     <a href="{{ route('inventory.adjustments.create') }}"

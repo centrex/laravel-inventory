@@ -299,6 +299,7 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-shipment-index', Http\Livewire\Transactions\ShipmentIndexPage::class);
         Livewire::component('inventory-shipment-show', Http\Livewire\Transactions\ShipmentShowPage::class);
         Livewire::component('inventory-reports-page', Http\Livewire\Transactions\InventoryReportsPage::class);
+        Livewire::component('inventory-customer-heatmap', Http\Livewire\Transactions\CustomerHeatMapPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
         Livewire::component('inventory-dispatch-terminal', Http\Livewire\Transactions\DispatchTerminalPage::class);

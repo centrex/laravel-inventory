@@ -42,15 +42,95 @@
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
     <div class="space-y-4 xl:col-span-1">
         <x-tallui-card title="Summary" subtitle="Customer and order context." icon="o-document-text" :shadow="true">
-            <div class="space-y-3 text-sm">
-                <div><span class="text-base-content/50">Shop</span><div class="font-medium">{{ data_get($record->customer?->meta, 'company_name') ?: ($record->customer?->name ?? 'Walk-in') }}</div></div>
-                <div><span class="text-base-content/50">Warehouse</span><div class="font-medium">{{ $record->warehouse?->name ?? '—' }}</div></div>
-                <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $record->status?->label() ?? '—' }}</div></div>
-                <div><span class="text-base-content/50">Price Tier</span><div class="font-medium">{{ $record->price_tier_name ?? '—' }}</div></div>
-                <div><span class="text-base-content/50">Coupon</span><div class="font-medium">{{ $record->coupon_code ?: '—' }}</div></div>
-                <div><span class="text-base-content/50">Ordered At</span><div class="font-medium">{{ $record->ordered_at?->format('M d, Y h:i A') ?? '—' }}</div></div>
-                <div><span class="text-base-content/50">Notes</span><div class="font-medium whitespace-pre-line">{{ $record->notes ?: '—' }}</div></div>
+            {{-- Customer block --}}
+            <div class="space-y-1.5 text-sm">
+                <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/40">Customer</div>
+
+                <div class="flex items-start justify-between gap-3">
+                    <span class="shrink-0 text-base-content/50">Name</span>
+                    @if ($record->customer)
+                        <a href="{{ route('inventory.entities.customers.edit', ['recordId' => $record->customer->getKey()]) }}" class="text-right font-medium text-primary hover:underline" wire:navigate>
+                            {{ $record->customer->name }}
+                        </a>
+                    @else
+                        <span class="font-medium">Walk-in</span>
+                    @endif
+                </div>
+
+                @if ($record->customer?->organization_name)
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Shop</span>
+                        <span class="text-right font-medium">{{ $record->customer->organization_name }}</span>
+                    </div>
+                @endif
+
+                @if ($record->customer?->phone)
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Phone</span>
+                        <span class="text-right font-medium">{{ $record->customer->phone }}</span>
+                    </div>
+                @endif
+
+                @if ($record->customer?->email)
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Email</span>
+                        <span class="text-right font-medium">{{ $record->customer->email }}</span>
+                    </div>
+                @endif
+
+                @if (data_get($record->customer?->meta, 'address'))
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Address</span>
+                        <span class="text-right font-medium whitespace-pre-line">{{ data_get($record->customer->meta, 'address') }}</span>
+                    </div>
+                @endif
+
+                @if ($record->customer?->zone || $record->customer?->area)
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Zone / Area</span>
+                        <span class="text-right font-medium">
+                            {{ implode(' / ', array_filter([(string) ($record->customer?->zone ?? ''), (string) ($record->customer?->area ?? '')])) ?: '—' }}
+                        </span>
+                    </div>
+                @endif
             </div>
+
+            <div class="my-3 border-t border-base-200"></div>
+
+            {{-- Order block --}}
+            <div class="space-y-1.5 text-sm">
+                <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/40">Order</div>
+
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-base-content/50">Warehouse</span>
+                    <span class="font-medium">{{ $record->warehouse?->name ?? '—' }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-base-content/50">Status</span>
+                    <span class="font-medium">{{ $record->status?->label() ?? '—' }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-base-content/50">Price Tier</span>
+                    <span class="font-medium">{{ $record->price_tier_name ?? '—' }}</span>
+                </div>
+                @if ($record->coupon_code)
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Coupon</span>
+                        <span class="font-medium font-mono text-xs">{{ $record->coupon_code }}</span>
+                    </div>
+                @endif
+                <div class="flex items-center justify-between gap-3">
+                    <span class="text-base-content/50">Ordered At</span>
+                    <span class="font-medium">{{ $record->ordered_at?->format('M d, Y h:i A') ?? '—' }}</span>
+                </div>
+            </div>
+
+            @if ($record->notes)
+                <div class="mt-3 border-t border-base-200 pt-3">
+                    <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/40">Notes</div>
+                    <p class="whitespace-pre-line text-sm text-base-content/70">{{ $record->notes }}</p>
+                </div>
+            @endif
         </x-tallui-card>
 
         <x-tallui-card title="Sales Team" subtitle="Creator and assigned sales personnel." icon="o-user-group" :shadow="true">

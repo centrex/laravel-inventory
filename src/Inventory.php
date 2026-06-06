@@ -3042,7 +3042,7 @@ class Inventory
     {
         $lookbackDays = max(7, $lookbackDays);
         $forecastDays = max(7, $forecastDays);
-        $historyEnd = now()->endOfDay();
+        $historyEnd   = now()->endOfDay();
         $historyStart = now()->copy()->subDays($lookbackDays - 1)->startOfDay();
         $observedDays = max(1, (int) floor($historyStart->diffInDays($historyEnd)) + 1);
 
@@ -3056,16 +3056,16 @@ class Inventory
 
         CommercialTeamAccess::applySalesScope($ordersQuery);
 
-        $orders = $ordersQuery->get();
+        $orders   = $ordersQuery->get();
         $customer = $orders->first()?->customer ?? Customer::query()->find($customerId);
-        $qty = (float) $orders->sum(fn (SaleOrder $o): float => (float) $o->items->sum('qty_ordered'));
-        $revenue = (float) $orders->sum('total_local');
+        $qty      = (float) $orders->sum(fn (SaleOrder $o): float => (float) $o->items->sum('qty_ordered'));
+        $revenue  = (float) $orders->sum('total_local');
 
         $avgDailyRevenue = $revenue > 0 ? $revenue / $observedDays : 0.0;
-        $avgDailyQty = $qty > 0 ? $qty / $observedDays : 0.0;
-        $lastOrder = $orders->sortByDesc(fn (SaleOrder $o) => $o->ordered_at?->getTimestamp() ?? 0)->first();
-        $daysSince = $lastOrder?->ordered_at ? (int) $lastOrder->ordered_at->diffInDays(now()) : null;
-        $avgOrderValue = $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0;
+        $avgDailyQty     = $qty > 0 ? $qty / $observedDays : 0.0;
+        $lastOrder       = $orders->sortByDesc(fn (SaleOrder $o) => $o->ordered_at?->getTimestamp() ?? 0)->first();
+        $daysSince       = $lastOrder?->ordered_at ? (int) $lastOrder->ordered_at->diffInDays(now()) : null;
+        $avgOrderValue   = $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0;
 
         // All-time — lightweight query (order-level only) for CLV and RFM
         $allTimeQuery = SaleOrder::query()
@@ -3076,15 +3076,15 @@ class Inventory
 
         CommercialTeamAccess::applySalesScope($allTimeQuery);
 
-        $allTimeOrders = $allTimeQuery->get(['id', 'ordered_at', 'total_local']);
-        $allTimeCount = $allTimeOrders->count();
+        $allTimeOrders  = $allTimeQuery->get(['id', 'ordered_at', 'total_local']);
+        $allTimeCount   = $allTimeOrders->count();
         $allTimeRevenue = (float) $allTimeOrders->sum('total_local');
-        $firstOrderAt = $allTimeOrders->first()?->ordered_at;
+        $firstOrderAt   = $allTimeOrders->first()?->ordered_at;
         $customerAgeDays = $firstOrderAt ? max(1, (int) $firstOrderAt->diffInDays(now())) : 1;
 
         // Purchase frequency
         $ordersPerMonth = ($orders->count() / max(1, $observedDays)) * 30;
-        $ordersPerYear = $ordersPerMonth * 12;
+        $ordersPerYear  = $ordersPerMonth * 12;
 
         // Average purchase interval (all-time)
         $avgPurchaseInterval = $allTimeCount > 1
@@ -3092,7 +3092,7 @@ class Inventory
             : null;
 
         // CLV — avg order value × annual frequency × projected lifespan
-        $segment = $this->customerSegment($revenue, $orders->count());
+        $segment       = $this->customerSegment($revenue, $orders->count());
         $lifespanYears = match ($segment) {
             'Strategic' => 5.0,
             'Growth'    => 3.0,
@@ -3103,10 +3103,9 @@ class Inventory
 
         // Churn risk
         $churnRisk = 'none';
-
         if ($daysSince !== null) {
             if ($avgPurchaseInterval !== null && $avgPurchaseInterval > 0) {
-                $ratio = $daysSince / $avgPurchaseInterval;
+                $ratio     = $daysSince / $avgPurchaseInterval;
                 $churnRisk = match (true) {
                     $ratio >= 3.0 => 'high',
                     $ratio >= 2.0 => 'medium',
@@ -3126,11 +3125,11 @@ class Inventory
         // RFM scores (1–5)
         $rfmRecency = match (true) {
             $daysSince === null => 1,
-            $daysSince <= 7     => 5,
-            $daysSince <= 30    => 4,
-            $daysSince <= 90    => 3,
-            $daysSince <= 180   => 2,
-            default             => 1,
+            $daysSince <= 7    => 5,
+            $daysSince <= 30   => 4,
+            $daysSince <= 90   => 3,
+            $daysSince <= 180  => 2,
+            default            => 1,
         };
         $rfmFrequency = match (true) {
             $allTimeCount >= 24 => 5,
@@ -3146,16 +3145,16 @@ class Inventory
             $allTimeRevenue >= 5000   => 2,
             default                   => 1,
         };
-        $rfmAvg = ($rfmRecency + $rfmFrequency + $rfmMonetary) / 3.0;
+        $rfmAvg   = ($rfmRecency + $rfmFrequency + $rfmMonetary) / 3.0;
         $rfmLabel = match (true) {
             $rfmRecency >= 4 && $rfmFrequency >= 4 && $rfmMonetary >= 4 => 'VIP',
-            $rfmAvg >= 4.0                                              => 'Loyal',
+            $rfmAvg >= 4.0                                               => 'Loyal',
             $rfmRecency <= 2 && $rfmFrequency >= 3 && $rfmMonetary >= 4 => 'Cannot Lose',
             $rfmRecency <= 2 && $rfmAvg >= 3.0                          => 'At Risk',
-            $rfmRecency <= 2                                            => 'Lost',
+            $rfmRecency <= 2                                             => 'Lost',
             $rfmRecency >= 4 && $rfmFrequency <= 2                      => 'Promising',
-            $rfmFrequency >= 3                                          => 'Potential Loyal',
-            default                                                     => 'Active',
+            $rfmFrequency >= 3                                           => 'Potential Loyal',
+            default                                                      => 'Active',
         };
 
         // Monthly trend (lookback window, ascending)
@@ -3233,6 +3232,176 @@ class Inventory
             // Trend + Products
             'monthly_trend' => $monthlyTrend,
             'top_products'  => $topProducts,
+        ];
+    }
+
+    public function customerSalesHeatmap(
+        string $startDate = '',
+        string $endDate = '',
+        string $metric = 'revenue',
+    ): array {
+        $sortFn = static fn (string $a, string $b): int =>
+            $a === 'Unassigned' ? 1 : ($b === 'Unassigned' ? -1 : strcmp($a, $b));
+
+        $query = SaleOrder::query()
+            ->with('customer:id,geo')
+            ->where('document_type', 'order')
+            ->whereNotIn('status', [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]);
+
+        if ($startDate !== '') {
+            $query->whereDate('ordered_at', '>=', $startDate);
+        }
+        if ($endDate !== '') {
+            $query->whereDate('ordered_at', '<=', $endDate);
+        }
+
+        CommercialTeamAccess::applySalesScope($query);
+
+        $orders = $query->get(['id', 'customer_id', 'total_local', 'status', 'ordered_at']);
+
+        // Accumulate into zone × area buckets
+        $raw = [];
+
+        foreach ($orders as $order) {
+            $zone = trim((string) ($order->customer?->zone ?: '')) ?: 'Unassigned';
+            $area = trim((string) ($order->customer?->area ?: '')) ?: 'Unassigned';
+
+            if (!isset($raw[$zone][$area])) {
+                $raw[$zone][$area] = ['revenue' => 0.0, 'orders' => 0, 'customer_ids' => []];
+            }
+
+            $raw[$zone][$area]['revenue'] += (float) $order->total_local;
+            $raw[$zone][$area]['orders']++;
+
+            if ($order->customer_id !== null) {
+                $raw[$zone][$area]['customer_ids'][(int) $order->customer_id] = true;
+            }
+        }
+
+        // Collect and sort zones and areas — 'Unassigned' always last
+        $zones = array_keys($raw);
+        usort($zones, $sortFn);
+
+        $allAreas = [];
+        foreach ($raw as $areaMap) {
+            foreach (array_keys($areaMap) as $a) {
+                $allAreas[$a] = true;
+            }
+        }
+        $areas = array_keys($allAreas);
+        usort($areas, $sortFn);
+
+        // Build normalised cell matrix
+        $cells = [];
+        foreach ($zones as $zone) {
+            foreach ($areas as $area) {
+                $bucket   = $raw[$zone][$area] ?? null;
+                $revenue  = $bucket ? round($bucket['revenue'], 2) : 0.0;
+                $oCount   = $bucket ? $bucket['orders'] : 0;
+                $cCount   = $bucket ? count($bucket['customer_ids']) : 0;
+                $avgOrder = $oCount > 0 ? round($revenue / $oCount, 2) : 0.0;
+
+                $cells[$zone][$area] = [
+                    'revenue'   => $revenue,
+                    'orders'    => $oCount,
+                    'customers' => $cCount,
+                    'avg_order' => $avgOrder,
+                ];
+            }
+        }
+
+        // Max cell value for the chosen metric (used for color intensity)
+        $maxValue = 0.0;
+        foreach ($zones as $zone) {
+            foreach ($areas as $area) {
+                $val = match ($metric) {
+                    'orders'    => (float) $cells[$zone][$area]['orders'],
+                    'customers' => (float) $cells[$zone][$area]['customers'],
+                    'avg_order' => $cells[$zone][$area]['avg_order'],
+                    default     => $cells[$zone][$area]['revenue'],
+                };
+                if ($val > $maxValue) {
+                    $maxValue = $val;
+                }
+            }
+        }
+
+        // Zone totals (proper union of customer_ids)
+        $zoneTotals = [];
+        foreach ($zones as $zone) {
+            $zoneCustomers = [];
+            $zoneRevenue   = 0.0;
+            $zoneOrders    = 0;
+
+            foreach ($areas as $area) {
+                $bucket = $raw[$zone][$area] ?? null;
+                if ($bucket === null) {
+                    continue;
+                }
+                $zoneRevenue += $bucket['revenue'];
+                $zoneOrders  += $bucket['orders'];
+                foreach (array_keys($bucket['customer_ids']) as $cid) {
+                    $zoneCustomers[$cid] = true;
+                }
+            }
+
+            $zoneTotals[$zone] = [
+                'revenue'   => round($zoneRevenue, 2),
+                'orders'    => $zoneOrders,
+                'customers' => count($zoneCustomers),
+            ];
+        }
+
+        // Area totals (proper union of customer_ids)
+        $areaTotals = [];
+        foreach ($areas as $area) {
+            $areaCustomers = [];
+            $areaRevenue   = 0.0;
+            $areaOrders    = 0;
+
+            foreach ($zones as $zone) {
+                $bucket = $raw[$zone][$area] ?? null;
+                if ($bucket === null) {
+                    continue;
+                }
+                $areaRevenue += $bucket['revenue'];
+                $areaOrders  += $bucket['orders'];
+                foreach (array_keys($bucket['customer_ids']) as $cid) {
+                    $areaCustomers[$cid] = true;
+                }
+            }
+
+            $areaTotals[$area] = [
+                'revenue'   => round($areaRevenue, 2),
+                'orders'    => $areaOrders,
+                'customers' => count($areaCustomers),
+            ];
+        }
+
+        // Grand total
+        $grandCustomers = [];
+        foreach ($raw as $areaMap) {
+            foreach ($areaMap as $bucket) {
+                foreach (array_keys($bucket['customer_ids']) as $cid) {
+                    $grandCustomers[$cid] = true;
+                }
+            }
+        }
+
+        return [
+            'zones'       => $zones,
+            'areas'       => $areas,
+            'cells'       => $cells,
+            'zone_totals' => $zoneTotals,
+            'area_totals' => $areaTotals,
+            'max_value'   => $maxValue,
+            'grand_total' => [
+                'revenue'   => round((float) array_sum(array_column($zoneTotals, 'revenue')), 2),
+                'orders'    => (int) array_sum(array_column($zoneTotals, 'orders')),
+                'customers' => count($grandCustomers),
+            ],
+            'metric' => $metric,
+            'period' => ['start' => $startDate, 'end' => $endDate],
         ];
     }
 
