@@ -3042,47 +3042,196 @@ class Inventory
     {
         $lookbackDays = max(7, $lookbackDays);
         $forecastDays = max(7, $forecastDays);
-        $historyEnd = now()->endOfDay();
+        $historyEnd   = now()->endOfDay();
         $historyStart = now()->copy()->subDays($lookbackDays - 1)->startOfDay();
         $observedDays = max(1, (int) floor($historyStart->diffInDays($historyEnd)) + 1);
 
+        // Lookback window — full details for trend + product analysis
         $ordersQuery = SaleOrder::query()
-            ->with('items.product')
+            ->with(['items.product', 'customer'])
             ->where('document_type', 'order')
             ->where('customer_id', $customerId)
             ->whereBetween('ordered_at', [$historyStart, $historyEnd])
-            ->whereNotIn('status', [
-                SaleOrderStatus::CANCELLED->value,
-                SaleOrderStatus::RETURNED->value,
-            ]);
+            ->whereNotIn('status', [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]);
 
         CommercialTeamAccess::applySalesScope($ordersQuery);
 
-        $orders = $ordersQuery->get();
+        $orders   = $ordersQuery->get();
         $customer = $orders->first()?->customer ?? Customer::query()->find($customerId);
-        $qty = (float) $orders->sum(fn (SaleOrder $order): float => (float) $order->items->sum('qty_ordered'));
-        $revenue = (float) $orders->sum('total_local');
+        $qty      = (float) $orders->sum(fn (SaleOrder $o): float => (float) $o->items->sum('qty_ordered'));
+        $revenue  = (float) $orders->sum('total_local');
+
         $avgDailyRevenue = $revenue > 0 ? $revenue / $observedDays : 0.0;
-        $avgDailyQty = $qty > 0 ? $qty / $observedDays : 0.0;
-        $lastOrder = $orders->sortByDesc(fn (SaleOrder $order) => $order->ordered_at?->getTimestamp() ?? 0)->first();
+        $avgDailyQty     = $qty > 0 ? $qty / $observedDays : 0.0;
+        $lastOrder       = $orders->sortByDesc(fn (SaleOrder $o) => $o->ordered_at?->getTimestamp() ?? 0)->first();
+        $daysSince       = $lastOrder?->ordered_at ? (int) $lastOrder->ordered_at->diffInDays(now()) : null;
+        $avgOrderValue   = $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0;
+
+        // All-time — lightweight query (order-level only) for CLV and RFM
+        $allTimeQuery = SaleOrder::query()
+            ->where('document_type', 'order')
+            ->where('customer_id', $customerId)
+            ->whereNotIn('status', [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value])
+            ->orderBy('ordered_at');
+
+        CommercialTeamAccess::applySalesScope($allTimeQuery);
+
+        $allTimeOrders  = $allTimeQuery->get(['id', 'ordered_at', 'total_local']);
+        $allTimeCount   = $allTimeOrders->count();
+        $allTimeRevenue = (float) $allTimeOrders->sum('total_local');
+        $firstOrderAt   = $allTimeOrders->first()?->ordered_at;
+        $customerAgeDays = $firstOrderAt ? max(1, (int) $firstOrderAt->diffInDays(now())) : 1;
+
+        // Purchase frequency
+        $ordersPerMonth = ($orders->count() / max(1, $observedDays)) * 30;
+        $ordersPerYear  = $ordersPerMonth * 12;
+
+        // Average purchase interval (all-time)
+        $avgPurchaseInterval = $allTimeCount > 1
+            ? (int) round($customerAgeDays / ($allTimeCount - 1))
+            : null;
+
+        // CLV — avg order value × annual frequency × projected lifespan
+        $segment       = $this->customerSegment($revenue, $orders->count());
+        $lifespanYears = match ($segment) {
+            'Strategic' => 5.0,
+            'Growth'    => 3.0,
+            'Repeat'    => 2.0,
+            default     => 1.0,
+        };
+        $clvSimple = round($avgOrderValue * $ordersPerYear * $lifespanYears, 2);
+
+        // Churn risk
+        $churnRisk = 'none';
+        if ($daysSince !== null) {
+            if ($avgPurchaseInterval !== null && $avgPurchaseInterval > 0) {
+                $ratio     = $daysSince / $avgPurchaseInterval;
+                $churnRisk = match (true) {
+                    $ratio >= 3.0 => 'high',
+                    $ratio >= 2.0 => 'medium',
+                    $ratio >= 1.5 => 'low',
+                    default       => 'none',
+                };
+            } else {
+                $churnRisk = match (true) {
+                    $daysSince > 180 => 'high',
+                    $daysSince > 90  => 'medium',
+                    $daysSince > 45  => 'low',
+                    default          => 'none',
+                };
+            }
+        }
+
+        // RFM scores (1–5)
+        $rfmRecency = match (true) {
+            $daysSince === null => 1,
+            $daysSince <= 7    => 5,
+            $daysSince <= 30   => 4,
+            $daysSince <= 90   => 3,
+            $daysSince <= 180  => 2,
+            default            => 1,
+        };
+        $rfmFrequency = match (true) {
+            $allTimeCount >= 24 => 5,
+            $allTimeCount >= 12 => 4,
+            $allTimeCount >= 6  => 3,
+            $allTimeCount >= 2  => 2,
+            default             => 1,
+        };
+        $rfmMonetary = match (true) {
+            $allTimeRevenue >= 500000 => 5,
+            $allTimeRevenue >= 100000 => 4,
+            $allTimeRevenue >= 20000  => 3,
+            $allTimeRevenue >= 5000   => 2,
+            default                   => 1,
+        };
+        $rfmAvg   = ($rfmRecency + $rfmFrequency + $rfmMonetary) / 3.0;
+        $rfmLabel = match (true) {
+            $rfmRecency >= 4 && $rfmFrequency >= 4 && $rfmMonetary >= 4 => 'VIP',
+            $rfmAvg >= 4.0                                               => 'Loyal',
+            $rfmRecency <= 2 && $rfmFrequency >= 3 && $rfmMonetary >= 4 => 'Cannot Lose',
+            $rfmRecency <= 2 && $rfmAvg >= 3.0                          => 'At Risk',
+            $rfmRecency <= 2                                             => 'Lost',
+            $rfmRecency >= 4 && $rfmFrequency <= 2                      => 'Promising',
+            $rfmFrequency >= 3                                           => 'Potential Loyal',
+            default                                                      => 'Active',
+        };
+
+        // Monthly trend (lookback window, ascending)
+        $monthlyTrend = $orders
+            ->groupBy(fn (SaleOrder $o): string => $o->ordered_at?->format('Y-m') ?? 'unknown')
+            ->map(fn (Collection $monthOrders, string $key): array => [
+                'month'        => Carbon::createFromFormat('Y-m', $key)?->format('M y') ?? $key,
+                'revenue'      => round((float) $monthOrders->sum('total_local'), 2),
+                'orders_count' => $monthOrders->count(),
+                'qty'          => round((float) $monthOrders->sum(fn (SaleOrder $o): float => (float) $o->items->sum('qty_ordered')), 2),
+            ])
+            ->sortKeys()
+            ->values()
+            ->all();
+
+        // Top 5 products by revenue (lookback window)
+        $topProducts = $orders
+            ->flatMap(fn (SaleOrder $o) => $o->items)
+            ->groupBy('product_id')
+            ->map(fn (Collection $items, mixed $productId): array => [
+                'product_id'   => $productId,
+                'name'         => $items->first()?->product?->name ?? 'Unknown',
+                'qty'          => round((float) $items->sum('qty_ordered'), 2),
+                'revenue'      => round((float) $items->sum('line_total_local'), 2),
+                'orders_count' => $items->pluck('sale_order_id')->unique()->count(),
+            ])
+            ->sortByDesc('revenue')
+            ->values()
+            ->take(5)
+            ->all();
 
         return [
-            'segment'           => $this->customerSegment($revenue, $orders->count()),
-            'zone'              => $customer?->zone ?: 'Unassigned',
-            'area'              => $customer?->area ?: 'Unassigned',
-            'demographic'       => $customer?->demographic_segment ?: 'Unassigned',
-            'demographic_data'  => $customer?->demographic_data ?: [],
+            // Profile
+            'segment'          => $segment,
+            'zone'             => $customer?->zone ?: 'Unassigned',
+            'area'             => $customer?->area ?: 'Unassigned',
+            'demographic'      => $customer?->demographic_segment ?: 'Unassigned',
+            'demographic_data' => $customer?->demographic_data ?: [],
+
+            // Lookback window
             'orders_count'      => $orders->count(),
             'history_qty'       => round($qty, 2),
             'history_revenue'   => round($revenue, 2),
-            'avg_order_value'   => $orders->count() > 0 ? round($revenue / $orders->count(), 2) : 0.0,
+            'avg_order_value'   => $avgOrderValue,
             'forecast_qty'      => round($avgDailyQty * $forecastDays, 2),
             'forecast_revenue'  => round($avgDailyRevenue * $forecastDays, 2),
             'last_order_at'     => $lastOrder?->ordered_at?->toDateString(),
-            'days_since_order'  => $lastOrder?->ordered_at ? $lastOrder->ordered_at->diffInDays(now()) : null,
-            'distinct_products' => $orders->flatMap(fn (SaleOrder $order) => $order->items->pluck('product_id'))->filter()->unique()->count(),
+            'days_since_order'  => $daysSince,
+            'distinct_products' => $orders->flatMap(fn (SaleOrder $o) => $o->items->pluck('product_id'))->filter()->unique()->count(),
+            'orders_per_month'  => round($ordersPerMonth, 2),
             'forecast_days'     => $forecastDays,
             'lookback_days'     => $lookbackDays,
+
+            // All-time
+            'first_order_at'    => $firstOrderAt?->toDateString(),
+            'customer_age_days' => $customerAgeDays,
+            'all_time_orders'   => $allTimeCount,
+            'all_time_revenue'  => round($allTimeRevenue, 2),
+
+            // CLV
+            'clv_simple'            => $clvSimple,
+            'clv_lifespan_years'    => $lifespanYears,
+            'purchase_frequency'    => round($ordersPerYear, 1),
+            'avg_purchase_interval' => $avgPurchaseInterval,
+
+            // RFM
+            'rfm_recency'   => $rfmRecency,
+            'rfm_frequency' => $rfmFrequency,
+            'rfm_monetary'  => $rfmMonetary,
+            'rfm_label'     => $rfmLabel,
+
+            // Churn
+            'churn_risk' => $churnRisk,
+
+            // Trend + Products
+            'monthly_trend' => $monthlyTrend,
+            'top_products'  => $topProducts,
         ];
     }
 

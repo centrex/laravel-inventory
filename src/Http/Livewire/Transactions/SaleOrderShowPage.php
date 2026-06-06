@@ -27,7 +27,7 @@ class SaleOrderShowPage extends Component
     {
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $query = SaleOrder::query()
-            ->with(['customer', 'warehouse', 'items.product', 'items.variant'])
+            ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive'])
             ->where('document_type', $this->documentType);
 
         CommercialTeamAccess::applySalesScope($query);
@@ -40,7 +40,7 @@ class SaleOrderShowPage extends Component
 
     public function render(): View
     {
-        $this->record->loadMissing(['customer', 'warehouse', 'items.product', 'items.variant']);
+        $this->record->loadMissing(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive']);
 
         return view('inventory::livewire.transactions.sale-order-show', [
             'record'             => $this->record,
@@ -196,7 +196,7 @@ class SaleOrderShowPage extends Component
     private function refreshRecord(): void
     {
         $this->record = SaleOrder::query()
-            ->with(['customer', 'warehouse', 'items.product', 'items.variant'])
+            ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive'])
             ->where('document_type', $this->documentType)
             ->findOrFail($this->record->getKey());
 

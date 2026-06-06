@@ -53,6 +53,31 @@
             </div>
         </x-tallui-card>
 
+        <x-tallui-card title="Sales Team" subtitle="Creator and assigned sales personnel." icon="o-user-group" :shadow="true">
+            <div class="space-y-3 text-sm">
+                <div>
+                    <span class="text-base-content/50">Created By</span>
+                    <div class="font-medium">{{ $record->createdBy?->name ?? '—' }}</div>
+                </div>
+                <div>
+                    <span class="text-base-content/50">Sales Manager</span>
+                    <div class="font-medium">{{ $record->salesManager?->name ?? '—' }}</div>
+                </div>
+                @if ($record->salesAssistantManager)
+                    <div>
+                        <span class="text-base-content/50">Asst. Sales Manager</span>
+                        <div class="font-medium">{{ $record->salesAssistantManager->name }}</div>
+                    </div>
+                @endif
+                @if ($record->salesExecutive)
+                    <div>
+                        <span class="text-base-content/50">Sales Executive</span>
+                        <div class="font-medium">{{ $record->salesExecutive->name }}</div>
+                    </div>
+                @endif
+            </div>
+        </x-tallui-card>
+
         <x-tallui-card title="Finance" subtitle="Track dues and open accounting actions." icon="o-banknotes" :shadow="true">
             @if ($financeDocument)
                 <div class="space-y-3 text-sm">
@@ -156,42 +181,70 @@
         </x-tallui-card>
     </div>
 
-        <x-tallui-card title="Line Items" subtitle="Products, quantities, and pricing." icon="o-queue-list" :shadow="true" class="xl:col-span-2">
-        <div class="overflow-x-auto">
-            <table class="table table-sm w-full">
-                <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
-                        <th>Product</th>
-                        <th>SKU</th>
-                        <th>Qty</th>
-                        <th>Unit Price</th>
-                        <th>Discount %</th>
-                        <th>Line Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($record->items as $item)
-                        <tr>
-                            <td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : ($item->product?->name ?? 'Product') }}</td>
-                            <td>{{ $item->variant?->sku ?? $item->product?->sku ?? '—' }}</td>
-                            <td>{{ rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.') }}</td>
-                            <td>{{ number_format((float) $item->unit_price_local, 2) }}</td>
-                            <td>{{ number_format((float) $item->discount_pct, 2) }}</td>
-                            <td>{{ number_format((float) $item->line_total_local, 2) }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+    <div class="xl:col-span-2">
+        <x-tallui-card title="Line Items" subtitle="Products, quantities, and pricing." icon="o-queue-list" :shadow="true">
+            {{-- Mobile: card stack (< sm) --}}
+            <div class="space-y-3 sm:hidden">
+                @foreach ($record->items as $item)
+                    @php
+                        $productLabel = $item->variant
+                            ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name)
+                            : ($item->product?->name ?? 'Product');
+                        $sku = $item->variant?->sku ?? $item->product?->sku ?? '—';
+                        $qty = rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.');
+                    @endphp
+                    <div class="rounded-xl border border-base-200 bg-base-50/50 p-3 text-sm">
+                        <div class="font-medium text-base-content">{{ $productLabel }}</div>
+                        <div class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-base-content/60">
+                            <div><span class="uppercase tracking-wide">SKU</span><div class="font-medium text-base-content/80">{{ $sku }}</div></div>
+                            <div><span class="uppercase tracking-wide">Qty</span><div class="font-medium text-base-content/80">{{ $qty }}</div></div>
+                            <div><span class="uppercase tracking-wide">Unit Price</span><div class="font-medium text-base-content/80">{{ number_format((float) $item->unit_price_local, 2) }}</div></div>
+                            <div><span class="uppercase tracking-wide">Discount</span><div class="font-medium text-base-content/80">{{ number_format((float) $item->discount_pct, 2) }}%</div></div>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between border-t border-base-200 pt-2">
+                            <span class="text-xs text-base-content/50">Line Total</span>
+                            <span class="font-semibold text-base-content">{{ number_format((float) $item->line_total_local, 2) }}</span>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
 
-        <div class="mt-5 ml-auto w-full max-w-sm space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-base-content/60">Subtotal</span><strong>{{ number_format((float) $record->subtotal_local, 2) }}</strong></div>
-            <div class="flex justify-between"><span class="text-base-content/60">Tax</span><strong>{{ number_format((float) $record->tax_local, 2) }}</strong></div>
-            <div class="flex justify-between"><span class="text-base-content/60">Discount</span><strong>{{ number_format((float) $record->discount_local, 2) }}</strong></div>
-            <div class="flex justify-between"><span class="text-base-content/60">Shipping</span><strong>{{ number_format((float) $record->shipping_local, 2) }}</strong></div>
-            <div class="flex justify-between"><span class="text-base-content/60">Coupon Discount</span><strong>{{ number_format((float) $record->coupon_discount_local, 2) }}</strong></div>
-            <div class="flex justify-between text-base font-semibold"><span>Total</span><strong>{{ number_format((float) $record->total_local, 2) }}</strong></div>
-        </div>
-    </x-tallui-card>
-</div>
+            {{-- Tablet+: table (>= sm) --}}
+            <div class="hidden overflow-x-auto sm:block">
+                <table class="table table-sm w-full">
+                    <thead>
+                        <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th class="text-right">Qty</th>
+                            <th class="text-right">Unit Price</th>
+                            <th class="text-right">Discount %</th>
+                            <th class="text-right">Line Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($record->items as $item)
+                            <tr>
+                                <td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : ($item->product?->name ?? 'Product') }}</td>
+                                <td class="text-base-content/60">{{ $item->variant?->sku ?? $item->product?->sku ?? '—' }}</td>
+                                <td class="text-right">{{ rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.') }}</td>
+                                <td class="text-right">{{ number_format((float) $item->unit_price_local, 2) }}</td>
+                                <td class="text-right">{{ number_format((float) $item->discount_pct, 2) }}</td>
+                                <td class="text-right font-medium">{{ number_format((float) $item->line_total_local, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-5 ml-auto w-full max-w-sm space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-base-content/60">Subtotal</span><strong>{{ number_format((float) $record->subtotal_local, 2) }}</strong></div>
+                <div class="flex justify-between"><span class="text-base-content/60">Tax</span><strong>{{ number_format((float) $record->tax_local, 2) }}</strong></div>
+                <div class="flex justify-between"><span class="text-base-content/60">Discount</span><strong>{{ number_format((float) $record->discount_local, 2) }}</strong></div>
+                <div class="flex justify-between"><span class="text-base-content/60">Shipping</span><strong>{{ number_format((float) $record->shipping_local, 2) }}</strong></div>
+                <div class="flex justify-between"><span class="text-base-content/60">Coupon Discount</span><strong>{{ number_format((float) $record->coupon_discount_local, 2) }}</strong></div>
+                <div class="flex justify-between border-t border-base-200 pt-2 text-base font-semibold"><span>Total</span><strong>{{ number_format((float) $record->total_local, 2) }}</strong></div>
+            </div>
+        </x-tallui-card>
+    </div>
 </div>

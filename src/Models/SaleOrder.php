@@ -82,6 +82,11 @@ class SaleOrder extends Model implements Auditable
         return $this->belongsTo(Customer::class);
     }
 
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'created_by');
+    }
+
     public function salesManager(): BelongsTo
     {
         return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_manager_id');
