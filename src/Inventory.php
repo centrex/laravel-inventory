@@ -970,6 +970,8 @@ class Inventory
                 'subtotal_amount'               => $subtotalBdt,
                 'total_local'                   => $totalLocal,
                 'total_amount'                  => $totalBdt,
+                'paid_amount'                   => 0,
+                'due_amount'                    => $totalBdt,
                 'credit_limit_amount'           => $credit['credit_limit_amount'],
                 'credit_exposure_before_amount' => $credit['credit_exposure_before_amount'],
                 'credit_exposure_after_amount'  => $credit['credit_exposure_after_amount'],
@@ -3663,38 +3665,13 @@ class Inventory
 
     private function customerOutstandingExposure(int $customerId): float
     {
-        $soTable = (new SaleOrder())->getTable();
-
-        $query = SaleOrder::query()
-            ->where("{$soTable}.customer_id", $customerId)
-            ->whereNotIn("{$soTable}.status", [
+        return (float) SaleOrder::query()
+            ->where('customer_id', $customerId)
+            ->whereNotIn('status', [
                 SaleOrderStatus::CANCELLED->value,
                 SaleOrderStatus::RETURNED->value,
-            ]);
-
-        if ($this->erp()->enabled()) {
-            $invTable = (new Invoice())->getTable();
-
-            $result = $query
-                ->leftJoin("{$invTable} as _acct_inv", function ($join) use ($soTable): void {
-                    $join->on('_acct_inv.id', '=', "{$soTable}.accounting_invoice_id")
-                        ->whereNull('_acct_inv.deleted_at')
-                        ->where('_acct_inv.status', '!=', 'void');
-                })
-                ->selectRaw(
-                    "COALESCE(SUM(
-                        CASE WHEN _acct_inv.id IS NOT NULL
-                             THEN GREATEST((_acct_inv.total - _acct_inv.paid_amount) * _acct_inv.exchange_rate, 0)
-                             ELSE {$soTable}.total_amount
-                        END
-                    ), 0) as unpaid_total",
-                )
-                ->first();
-
-            return (float) ($result?->unpaid_total ?? 0.0);
-        }
-
-        return (float) $query->sum('total_amount');
+            ])
+            ->sum('due_amount');
     }
 
     private function canApproveCreditOverride(?int $approvedBy): bool

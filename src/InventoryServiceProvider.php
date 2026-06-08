@@ -6,7 +6,7 @@ namespace Centrex\Inventory;
 
 use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand};
 use Centrex\Inventory\Models\{Customer, Supplier};
-use Centrex\Inventory\Observers\{CustomerObserver, SupplierObserver};
+use Centrex\Inventory\Observers\{CustomerObserver, InvoicePaymentObserver, SupplierObserver};
 use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
 use Illuminate\Support\Facades\{Blade, Gate};
 use Illuminate\Support\ServiceProvider;
@@ -36,6 +36,10 @@ class InventoryServiceProvider extends ServiceProvider
         if ((bool) config('inventory.erp.accounting.enabled', false)) {
             Customer::observe(CustomerObserver::class);
             Supplier::observe(SupplierObserver::class);
+
+            if (class_exists(\Centrex\Accounting\Models\Invoice::class)) {
+                \Centrex\Accounting\Models\Invoice::observe(InvoicePaymentObserver::class);
+            }
         }
 
         if ($this->app->runningInConsole()) {

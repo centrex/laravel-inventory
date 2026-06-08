@@ -46,23 +46,23 @@
             <div class="space-y-1.5 text-sm">
                 <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/40">Customer</div>
 
+                @if ($record->customer?->organization_name)
+                    <div class="flex items-start justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Shop</span>
+                        <a href="{{ route('inventory.entities.customers.edit', ['recordId' => $record->customer->getKey()]) }}" class="text-right font-medium text-primary hover:underline" wire:navigate>
+                            {{ $record->customer->organization_name }}</span>
+                        </a>
+                    </div>
+                @endif
+
                 <div class="flex items-start justify-between gap-3">
                     <span class="shrink-0 text-base-content/50">Name</span>
                     @if ($record->customer)
-                        <a href="{{ route('inventory.entities.customers.edit', ['recordId' => $record->customer->getKey()]) }}" class="text-right font-medium text-primary hover:underline" wire:navigate>
-                            {{ $record->customer->name }}
-                        </a>
+                        <span class="text-right font-medium">{{ $record->customer->name }}</span>
                     @else
                         <span class="font-medium">Walk-in</span>
                     @endif
                 </div>
-
-                @if ($record->customer?->organization_name)
-                    <div class="flex items-start justify-between gap-3">
-                        <span class="shrink-0 text-base-content/50">Shop</span>
-                        <span class="text-right font-medium">{{ $record->customer->organization_name }}</span>
-                    </div>
-                @endif
 
                 @if ($record->customer?->phone)
                     <div class="flex items-start justify-between gap-3">
