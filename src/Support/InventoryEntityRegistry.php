@@ -239,7 +239,7 @@ class InventoryEntityRegistry
                 'label'         => 'Warehouse Stock',
                 'singular'      => 'Warehouse Stock',
                 'model'         => WarehouseProduct::class,
-                'search'        => [],
+                'search'        => ['bin_location'],
                 'index_columns' => ['warehouse_id', 'product_id', 'sku', 'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'wac_amount', 'reorder_point'],
                 'form_fields'   => [
                     self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . (new Warehouse())->getTable() . ',id'], null, Warehouse::class, 'name'),

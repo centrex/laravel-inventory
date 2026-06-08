@@ -175,6 +175,15 @@ class EntityIndexPage extends Component
                 foreach ($definition['search'] as $column) {
                     $builder->orWhere($column, 'like', '%' . $search . '%');
                 }
+
+                if ($this->entity === 'warehouse-products') {
+                    $builder->orWhereHas('product', fn ($q) => $q
+                        ->where('sku', 'like', '%' . $search . '%')
+                        ->orWhere('name', 'like', '%' . $search . '%'));
+                    $builder->orWhereHas('variant', fn ($q) => $q
+                        ->where('sku', 'like', '%' . $search . '%')
+                        ->orWhere('name', 'like', '%' . $search . '%'));
+                }
             });
         }
 
