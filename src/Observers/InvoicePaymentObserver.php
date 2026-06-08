@@ -22,7 +22,7 @@ class InvoicePaymentObserver
 
         $rate = (float) ($invoice->exchange_rate ?? 1.0);
         $paid = round(max(0.0, (float) $invoice->paid_amount * $rate), 4);
-        $due  = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
+        $due = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
 
         $so->updateQuietly([
             'paid_amount' => $paid,

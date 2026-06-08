@@ -6,12 +6,12 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\{DB, Schema};
 
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {
         $prefix = config('inventory.table_prefix', 'inv_');
-        $table  = $prefix . 'sale_orders';
+        $table = $prefix . 'sale_orders';
 
         Schema::table($table, function (Blueprint $table): void {
             $table->decimal('paid_amount', 18, 4)->default(0)->after('total_amount');
