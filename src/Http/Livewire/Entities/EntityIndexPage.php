@@ -75,9 +75,7 @@ class EntityIndexPage extends Component
                         ->orWhere('name', 'like', '%' . $search . '%')
                         ->orWhere('organization_name', 'like', '%' . $search . '%')
                         ->orWhere('email', 'like', '%' . $search . '%')
-                        ->orWhere('phone', 'like', '%' . $search . '%')
-                        ->orWhere('zone', 'like', '%' . $search . '%')
-                        ->orWhere('area', 'like', '%' . $search . '%');
+                        ->orWhere('phone', 'like', '%' . $search . '%');
                 });
             }
 
@@ -114,8 +112,7 @@ class EntityIndexPage extends Component
                     $builder->where('code', 'like', '%' . $search . '%')
                         ->orWhere('name', 'like', '%' . $search . '%')
                         ->orWhere('contact_email', 'like', '%' . $search . '%')
-                        ->orWhere('contact_phone', 'like', '%' . $search . '%')
-                        ->orWhere('demographic_segment', 'like', '%' . $search . '%');
+                        ->orWhere('contact_phone', 'like', '%' . $search . '%');
                 });
             }
 

@@ -86,7 +86,7 @@ class InventoryEntityRegistry
                 'label'         => 'Suppliers',
                 'singular'      => 'Supplier',
                 'model'         => Supplier::class,
-                'search'        => ['code', 'name', 'country_code', 'demographic_segment', 'contact_email', 'contact_phone'],
+                'search'        => ['code', 'name', 'country_code', 'contact_email', 'contact_phone'],
                 'index_columns' => ['code', 'name', 'country_code', 'demographic_segment', 'currency', 'contact_email', 'purchase_manager_id', 'purchase_executive_id', 'is_active'],
                 'form_fields'   => [
                     self::field('code', 'text', ['required', 'string', 'max:30']),
@@ -110,7 +110,7 @@ class InventoryEntityRegistry
                 'label'         => 'Customers',
                 'singular'      => 'Customer',
                 'model'         => Customer::class,
-                'search'        => ['code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment'],
+                'search'        => ['code', 'name', 'organization_name', 'email', 'phone'],
                 'index_columns' => ['code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment', 'currency', 'credit_limit_amount', 'price_tier_code', 'sales_owner_id', 'sales_owner_designation', 'is_active'],
                 'form_fields'   => [
                     self::field('code', 'text', ['required', 'string', 'max:30']),
