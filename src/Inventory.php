@@ -3663,13 +3663,28 @@ class Inventory
 
     private function customerOutstandingExposure(int $customerId): float
     {
-        return (float) (SaleOrder::query()
+        $query = SaleOrder::query()
             ->where('customer_id', $customerId)
             ->whereNotIn('status', [
                 SaleOrderStatus::CANCELLED->value,
                 SaleOrderStatus::RETURNED->value,
-            ])
-            ->sum('total_amount'));
+            ]);
+
+        if ($this->erp()->enabled()) {
+            $soTable  = (new SaleOrder())->getTable();
+            $invTable = (new Invoice())->getTable();
+
+            $result = $query
+                ->leftJoin("{$invTable} as _acct_inv", '_acct_inv.id', '=', "{$soTable}.accounting_invoice_id")
+                ->selectRaw(
+                    "COALESCE(SUM(GREATEST({$soTable}.total_amount - COALESCE(_acct_inv.paid_amount * _acct_inv.exchange_rate, 0), 0)), 0) as unpaid_total"
+                )
+                ->first();
+
+            return (float) ($result?->unpaid_total ?? 0.0);
+        }
+
+        return (float) $query->sum('total_amount');
     }
 
     private function canApproveCreditOverride(?int $approvedBy): bool
