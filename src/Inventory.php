@@ -3663,21 +3663,22 @@ class Inventory
 
     private function customerOutstandingExposure(int $customerId): float
     {
+        $soTable = (new SaleOrder())->getTable();
+
         $query = SaleOrder::query()
-            ->where('customer_id', $customerId)
-            ->whereNotIn('status', [
+            ->where("{$soTable}.customer_id", $customerId)
+            ->whereNotIn("{$soTable}.status", [
                 SaleOrderStatus::CANCELLED->value,
                 SaleOrderStatus::RETURNED->value,
             ]);
 
         if ($this->erp()->enabled()) {
-            $soTable = (new SaleOrder())->getTable();
             $invTable = (new Invoice())->getTable();
 
             $result = $query
                 ->leftJoin("{$invTable} as _acct_inv", '_acct_inv.id', '=', "{$soTable}.accounting_invoice_id")
                 ->selectRaw(
-                    "COALESCE(SUM(GREATEST({$soTable}.total_amount - COALESCE(_acct_inv.paid_amount * _acct_inv.exchange_rate, 0), 0)), 0) as unpaid_total",
+                    "COALESCE(SUM(GREATEST({$soTable}.total_amount - COALESCE(_acct_inv.paid_amount * _acct_inv.exchange_rate, 0), 0)), 0) as unpaid_total"
                 )
                 ->first();
 
