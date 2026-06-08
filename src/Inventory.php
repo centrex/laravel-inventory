@@ -3678,7 +3678,7 @@ class Inventory
             $result = $query
                 ->leftJoin("{$invTable} as _acct_inv", '_acct_inv.id', '=', "{$soTable}.accounting_invoice_id")
                 ->selectRaw(
-                    "COALESCE(SUM(GREATEST({$soTable}.total_amount - COALESCE(_acct_inv.paid_amount * _acct_inv.exchange_rate, 0), 0)), 0) as unpaid_total"
+                    "COALESCE(SUM(GREATEST({$soTable}.total_amount - COALESCE(_acct_inv.paid_amount * _acct_inv.exchange_rate, 0), 0)), 0) as unpaid_total",
                 )
                 ->first();
 
