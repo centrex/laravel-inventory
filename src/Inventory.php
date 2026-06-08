@@ -3676,9 +3676,18 @@ class Inventory
             $invTable = (new Invoice())->getTable();
 
             $result = $query
-                ->leftJoin("{$invTable} as _acct_inv", '_acct_inv.id', '=', "{$soTable}.accounting_invoice_id")
+                ->leftJoin("{$invTable} as _acct_inv", function ($join) use ($soTable, $invTable): void {
+                    $join->on('_acct_inv.id', '=', "{$soTable}.accounting_invoice_id")
+                        ->whereNull('_acct_inv.deleted_at')
+                        ->where('_acct_inv.status', '!=', 'void');
+                })
                 ->selectRaw(
-                    "COALESCE(SUM(GREATEST({$soTable}.total_amount - COALESCE(_acct_inv.paid_amount * _acct_inv.exchange_rate, 0), 0)), 0) as unpaid_total",
+                    "COALESCE(SUM(
+                        CASE WHEN _acct_inv.id IS NOT NULL
+                             THEN GREATEST((_acct_inv.total - _acct_inv.paid_amount) * _acct_inv.exchange_rate, 0)
+                             ELSE {$soTable}.total_amount
+                        END
+                    ), 0) as unpaid_total"
                 )
                 ->first();
 
