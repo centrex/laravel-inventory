@@ -31,6 +31,76 @@
     </x-slot:actions>
 </x-tallui-page-header>
 
+    {{-- Quick actions --}}
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+        @if(Route::has('payroll.entities.employees.index'))
+        <a href="{{ route('payroll.entities.employees.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-identification class="w-7 h-7 text-primary" />
+            <span class="text-sm font-medium">Employees</span>
+        </a>
+        @endif
+        <a href="{{ route('inventory.purchase-orders.create') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-arrow-down-tray class="w-7 h-7 text-primary" />
+            <span class="text-sm font-medium">New Purchase</span>
+        </a>
+        <a href="{{ route('inventory.requisitions.create') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-clipboard-document-check class="w-7 h-7 text-warning" />
+            <span class="text-sm font-medium">Requisition</span>
+        </a>
+        <a href="{{ route('inventory.sale-orders.create') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-shopping-cart class="w-7 h-7 text-success" />
+            <span class="text-sm font-medium">New Sale</span>
+        </a>
+        <a href="{{ route('inventory.quotations.create') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-document-duplicate class="w-7 h-7 text-info" />
+            <span class="text-sm font-medium">Quotation</span>
+        </a>
+        <a href="{{ route('inventory.pos.index') }}" target="_blank"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-device-phone-mobile class="w-7 h-7 text-secondary" />
+            <span class="text-sm font-medium">POS Terminal</span>
+        </a>
+        <a href="{{ route('inventory.transfers.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-arrows-right-left class="w-7 h-7 text-info" />
+            <span class="text-sm font-medium">Transfers</span>
+        </a>
+        <a href="{{ route('inventory.shipments.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-paper-airplane class="w-7 h-7 text-primary" />
+            <span class="text-sm font-medium">Shipments</span>
+        </a>
+        @if ($canViewForecast)
+        <a href="{{ route('inventory.reports.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-chart-bar class="w-7 h-7 text-secondary" />
+            <span class="text-sm font-medium">Reports</span>
+        </a>
+        <a href="{{ route('inventory.reports.customer-heatmap') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-map class="w-7 h-7 text-accent" />
+            <span class="text-sm font-medium">Heat Map</span>
+        </a>
+        @endif
+        <a href="{{ route('inventory.adjustments.create') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-scale class="w-7 h-7 text-warning" />
+            <span class="text-sm font-medium">Adjustment</span>
+        </a>
+        @if(Route::has('payroll.entries.index'))
+        <a href="{{ route('payroll.entries.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-users class="w-7 h-7 text-accent" />
+            <span class="text-sm font-medium">Payroll</span>
+        </a>
+        @endif
+    </div>
+
 <x-tallui-tab
     :tabs="[
         ['id' => 'overview', 'label' => 'Overview', 'icon' => 'o-squares-2x2'],
@@ -91,6 +161,71 @@
                     </div>
                 @endforelse
             </div>
+        </x-tallui-card>
+
+        {{-- Sales Order Trend --}}
+        <x-tallui-card
+            title="Sales Order Trend"
+            :subtitle="$salesTrend['this_month']['label'] . ' vs ' . $salesTrend['prev_month']['label']"
+            icon="o-arrow-trending-up"
+            :shadow="true"
+            class="mb-6"
+        >
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-5">
+                @php
+                    $trendMetrics = [
+                        ['key' => 'orders_count', 'label' => 'Orders',      'format' => 'int'],
+                        ['key' => 'revenue',      'label' => 'Revenue',     'format' => 'currency'],
+                        ['key' => 'gross_profit', 'label' => 'Gross Profit','format' => 'currency'],
+                    ];
+                @endphp
+                @foreach ($trendMetrics as $metric)
+                    @php
+                        $cur  = $salesTrend['this_month'][$metric['key']];
+                        $prev = $salesTrend['prev_month'][$metric['key']];
+                        $chg  = $salesTrend['change'][$metric['key']];
+                        $fmt  = fn ($v) => $metric['format'] === 'int'
+                            ? number_format((int) $v)
+                            : number_format((float) $v, 2);
+                    @endphp
+                    <div class="rounded-2xl border border-base-200 bg-base-100 p-4">
+                        <div class="text-xs font-semibold text-base-content/50 uppercase mb-2">{{ $metric['label'] }}</div>
+                        <div class="flex items-end justify-between gap-2">
+                            <div>
+                                <div class="text-2xl font-bold text-base-content">{{ $fmt($cur) }}</div>
+                                <div class="text-xs text-base-content/50 mt-0.5">{{ $salesTrend['this_month']['label'] }}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-sm font-medium text-base-content/60">{{ $fmt($prev) }}</div>
+                                <div class="text-xs text-base-content/50 mt-0.5">{{ $salesTrend['prev_month']['label'] }}</div>
+                            </div>
+                        </div>
+                        @if ($chg !== null)
+                            <div class="mt-3">
+                                @if ($chg > 0)
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-success">
+                                        <x-heroicon-m-arrow-trending-up class="w-3.5 h-3.5" /> +{{ $chg }}%
+                                    </span>
+                                @elseif ($chg < 0)
+                                    <span class="inline-flex items-center gap-1 text-xs font-semibold text-error">
+                                        <x-heroicon-m-arrow-trending-down class="w-3.5 h-3.5" /> {{ $chg }}%
+                                    </span>
+                                @else
+                                    <span class="text-xs text-base-content/40">No change</span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+
+            @if (!empty($salesTrend['chart']['categories']))
+                <livewire:tallui-bar-chart
+                    :series="$salesTrend['chart']['series']"
+                    :categories="$salesTrend['chart']['categories']"
+                    :height="200"
+                />
+            @endif
         </x-tallui-card>
     </x-slot:overview>
 
@@ -370,76 +505,6 @@
         @endif
     </x-slot:target>
 </x-tallui-tab>
-
-{{-- Quick actions --}}
-<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-    @if(Route::has('payroll.entities.employees.index'))
-    <a href="{{ route('payroll.entities.employees.index') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-identification class="w-7 h-7 text-primary" />
-        <span class="text-sm font-medium">Employees</span>
-    </a>
-    @endif
-    <a href="{{ route('inventory.purchase-orders.create') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-arrow-down-tray class="w-7 h-7 text-primary" />
-        <span class="text-sm font-medium">New Purchase</span>
-    </a>
-    <a href="{{ route('inventory.requisitions.create') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-clipboard-document-check class="w-7 h-7 text-warning" />
-        <span class="text-sm font-medium">Requisition</span>
-    </a>
-    <a href="{{ route('inventory.sale-orders.create') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-shopping-cart class="w-7 h-7 text-success" />
-        <span class="text-sm font-medium">New Sale</span>
-    </a>
-    <a href="{{ route('inventory.quotations.create') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-document-duplicate class="w-7 h-7 text-info" />
-        <span class="text-sm font-medium">Quotation</span>
-    </a>
-    <a href="{{ route('inventory.pos.index') }}" target="_blank"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-device-phone-mobile class="w-7 h-7 text-secondary" />
-        <span class="text-sm font-medium">POS Terminal</span>
-    </a>
-    <a href="{{ route('inventory.transfers.index') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-arrows-right-left class="w-7 h-7 text-info" />
-        <span class="text-sm font-medium">Transfers</span>
-    </a>
-    <a href="{{ route('inventory.shipments.index') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-paper-airplane class="w-7 h-7 text-primary" />
-        <span class="text-sm font-medium">Shipments</span>
-    </a>
-    @if ($canViewForecast)
-    <a href="{{ route('inventory.reports.index') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-chart-bar class="w-7 h-7 text-secondary" />
-        <span class="text-sm font-medium">Reports</span>
-    </a>
-    <a href="{{ route('inventory.reports.customer-heatmap') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-map class="w-7 h-7 text-accent" />
-        <span class="text-sm font-medium">Heat Map</span>
-    </a>
-    @endif
-    <a href="{{ route('inventory.adjustments.create') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-scale class="w-7 h-7 text-warning" />
-        <span class="text-sm font-medium">Adjustment</span>
-    </a>
-    @if(Route::has('payroll.entries.index'))
-    <a href="{{ route('payroll.entries.index') }}"
-       class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-        <x-heroicon-o-users class="w-7 h-7 text-accent" />
-        <span class="text-sm font-medium">Payroll</span>
-    </a>
-    @endif
-</div>
 
 {{-- Master data entities --}}
 <x-tallui-card title="Master Data" subtitle="Open CRUD screens for inventory master tables." icon="o-squares-2x2" :shadow="true">

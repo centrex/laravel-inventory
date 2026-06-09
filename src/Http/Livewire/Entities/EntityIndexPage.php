@@ -9,7 +9,7 @@ use Centrex\Inventory\Models\{Customer, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, CustomerClvService, CustomerExporter, InventoryEntityRegistry, SupplierExporter, WarehouseStockExporter};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Str;
-use Livewire\Attributes\Layout;
+use Livewire\Attributes\{Layout, Url};
 use Livewire\{Component, WithPagination};
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -21,6 +21,7 @@ class EntityIndexPage extends Component
 
     public string $entity = '';
 
+    #[Url(as: 'search', except: '')]
     public string $search = '';
 
     public ?int $filterWarehouseId = null;
