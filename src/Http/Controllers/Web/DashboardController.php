@@ -51,9 +51,9 @@ class DashboardController
     private function buildSalesTrend(): array
     {
         $thisStart = now()->startOfMonth();
-        $thisEnd   = now()->endOfDay();
+        $thisEnd = now()->endOfDay();
         $prevStart = now()->subMonthNoOverflow()->startOfMonth();
-        $prevEnd   = now()->subMonthNoOverflow()->endOfMonth();
+        $prevEnd = now()->subMonthNoOverflow()->endOfMonth();
 
         $excluded = [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
 
@@ -87,30 +87,33 @@ class DashboardController
         $days = range(1, $daysInMonth);
 
         $thisRevArray = array_fill_keys($days, 0.0);
+
         foreach ($thisDailyRevenue as $date => $revenue) {
             $day = (int) date('j', strtotime((string) $date));
+
             if (array_key_exists($day, $thisRevArray)) {
                 $thisRevArray[$day] = round((float) $revenue, 2);
             }
         }
 
         $prevRevArray = array_fill_keys($days, 0.0);
+
         foreach ($prevDailyRevenue as $date => $revenue) {
             $day = (int) date('j', strtotime((string) $date));
+
             if (array_key_exists($day, $prevRevArray)) {
                 $prevRevArray[$day] = round((float) $revenue, 2);
             }
         }
 
-        $thisOrders      = (int) ($thisStats->orders_count ?? 0);
-        $prevOrders      = (int) ($prevStats->orders_count ?? 0);
-        $thisRevenue     = (float) ($thisStats->revenue ?? 0);
-        $prevRevenue     = (float) ($prevStats->revenue ?? 0);
+        $thisOrders = (int) ($thisStats->orders_count ?? 0);
+        $prevOrders = (int) ($prevStats->orders_count ?? 0);
+        $thisRevenue = (float) ($thisStats->revenue ?? 0);
+        $prevRevenue = (float) ($prevStats->revenue ?? 0);
         $thisGrossProfit = $thisRevenue - (float) ($thisStats->cogs ?? 0);
         $prevGrossProfit = $prevRevenue - (float) ($prevStats->cogs ?? 0);
 
-        $pctChange = static fn (float $current, float $previous): ?float =>
-            $previous != 0.0 ? round(($current - $previous) / abs($previous) * 100, 1) : null;
+        $pctChange = static fn (float $current, float $previous): ?float => $previous != 0.0 ? round(($current - $previous) / abs($previous) * 100, 1) : null;
 
         return [
             'this_month' => [
