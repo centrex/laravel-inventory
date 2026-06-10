@@ -146,6 +146,7 @@ class ErpIntegration
         if ($invoice && in_array((string) $status, $lockedStatuses, true)) {
             if ((int) $saleOrder->accounting_invoice_id !== (int) $invoice->id) {
                 $saleOrder->forceFill(['accounting_invoice_id' => $invoice->id])->saveQuietly();
+                $this->resyncSaleOrderDueAmount($saleOrder, $invoice);
             }
 
             return (int) $invoice->id;
@@ -176,6 +177,7 @@ class ErpIntegration
 
         if ((int) $saleOrder->accounting_invoice_id !== (int) $invoice->id) {
             $saleOrder->forceFill(['accounting_invoice_id' => $invoice->id])->saveQuietly();
+            $this->resyncSaleOrderDueAmount($saleOrder, $invoice);
         }
 
         return (int) $invoice->id;
@@ -523,5 +525,13 @@ class ErpIntegration
         );
 
         return (int) $customer->id;
+    }
+
+    private function resyncSaleOrderDueAmount(SaleOrder $saleOrder, object $invoice): void
+    {
+        $rate = (float) ($saleOrder->exchange_rate ?? 1.0);
+        $due  = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
+        $paid = round(max(0.0, (float) $invoice->paid_amount * $rate), 4);
+        $saleOrder->forceFill(['due_amount' => $due, 'paid_amount' => $paid])->saveQuietly();
     }
 }

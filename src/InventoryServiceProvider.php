@@ -285,6 +285,8 @@ class InventoryServiceProvider extends ServiceProvider
 
         Livewire::component('inventory-entity-index', Http\Livewire\Entities\EntityIndexPage::class);
         Livewire::component('inventory-entity-form', Http\Livewire\Entities\EntityFormPage::class);
+        Livewire::component('inventory-customer-show', Http\Livewire\Entities\CustomerShowPage::class);
+        Livewire::component('inventory-manage-addresses', Http\Livewire\Entities\ManageAddresses::class);
         Livewire::component('inventory-sale-order-index', Http\Livewire\Transactions\SaleOrderIndexPage::class);
         Livewire::component('inventory-sale-order-show', Http\Livewire\Transactions\SaleOrderShowPage::class);
         Livewire::component('inventory-sale-order-form', Http\Livewire\Transactions\SaleOrderFormPage::class);

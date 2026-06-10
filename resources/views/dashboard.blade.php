@@ -134,6 +134,7 @@
             />
         </div>
 
+        <div class="space-y-4">
         <x-tallui-card
             title="Warehouse Stock Value"
             subtitle="Weighted-average stock value by warehouse."
@@ -227,6 +228,7 @@
                 />
             @endif
         </x-tallui-card>
+        </div>
     </x-slot:overview>
 
     <x-slot:forecast>

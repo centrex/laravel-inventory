@@ -4,7 +4,6 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
-use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
@@ -129,15 +128,6 @@ class EntityFormPage extends Component
             'supportsPrimaryImage'      => $supportsPrimaryImage,
             'currentPrimaryImageUrl'    => $supportsPrimaryImage ? ($record?->primary_image_url ?: null) : null,
             'currentPrimaryImageSrcset' => $supportsPrimaryImage ? ($record?->primary_image_srcset ?: null) : null,
-            'customerHistory'           => $this->entity === 'customers' && $this->recordId
-                ? app(Inventory::class)->customerHistory($this->recordId)
-                : collect(),
-            'customerCreditSnapshot' => $this->entity === 'customers' && $this->recordId
-                ? app(Inventory::class)->customerCreditSnapshot($this->recordId)
-                : null,
-            'customerAnalytics' => $this->entity === 'customers' && $this->recordId
-                ? app(Inventory::class)->customerAnalytics($this->recordId)
-                : null,
         ]);
     }
 

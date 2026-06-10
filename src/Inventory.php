@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Central service class for all inventory operations.
  *
- * This is the class behind the {@see Facades\Inventory} facade.
+ * This is the class behind the {@see \Centrex\Inventory\Facades\Inventory} facade.
  * It is organised into logical sections — each separated by a comment banner:
  *
  *   Exchange Rates      – set / get / convert currency rates
@@ -50,10 +50,10 @@ class Inventory
     /**
      * Persist (or update) an exchange rate for a currency against the base currency.
      *
-     * @param  string  $currency  ISO 4217 code, e.g. 'USD'
-     * @param  float  $rate  Units of $currency per 1 base-currency unit
-     * @param  string|null  $date  Effective date (defaults to today)
-     * @param  string  $source  Origin of the rate ('manual', 'open_exchange_rates', …)
+     * @param  string       $currency  ISO 4217 code, e.g. 'USD'
+     * @param  float        $rate      Units of $currency per 1 base-currency unit
+     * @param  string|null  $date      Effective date (defaults to today)
+     * @param  string       $source    Origin of the rate ('manual', 'open_exchange_rates', …)
      */
     public function setExchangeRate(string $currency, float $rate, ?string $date = null, string $source = 'manual'): OpenExchangeRate
     {
@@ -1726,7 +1726,19 @@ class Inventory
                 $this->writeMovement($so->warehouse_id, $item->product_id, $item->variant_id, MovementType::SALE_FULFILLMENT, $qty, $qtyBefore, $qtyAfter, $wac, $wac, SaleOrder::class, $so->id, null, null, $lotId);
             }
 
-            $so->update(['status' => $fullyFulfilled ? SaleOrderStatus::FULFILLED : SaleOrderStatus::PARTIAL, 'cogs_amount' => (float) $so->cogs_amount + $totalCogs]);
+            $statusUpdate = [
+                'status'      => $fullyFulfilled ? SaleOrderStatus::FULFILLED : SaleOrderStatus::PARTIAL,
+                'cogs_amount' => (float) $so->cogs_amount + $totalCogs,
+            ];
+
+            // If fully fulfilled with no linked accounting invoice, zero the due_amount now.
+            // The InvoicePaymentObserver will set it correctly if an invoice is linked later.
+            if ($fullyFulfilled && !$so->accounting_invoice_id) {
+                $statusUpdate['due_amount']  = 0.0;
+                $statusUpdate['paid_amount'] = (float) $so->total_amount;
+            }
+
+            $so->update($statusUpdate);
 
             return $so->refresh();
         });
@@ -3752,13 +3764,31 @@ class Inventory
 
     private function customerOutstandingExposure(int $customerId): float
     {
-        return (float) SaleOrder::query()
+        // Open orders (confirmed but not yet delivered): always count due_amount.
+        // due_amount is set at creation (= total_amount) and reduced by InvoicePaymentObserver
+        // whenever a linked accounting invoice receives a payment.
+        $openStatuses = [
+            SaleOrderStatus::CONFIRMED->value,
+            SaleOrderStatus::PROCESSING->value,
+            SaleOrderStatus::PARTIAL->value,
+        ];
+
+        $openExposure = (float) SaleOrder::query()
             ->where('customer_id', $customerId)
-            ->whereNotIn('status', [
-                SaleOrderStatus::CANCELLED->value,
-                SaleOrderStatus::RETURNED->value,
-            ])
+            ->whereIn('status', $openStatuses)
             ->sum('due_amount');
+
+        // FULFILLED orders: only count those with a linked accounting invoice.
+        // Without an invoice the goods were delivered without credit (COD/cash),
+        // so there is no outstanding receivable to track.
+        // due_amount on these rows is kept current by InvoicePaymentObserver.
+        $fulfilledExposure = (float) SaleOrder::query()
+            ->where('customer_id', $customerId)
+            ->where('status', SaleOrderStatus::FULFILLED->value)
+            ->whereNotNull('accounting_invoice_id')
+            ->sum('due_amount');
+
+        return round($openExposure + $fulfilledExposure, 4);
     }
 
     private function canApproveCreditOverride(?int $approvedBy): bool

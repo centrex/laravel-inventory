@@ -78,10 +78,11 @@
                     </div>
                 @endif
 
-                @if (data_get($record->customer?->meta, 'address'))
+                @php $customerAddress = $record->customer?->addresses->first() @endphp
+                @if ($customerAddress)
                     <div class="flex items-start justify-between gap-3">
                         <span class="shrink-0 text-base-content/50">Address</span>
-                        <span class="text-right font-medium whitespace-pre-line">{{ data_get($record->customer->meta, 'address') }}</span>
+                        <span class="text-right font-medium whitespace-pre-line">{{ implode(', ', array_filter([$customerAddress->street, $customerAddress->street_extra, $customerAddress->city, $customerAddress->state, $customerAddress->post_code])) }}</span>
                     </div>
                 @endif
 
@@ -158,6 +159,7 @@
             </div>
         </x-tallui-card>
 
+        @can('accounting.invoice.view')
         <x-tallui-card title="Finance" subtitle="Track dues and open accounting actions." icon="o-banknotes" :shadow="true">
             @if ($financeDocument)
                 <div class="space-y-3 text-sm">
@@ -259,6 +261,7 @@
                 @endif
             </div>
         </x-tallui-card>
+        @endcan
     </div>
 
     <div class="xl:col-span-2">

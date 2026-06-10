@@ -120,11 +120,12 @@
                             <div class="flex justify-end gap-1">
                                 @if ($entity === 'customers')
                                     <x-tallui-button
-                                        icon="o-clock"
-                                        :link="route('inventory.entities.customers.edit', ['recordId' => $record->getKey()]) . '#history'"
+                                        icon="o-chart-bar"
+                                        :link="route('inventory.entities.customers.show', ['recordId' => $record->getKey()])"
                                         class="btn-ghost btn-xs"
                                         :responsive="true"
-                                        label="History"
+                                        label="Profile"
+                                        wire:navigate
                                     />
                                 @endif
                                 @if ($this->supportsAuditTrail($record::class))

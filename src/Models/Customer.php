@@ -7,7 +7,7 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
 use Centrex\Inventory\Enums\PriceTierCode;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphTo};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphMany, MorphTo};
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\MediaLibrary\HasMedia;
@@ -75,6 +75,14 @@ class Customer extends Model implements Auditable, HasMedia
     public function modelable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function addresses(): MorphMany
+    {
+        /** @var class-string<\Illuminate\Database\Eloquent\Model> $model */
+        $model = config('laravel-addresses.addresses.model', 'Centrex\\Addresses\\Models\\Address');
+
+        return $this->morphMany($model, 'addressable');
     }
 
     public function getPriceTierNameAttribute(): ?string

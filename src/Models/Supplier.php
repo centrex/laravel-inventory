@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphTo};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphMany, MorphTo};
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\MediaLibrary\HasMedia;
@@ -64,6 +64,14 @@ class Supplier extends Model implements Auditable, HasMedia
     public function purchaseExecutive(): BelongsTo
     {
         return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'purchase_executive_id');
+    }
+
+    public function addresses(): MorphMany
+    {
+        /** @var class-string<\Illuminate\Database\Eloquent\Model> $model */
+        $model = config('laravel-addresses.addresses.model', 'Centrex\\Addresses\\Models\\Address');
+
+        return $this->morphMany($model, 'addressable');
     }
 
     public function modelable(): MorphTo

@@ -98,7 +98,6 @@ class InventoryEntityRegistry
                     self::field('contact_name', 'text', ['nullable', 'string', 'max:200']),
                     self::field('contact_email', 'email', ['nullable', 'email', 'max:200']),
                     self::field('contact_phone', 'text', ['nullable', 'string', 'max:50']),
-                    self::field('address', 'textarea', ['nullable', 'string']),
                     self::field('is_active', 'checkbox', ['boolean'], true),
                     self::field('purchase_manager_id', 'select', ['nullable', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
                     self::field('purchase_assistant_manager_id', 'select', ['nullable', 'integer', 'exists:users,id'], null, self::userModel(), 'name'),
