@@ -52,7 +52,7 @@ class ManageAddresses extends Component
 
     public function mount(string $entity, int $recordId): void
     {
-        $this->entity   = $entity;
+        $this->entity = $entity;
         $this->recordId = $recordId;
     }
 
@@ -63,7 +63,7 @@ class ManageAddresses extends Component
             'post_code', 'country_code', 'contact_phone', 'contact_email',
             'is_primary', 'is_billing', 'is_shipping', 'notes',
         ]);
-        $this->type      = 'default';
+        $this->type = 'default';
         $this->showModal = true;
     }
 
@@ -71,23 +71,23 @@ class ManageAddresses extends Component
     {
         $address = $this->findAddress($id);
 
-        $this->editId        = $id;
-        $this->label         = (string) ($address->label ?? '');
-        $this->type          = (string) ($address->type ?? 'default');
-        $this->street        = (string) ($address->street ?? '');
-        $this->street_extra  = (string) ($address->street_extra ?? '');
-        $this->city          = (string) ($address->city ?? '');
-        $this->state         = (string) ($address->state ?? '');
-        $this->district      = (string) ($address->district ?? '');
-        $this->post_code     = (string) ($address->post_code ?? '');
-        $this->country_code  = (string) ($address->country_code ?? '');
+        $this->editId = $id;
+        $this->label = (string) ($address->label ?? '');
+        $this->type = (string) ($address->type ?? 'default');
+        $this->street = (string) ($address->street ?? '');
+        $this->street_extra = (string) ($address->street_extra ?? '');
+        $this->city = (string) ($address->city ?? '');
+        $this->state = (string) ($address->state ?? '');
+        $this->district = (string) ($address->district ?? '');
+        $this->post_code = (string) ($address->post_code ?? '');
+        $this->country_code = (string) ($address->country_code ?? '');
         $this->contact_phone = (string) ($address->contact_phone ?? '');
         $this->contact_email = (string) ($address->contact_email ?? '');
-        $this->is_primary    = (bool) ($address->is_primary ?? false);
-        $this->is_billing    = (bool) ($address->is_billing ?? false);
-        $this->is_shipping   = (bool) ($address->is_shipping ?? false);
-        $this->notes         = (string) ($address->notes ?? '');
-        $this->showModal     = true;
+        $this->is_primary = (bool) ($address->is_primary ?? false);
+        $this->is_billing = (bool) ($address->is_billing ?? false);
+        $this->is_shipping = (bool) ($address->is_shipping ?? false);
+        $this->notes = (string) ($address->notes ?? '');
+        $this->showModal = true;
     }
 
     public function save(): void

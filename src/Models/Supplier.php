@@ -68,7 +68,7 @@ class Supplier extends Model implements Auditable, HasMedia
 
     public function addresses(): MorphMany
     {
-        /** @var class-string<\Illuminate\Database\Eloquent\Model> $model */
+        /** @var class-string<Model> $model */
         $model = config('laravel-addresses.addresses.model', 'Centrex\\Addresses\\Models\\Address');
 
         return $this->morphMany($model, 'addressable');

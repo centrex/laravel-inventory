@@ -530,7 +530,7 @@ class ErpIntegration
     private function resyncSaleOrderDueAmount(SaleOrder $saleOrder, object $invoice): void
     {
         $rate = (float) ($saleOrder->exchange_rate ?? 1.0);
-        $due  = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
+        $due = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
         $paid = round(max(0.0, (float) $invoice->paid_amount * $rate), 4);
         $saleOrder->forceFill(['due_amount' => $due, 'paid_amount' => $paid])->saveQuietly();
     }
