@@ -22,30 +22,30 @@ use OwenIt\Auditing\Contracts\Auditable;
  *  - *_local  — in the PO's currency (e.g. USD)
  *  - *_amount — in the base currency (e.g. BDT), computed as local × exchange_rate
  *
- * @property int                $id
- * @property string             $po_number
- * @property string             $document_type   'order' | 'requisition'
- * @property int                $warehouse_id
- * @property int                $supplier_id
- * @property string             $currency        ISO 4217 code
- * @property float              $exchange_rate
- * @property float              $subtotal_local
- * @property float              $subtotal_amount
- * @property float              $tax_local
- * @property float              $tax_amount
- * @property float              $discount_local
- * @property float              $discount_amount
- * @property float              $shipping_local
- * @property float              $shipping_amount
- * @property float              $other_charges_amount
- * @property float              $total_local
- * @property float              $total_amount
- * @property \Centrex\Inventory\Enums\PurchaseOrderStatus $status
+ * @property int $id
+ * @property string $po_number
+ * @property string $document_type 'order' | 'requisition'
+ * @property int $warehouse_id
+ * @property int $supplier_id
+ * @property string $currency ISO 4217 code
+ * @property float $exchange_rate
+ * @property float $subtotal_local
+ * @property float $subtotal_amount
+ * @property float $tax_local
+ * @property float $tax_amount
+ * @property float $discount_local
+ * @property float $discount_amount
+ * @property float $shipping_local
+ * @property float $shipping_amount
+ * @property float $other_charges_amount
+ * @property float $total_local
+ * @property float $total_amount
+ * @property PurchaseOrderStatus $status
  * @property \Carbon\Carbon|null $ordered_at
  * @property \Carbon\Carbon|null $expected_at
- * @property string|null        $notes
- * @property int|null           $created_by
- * @property int|null           $accounting_bill_id   FK to laravel-accounting Bill
+ * @property string|null $notes
+ * @property int|null $created_by
+ * @property int|null $accounting_bill_id FK to laravel-accounting Bill
  */
 class PurchaseOrder extends Model implements Auditable
 {

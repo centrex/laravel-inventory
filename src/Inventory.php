@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 /**
  * Central service class for all inventory operations.
  *
- * This is the class behind the {@see \Centrex\Inventory\Facades\Inventory} facade.
+ * This is the class behind the {@see Facades\Inventory} facade.
  * It is organised into logical sections — each separated by a comment banner:
  *
  *   Exchange Rates      – set / get / convert currency rates
@@ -50,10 +50,10 @@ class Inventory
     /**
      * Persist (or update) an exchange rate for a currency against the base currency.
      *
-     * @param  string       $currency  ISO 4217 code, e.g. 'USD'
-     * @param  float        $rate      Units of $currency per 1 base-currency unit
-     * @param  string|null  $date      Effective date (defaults to today)
-     * @param  string       $source    Origin of the rate ('manual', 'open_exchange_rates', …)
+     * @param  string  $currency  ISO 4217 code, e.g. 'USD'
+     * @param  float  $rate  Units of $currency per 1 base-currency unit
+     * @param  string|null  $date  Effective date (defaults to today)
+     * @param  string  $source  Origin of the rate ('manual', 'open_exchange_rates', …)
      */
     public function setExchangeRate(string $currency, float $rate, ?string $date = null, string $source = 'manual'): OpenExchangeRate
     {
