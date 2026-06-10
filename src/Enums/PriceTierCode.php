@@ -4,6 +4,15 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Enums;
 
+/**
+ * Selling-price tiers that can be assigned to a customer, sale order, or partner.
+ *
+ * Tiers are enum-backed (no database table). Prices per tier are stored in
+ * {@see \Centrex\Inventory\Models\ProductPrice} and resolved via
+ * {@see \Centrex\Inventory\Inventory::resolvePrice()}.
+ *
+ * The sort order controls the display sequence in UIs and the price-sheet listing.
+ */
 enum PriceTierCode: string
 {
     case BASE = 'base';

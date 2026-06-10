@@ -4,6 +4,19 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Enums;
 
+/**
+ * Lifecycle states for a purchase order (or requisition).
+ *
+ * Allowed transitions (enforced by canTransitionTo() and assertTransition() in the service):
+ *
+ *   DRAFT → SUBMITTED | CANCELLED
+ *   SUBMITTED → CONFIRMED | CANCELLED
+ *   CONFIRMED → PARTIAL | RECEIVED | CANCELLED
+ *   PARTIAL → RECEIVED | COMPLETED | CANCELLED
+ *
+ * PARTIAL is set automatically when a GRN is posted but some PO lines are still open.
+ * RECEIVED is set when all lines are fully received; COMPLETED marks the PO as closed.
+ */
 enum PurchaseOrderStatus: string
 {
     case DRAFT = 'draft';

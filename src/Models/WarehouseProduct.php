@@ -10,6 +10,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * Stock ledger row — one row per (warehouse, product, variant) combination.
+ *
+ * All quantity columns use 4 decimal places to support fractional units (e.g. kg, litres).
+ * Available quantity = qty_on_hand − qty_reserved.
+ *
+ * @property int        $id
+ * @property int        $warehouse_id
+ * @property int        $product_id
+ * @property int|null   $variant_id
+ * @property float      $qty_on_hand       Physically present stock
+ * @property float      $qty_reserved      Committed to open sale orders (not yet picked)
+ * @property float      $qty_in_transit    Dispatched from another warehouse, not yet received here
+ * @property float      $qty_damaged       Damage-bin stock (tracked separately from on-hand)
+ * @property float      $wac_amount        Weighted-average cost per unit in base currency
+ * @property float|null $reorder_point     Trigger level for low-stock alerts
+ * @property float|null $reorder_qty       Suggested order quantity when restocking
+ * @property string|null $bin_location     Physical bin / shelf reference
+ */
 class WarehouseProduct extends Model implements Auditable
 {
     use AddTablePrefix;

@@ -11,6 +11,30 @@ use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\MediaLibrary\HasMedia;
 
+/**
+ * Inventory product master record.
+ *
+ * A product can have variants (colour, size, etc.) stored in {@see ProductVariant}.
+ * Stock levels per warehouse are tracked in {@see WarehouseProduct}.
+ * Selling prices per tier are stored in {@see ProductPrice}.
+ *
+ * @property int              $id
+ * @property int|null         $category_id
+ * @property int|null         $brand_id
+ * @property array|null       $variant_names   JSON map of dimension labels, e.g. {"size":"Large","color":"Red"}
+ * @property string           $sku
+ * @property string           $name
+ * @property string|null      $description
+ * @property string|null      $unit            Unit of measure (pcs, kg, …)
+ * @property float|null       $weight_kg
+ * @property string|null      $barcode
+ * @property bool             $is_active
+ * @property bool             $is_stockable    False for service/non-physical items
+ * @property string           $costing_method  'wac' | 'fifo' | 'lifo'
+ * @property array|null       $meta            Arbitrary JSON payload (e.g. default_price)
+ * @property-read string      $display_name    Name with variant dimensions appended, e.g. "T-Shirt (Red, Large)"
+ * @property-read string|null $primary_image_url
+ */
 class Product extends Model implements Auditable, HasMedia
 {
     use AddTablePrefix;

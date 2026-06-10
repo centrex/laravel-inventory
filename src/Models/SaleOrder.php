@@ -11,6 +11,56 @@ use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
+/**
+ * Sale order (or quotation) header record.
+ *
+ * document_type distinguishes between 'order' (live SO) and 'quotation' (draft that
+ * can be converted to an order via {@see \Centrex\Inventory\Inventory::createSaleOrderFromQuotation()}).
+ *
+ * Monetary amounts are stored in two currencies:
+ *  - *_local  — in the order's own currency (e.g. USD)
+ *  - *_amount — in the base currency (e.g. BDT), computed as local × exchange_rate
+ *
+ * Credit-limit fields are snapshotted at order time so reports reflect the limit that was
+ * in effect when the order was placed, not the current limit.
+ *
+ * @property int                $id
+ * @property string             $so_number
+ * @property string             $document_type          'order' | 'quotation'
+ * @property int                $warehouse_id
+ * @property int                $customer_id
+ * @property int|null           $coupon_id
+ * @property string             $price_tier_code        {@see PriceTierCode}
+ * @property string             $currency               ISO 4217 code
+ * @property float              $exchange_rate           Rate at time of order
+ * @property float              $subtotal_local
+ * @property float              $subtotal_amount
+ * @property float              $tax_local
+ * @property float              $tax_amount
+ * @property float              $discount_local          Manual line-level discount
+ * @property float              $discount_amount
+ * @property float              $shipping_local
+ * @property float              $shipping_amount
+ * @property float              $coupon_discount_local
+ * @property float              $coupon_discount_amount
+ * @property float              $total_local
+ * @property float              $total_amount
+ * @property float              $paid_amount
+ * @property float              $due_amount
+ * @property float              $credit_limit_amount     Snapshotted at order time
+ * @property float              $credit_exposure_before_amount
+ * @property float              $credit_exposure_after_amount
+ * @property bool               $credit_override_required
+ * @property int|null           $credit_override_approved_by
+ * @property \Carbon\Carbon|null $credit_override_approved_at
+ * @property string|null        $credit_override_notes
+ * @property float              $cogs_amount             Filled when the order is fulfilled
+ * @property \Centrex\Inventory\Enums\SaleOrderStatus $status
+ * @property \Carbon\Carbon|null $ordered_at
+ * @property string|null        $notes
+ * @property int|null           $created_by
+ * @property int|null           $accounting_invoice_id   FK to laravel-accounting Invoice
+ */
 class SaleOrder extends Model implements Auditable
 {
     use AddTablePrefix;

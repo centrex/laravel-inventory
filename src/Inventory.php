@@ -19,12 +19,42 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Central service class for all inventory operations.
+ *
+ * This is the class behind the {@see \Centrex\Inventory\Facades\Inventory} facade.
+ * It is organised into logical sections — each separated by a comment banner:
+ *
+ *   Exchange Rates      – set / get / convert currency rates
+ *   Price Management    – set, resolve, and list product prices per tier
+ *   Stock Ledger        – read on-hand, reserved, and in-transit quantities
+ *   WAC Engine          – internal weighted-average-cost recalculation helpers
+ *   Purchase Orders     – create, submit, confirm, receive, cancel
+ *   Stock Receipts      – create / post / void goods-received notes (GRN)
+ *   Sale Orders         – create, confirm, reserve, fulfil, cancel, quotation convert
+ *   Returns             – customer returns (SO) and supplier returns (PO)
+ *   Transfers           – inter-warehouse stock moves
+ *   Adjustments         – cycle-count / write-off stock corrections
+ *   Coupons             – discount code resolution
+ *   Entity Management   – warehouses, products, customers, suppliers, partners
+ *   Reports & Analytics – stock valuation, movement history, sales forecast
+ *   Financing           – inventory financing and loan facility tracking
+ *   Internal Helpers    – document numbering, metadata, WAC writes, etc.
+ */
 class Inventory
 {
     // -------------------------------------------------------------------------
     // Exchange Rates
     // -------------------------------------------------------------------------
 
+    /**
+     * Persist (or update) an exchange rate for a currency against the base currency.
+     *
+     * @param  string       $currency  ISO 4217 code, e.g. 'USD'
+     * @param  float        $rate      Units of $currency per 1 base-currency unit
+     * @param  string|null  $date      Effective date (defaults to today)
+     * @param  string       $source    Origin of the rate ('manual', 'open_exchange_rates', …)
+     */
     public function setExchangeRate(string $currency, float $rate, ?string $date = null, string $source = 'manual'): OpenExchangeRate
     {
         $baseCurrency = strtoupper(config('inventory.base_currency', 'BDT'));
@@ -43,6 +73,17 @@ class Inventory
             ->firstOrFail();
     }
 
+    /**
+     * Resolve the exchange rate (units of $currency per 1 base-currency unit) on or before $date.
+     *
+     * Lookup order (first non-null result wins):
+     *   1. Stored rate: base → currency
+     *   2. Stored rate (reversed): currency → base (uses the reciprocal)
+     *   3. If $currency is the anchor (e.g. USD): anchor → base
+     *   4. Cross-rate: (anchor → base) / (anchor → currency)
+     *
+     * Throws \RuntimeException when no rate can be resolved.
+     */
     public function getExchangeRate(string $currency, ?string $date = null): float
     {
         $currency = strtoupper($currency);
@@ -54,6 +95,7 @@ class Inventory
         $date ??= now()->toDateString();
         $asOf = Carbon::parse($date)->endOfDay();
 
+        // 1. Direct stored rate: base → currency
         $rate = $this->lookupExchangeRate($baseCurrency = strtoupper(config('inventory.base_currency', 'BDT')), $currency, $asOf);
 
         if ($rate !== null) {
@@ -62,6 +104,7 @@ class Inventory
 
         $anchorCurrency = strtoupper(config('laravel-open-exchange-rates.default_base_currency', 'USD'));
 
+        // 2. Reversed stored rate: currency → base (same pair, inverted direction)
         $sourceToBase = $this->lookupExchangeRate($currency, $baseCurrency, $asOf);
 
         if ($sourceToBase !== null) {
@@ -70,10 +113,12 @@ class Inventory
 
         $anchorToBase = $this->lookupExchangeRate($anchorCurrency, $baseCurrency, $asOf);
 
+        // 3. Currency IS the anchor (e.g. asking for USD when anchor is USD)
         if ($currency === $anchorCurrency && $anchorToBase !== null) {
             return $anchorToBase;
         }
 
+        // 4. Cross-rate via anchor: (anchor→base) / (anchor→currency)
         $anchorToCurrency = $this->lookupExchangeRate($anchorCurrency, $currency, $asOf);
 
         if ($anchorToBase !== null && $anchorToCurrency !== null && $anchorToCurrency != 0.0) {
@@ -83,16 +128,19 @@ class Inventory
         throw new \RuntimeException("No exchange rate found for currency [{$currency}] on or before [{$date}].");
     }
 
+    /** Convert an amount in $currency to the base currency (e.g. BDT). */
     public function convertToBase(float $amount, string $currency, ?string $date = null): float
     {
         return round($amount * $this->getExchangeRate($currency, $date), (int) config('inventory.wac_precision', 4));
     }
 
+    /** Alias for {@see convertToBase()} — retained for backwards compatibility. */
     public function convertToBdt(float $amount, string $currency, ?string $date = null): float
     {
         return $this->convertToBase($amount, $currency, $date);
     }
 
+    /** Convert an amount from the base currency to $currency. */
     public function convertFromBase(float $amount, string $currency, ?string $date = null): float
     {
         $rate = $this->getExchangeRate($currency, $date);
@@ -104,11 +152,13 @@ class Inventory
         return round($amount / $rate, (int) config('inventory.wac_precision', 4));
     }
 
+    /** Alias for {@see convertFromBase()} — retained for backwards compatibility. */
     public function convertFromBdt(float $amountBdt, string $currency, ?string $date = null): float
     {
         return $this->convertFromBase($amountBdt, $currency, $date);
     }
 
+    /** Return the most-recent stored rate for (base, currency) on or before $asOf, or null if not found. */
     private function lookupExchangeRate(string $base, string $currency, Carbon $asOf): ?float
     {
         $row = OpenExchangeRate::query()
@@ -125,6 +175,11 @@ class Inventory
     // Price Tiers
     // -------------------------------------------------------------------------
 
+    /**
+     * No-op — price tiers are defined by the {@see PriceTierCode} enum and require no database seeding.
+     *
+     * @deprecated Kept only to avoid breaking callers that relied on the previous table-backed implementation.
+     */
     public function seedPriceTiers(): void
     {
         // Price tiers are enum-backed and no longer persisted in a dedicated table.
@@ -245,6 +300,10 @@ class Inventory
     // Warehouse-Product (Stock Ledger)
     // -------------------------------------------------------------------------
 
+    /**
+     * Return (or create) the stock-ledger row for a warehouse/product/variant combination.
+     * This is the non-locking read path — use {@see lockWarehouseProduct()} inside transactions.
+     */
     public function getOrCreateWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
         $variantId = $this->normalizeVariantId($variantId, $productId);
@@ -255,16 +314,19 @@ class Inventory
         );
     }
 
+    /** Get the current stock position (on-hand, reserved, in-transit, WAC) for one product+warehouse. */
     public function getStockLevel(int $productId, int $warehouseId, ?int $variantId = null): WarehouseProduct
     {
         return $this->getOrCreateWarehouseProduct($warehouseId, $productId, $variantId);
     }
 
+    /** Get stock positions for all products in a warehouse. */
     public function getStockLevels(int $warehouseId): Collection
     {
         return WarehouseProduct::with('product')->where('warehouse_id', $warehouseId)->get();
     }
 
+    /** Return all WarehouseProduct rows where available qty ≤ reorder_point. Optionally scoped to one warehouse. */
     public function getLowStockItems(?int $warehouseId = null): Collection
     {
         return WarehouseProduct::with(['product', 'warehouse'])
@@ -274,6 +336,7 @@ class Inventory
             ->get();
     }
 
+    /** Total inventory value (SUM of qty_on_hand × wac_amount) in base currency. Optionally scoped to one warehouse. */
     public function getStockValue(?int $warehouseId = null): float
     {
         return (float) (WarehouseProduct::when($warehouseId, fn ($q) => $q->where('warehouse_id', $warehouseId))
@@ -285,6 +348,12 @@ class Inventory
     // WAC Engine (internal)
     // -------------------------------------------------------------------------
 
+    /**
+     * Recalculate the weighted-average cost after receiving $qtyIn units at $unitCostAmount each.
+     *
+     * Formula: (currentQty × currentWAC + qtyIn × unitCost) / (currentQty + qtyIn)
+     * When the bin is empty the new unit cost becomes the WAC directly.
+     */
     private function recalculateWac(WarehouseProduct $wp, float $qtyIn, float $unitCostAmount): float
     {
         $currentQty = (float) $wp->qty_on_hand;
@@ -299,6 +368,7 @@ class Inventory
         return round($newWac, (int) config('inventory.wac_precision', 4));
     }
 
+    /** Append an immutable stock-movement audit row to inv_stock_movements. */
     private function writeMovement(int $warehouseId, int $productId, ?int $variantId, MovementType $type, float $qty, float $qtyBefore, float $qtyAfter, ?float $unitCostAmount, ?float $wacAmount, ?string $refType, ?int $refId, ?int $createdBy = null, ?string $notes = null, ?int $lotId = null): StockMovement
     {
         return StockMovement::create([
@@ -321,6 +391,12 @@ class Inventory
         ]);
     }
 
+    /**
+     * Generate the next sequential document number in the format PREFIX-YYYYMMDD-NNNN.
+     *
+     * Example: PO-20250610-0003 — the last four digits reset is NOT date-scoped; the counter
+     * is derived from the highest existing number matching the prefix so it always increments.
+     */
     private function nextNumber(string $prefix, string $model, string $column): string
     {
         $today = now()->format('Ymd');
@@ -337,6 +413,10 @@ class Inventory
         return "{$prefix}-{$today}-" . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Pessimistic-lock the WarehouseProduct row for the duration of the current transaction.
+     * Creates the row if it does not exist yet (INSERT OR IGNORE, then re-select with lock).
+     */
     private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
         $model = new WarehouseProduct();
@@ -371,6 +451,10 @@ class Inventory
             ->firstOrFail();
     }
 
+    /**
+     * Validate that $variantId belongs to $productId and return it as int|null.
+     * Accepts empty-string as null so HTML form values work without extra casting.
+     */
     private function normalizeVariantId(null|int|string $variantId, int $productId): ?int
     {
         if ($variantId === null || $variantId === '') {
@@ -570,6 +654,7 @@ class Inventory
         return $purchaseOrder;
     }
 
+    /** Transition a PO from DRAFT → SUBMITTED (sets ordered_at if not already set). */
     public function submitPurchaseOrder(int $poId): PurchaseOrder
     {
         $po = PurchaseOrder::findOrFail($poId);
@@ -580,6 +665,7 @@ class Inventory
         return $po;
     }
 
+    /** Transition a PO from SUBMITTED → CONFIRMED and sync the document to accounting. */
     public function confirmPurchaseOrder(int $poId): PurchaseOrder
     {
         $po = PurchaseOrder::findOrFail($poId);
@@ -634,6 +720,7 @@ class Inventory
         return PurchaseOrder::query()->with(['items.product', 'supplier', 'warehouse'])->findOrFail($poId);
     }
 
+    /** Transition a PO from DRAFT|SUBMITTED → CANCELLED. */
     public function cancelPurchaseOrder(int $poId): PurchaseOrder
     {
         $po = PurchaseOrder::findOrFail($poId);

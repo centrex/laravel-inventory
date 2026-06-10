@@ -4,6 +4,20 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Enums;
 
+/**
+ * Lifecycle states for a sale order (or quotation).
+ *
+ * Allowed transitions (enforced by canTransitionTo() and assertTransition() in the service):
+ *
+ *   DRAFT → CONFIRMED | CANCELLED
+ *   CONFIRMED → PROCESSING | CANCELLED
+ *   PROCESSING → PARTIAL | FULFILLED | CANCELLED
+ *   PARTIAL → FULFILLED | CANCELLED
+ *   FULFILLED → COMPLETED | RETURNED
+ *   COMPLETED → RETURNED
+ *
+ * SHIPPED is a parallel state set by the shipment workflow; it does not gate fulfilment.
+ */
 enum SaleOrderStatus: string
 {
     case DRAFT = 'draft';

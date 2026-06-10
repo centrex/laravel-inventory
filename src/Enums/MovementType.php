@@ -4,6 +4,12 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Enums;
 
+/**
+ * Classifies every row in the inv_stock_movements audit trail.
+ *
+ * Each case has a fixed direction ('in' increases qty_on_hand, 'out' decreases it).
+ * The audit trail is append-only — movements are never deleted or updated.
+ */
 enum MovementType: string
 {
     case PURCHASE_RECEIPT = 'purchase_receipt';
