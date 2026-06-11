@@ -46,7 +46,7 @@ class LogisticsDashboardController
             'fulfillmentQueue' => $fulfillmentQueue,
             'lowStock'         => $lowStock,
             'metrics'          => [
-                'open_transfers'   => Transfer::query()->whereIn('status', ['draft', 'in_transit', 'partial'])->count(),
+                'open_transfers'   => Transfer::query()->whereIn('status', ['pending', 'dispatched', 'partial'])->count(),
                 'open_shipments'   => Shipment::query()->whereIn('status', ['draft', 'in_transit', 'partial'])->count(),
                 'pending_receipts' => StockReceipt::query()->where('status', 'draft')->count(),
                 'open_purchases'   => PurchaseOrder::query()->where('document_type', 'order')->whereIn('status', ['submitted', 'confirmed', 'partial'])->count(),

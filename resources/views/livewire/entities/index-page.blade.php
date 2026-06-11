@@ -13,6 +13,13 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
+    <div class="w-64">
+            <x-tallui-input
+                placeholder="Search {{ strtolower($definition['label']) }}…"
+                wire:model.live.debounce.300ms="search"
+                class="input-sm"
+            />
+        </div>
         @if ($entity === 'warehouse-products' && $warehouses->isNotEmpty())
             <div class="w-48">
                 <x-tallui-select wire:model.live="filterWarehouseId" class="select-sm">
@@ -22,30 +29,18 @@
                     @endforeach
                 </x-tallui-select>
             </div>
-            <x-tallui-button
-                label="Export"
-                icon="o-arrow-down-tray"
-                class="btn-ghost btn-sm"
-                wire:click="downloadExcel"
-                :spinner="'downloadExcel'"
-            />
+            @if (in_array($entity, ['customers', 'suppliers', 'warehouse-products']))
+                <x-tallui-button
+                    label="Export"
+                    icon="o-arrow-down-tray"
+                    class="btn-primary btn-sm"
+                    wire:click="downloadExcel"
+                    :spinner="'downloadExcel'"
+                />
+            @endif
         @endif
-        <div class="w-64">
-            <x-tallui-input
-                placeholder="Search {{ strtolower($definition['label']) }}…"
-                wire:model.live.debounce.300ms="search"
-                class="input-sm"
-            />
-        </div>
-        @if (in_array($entity, ['customers', 'suppliers', 'warehouse-products']))
-            <x-tallui-button
-                label="Export"
-                icon="o-arrow-down-tray"
-                class="btn-ghost btn-sm"
-                wire:click="downloadExcel"
-                :spinner="'downloadExcel'"
-            />
-        @endif
+        
+        
         <x-tallui-button
             :label="'New ' . $definition['singular']"
             icon="o-plus"

@@ -22,6 +22,13 @@ class PurchaseOrderShowPage extends Component
 
     public ?array $linkedPurchaseOrder = null;
 
+    public bool $showReceiveModal = false;
+
+    /** @var array<int, float|string> Keyed by PurchaseOrderItem ID → qty to receive in this delivery */
+    public array $receiveQtys = [];
+
+    public string $receiveNotes = '';
+
     public function mount(int $recordId, string $documentType = 'order'): void
     {
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
@@ -81,6 +88,51 @@ class PurchaseOrderShowPage extends Component
             fn (Inventory $inventory) => $inventory->receivePurchaseOrder((int) $this->record->getKey()),
             "Items received for {$this->record->po_number}.",
         );
+    }
+
+    public function openReceiveModal(): void
+    {
+        $this->receiveNotes = '';
+        $this->receiveQtys  = [];
+
+        foreach ($this->record->items as $item) {
+            $remaining = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
+
+            if ($remaining > (float) config('inventory.qty_tolerance', 0.0001)) {
+                $this->receiveQtys[(int) $item->getKey()] = $remaining;
+            }
+        }
+
+        $this->showReceiveModal = true;
+    }
+
+    public function receivePartial(): void
+    {
+        $qtys = array_filter(
+            array_map(fn ($v) => max(0.0, (float) $v), $this->receiveQtys),
+            fn (float $v) => $v > 0,
+        );
+
+        if ($qtys === []) {
+            $this->dispatch('notify', type: 'error', message: 'Enter at least one quantity greater than zero.');
+
+            return;
+        }
+
+        $notes = trim($this->receiveNotes);
+
+        $this->runWorkflowAction(
+            fn (Inventory $inventory) => $inventory->receivePurchaseOrder(
+                (int) $this->record->getKey(),
+                $qtys,
+                $notes !== '' ? ['notes' => $notes] : [],
+            ),
+            "Stock receipt posted for {$this->record->po_number}.",
+        );
+
+        $this->showReceiveModal = false;
+        $this->receiveQtys      = [];
+        $this->receiveNotes     = '';
     }
 
     public function cancel(): void

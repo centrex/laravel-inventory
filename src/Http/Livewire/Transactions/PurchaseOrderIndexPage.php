@@ -43,7 +43,7 @@ class PurchaseOrderIndexPage extends Component
         $query = PurchaseOrder::query()
             ->with(['supplier', 'warehouse'])
             ->where('document_type', $this->documentType)
-            ->latest('ordered_at')
+            ->latest('created_at')
             ->latest('id');
 
         CommercialTeamAccess::applyPurchaseScope($query);

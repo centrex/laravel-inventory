@@ -4,10 +4,11 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Enums\{PriceTierCode, PurchaseOrderStatus};
+use Centrex\Inventory\Enums\{Currency, PriceTierCode, PurchaseOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
+use co;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;
@@ -24,7 +25,7 @@ class PurchaseOrderFormPage extends Component
 
     public ?int $supplier_id = null;
 
-    public string $currency = 'BDT';
+    public string $currency = '';
 
     public ?float $exchange_rate = null;
 
@@ -63,6 +64,11 @@ class PurchaseOrderFormPage extends Component
                 $this->syncWarehouseCurrency();
             }
         }
+    }
+
+    public function updatedCurrency(): void
+    {
+        $this->exchange_rate = round((float) ($this->exchangeRateForCurrency($this->currency) ?? 1), 4);
     }
 
     public function updated(string $property): void
@@ -115,7 +121,7 @@ class PurchaseOrderFormPage extends Component
 
     public function save()
     {
-        $validated = $this->validate($this->rules());
+        $validated = $this->validate($this->rules(), $this->messages());
         $validated['document_type'] = $this->documentType;
 
         if ($this->recordId) {
@@ -128,7 +134,7 @@ class PurchaseOrderFormPage extends Component
         $purchaseOrder = app(Inventory::class)->createPurchaseOrder($validated);
         $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$purchaseOrder->po_number} created.");
 
-        return redirect()->route($this->routeBase() . '.edit', ['recordId' => $purchaseOrder->getKey()]);
+        return redirect()->route($this->routeBase() . '.show', ['recordId' => $purchaseOrder->getKey()]);
     }
 
     public function render(): View
@@ -169,6 +175,7 @@ class PurchaseOrderFormPage extends Component
             'record'                 => $this->recordId ? PurchaseOrder::query()->with(['supplier', 'warehouse'])->find($this->recordId) : null,
             'documentLabel'          => $this->documentLabel(),
             'routeBase'              => $this->routeBase(),
+            'currencies'             => $this->commonCurrencies(),
         ]);
     }
 
@@ -218,6 +225,13 @@ class PurchaseOrderFormPage extends Component
         }
     }
 
+    protected function messages(): array
+    {
+        return [
+            'items.*.unit_price_local.gt' => 'Unit price must be greater than zero for all line items.',
+        ];
+    }
+
     private function rules(): array
     {
         return [
@@ -235,7 +249,7 @@ class PurchaseOrderFormPage extends Component
             'items.*.product_id'       => ['required', 'integer'],
             'items.*.variant_id'       => ['nullable', 'integer'],
             'items.*.qty_ordered'      => ['required', 'numeric', 'gt:0'],
-            'items.*.unit_price_local' => ['required', 'numeric', 'min:0'],
+            'items.*.unit_price_local' => ['required', 'numeric', 'gt:0'],
             'items.*.notes'            => ['nullable', 'string'],
         ];
     }
@@ -389,7 +403,7 @@ class PurchaseOrderFormPage extends Component
             ? Warehouse::query()->whereKey($this->warehouse_id)->value('currency')
             : null;
 
-        return strtoupper((string) ($currency ?: config('inventory.purchase_defaults.currency', 'GBP')));
+        return strtoupper((string) ($currency ?: config('inventory.base_currency', 'BDT')));
     }
 
     private function exchangeRateForCurrency(string $currency): ?float
@@ -449,5 +463,10 @@ class PurchaseOrderFormPage extends Component
     private function documentLabel(): string
     {
         return $this->documentType === 'requisition' ? 'Requisition' : 'Purchase order';
+    }
+
+    private function commonCurrencies(): array
+    {
+        return Currency::options();
     }
 }

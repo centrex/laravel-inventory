@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Concerns\ShowsAuditTrail;
+use Centrex\Inventory\Enums\TransferStatus;
 use Centrex\Inventory\Models\Transfer;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Layout;
@@ -53,12 +54,9 @@ class TransferIndexPage extends Component
 
         return view('inventory::livewire.transactions.transfer-index', [
             'transfers'     => $query->paginate(15),
-            'statusOptions' => [
-                'draft'      => 'Draft',
-                'in_transit' => 'In Transit',
-                'partial'    => 'Partially Received',
-                'received'   => 'Received',
-            ],
+            'statusOptions' => collect(TransferStatus::cases())
+                ->mapWithKeys(fn (TransferStatus $s) => [$s->value => $s->label()])
+                ->all(),
         ]);
     }
 }

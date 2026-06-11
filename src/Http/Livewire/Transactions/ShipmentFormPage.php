@@ -12,7 +12,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 #[Layout('layouts.app')]
-class TransferFormPage extends Component
+class ShipmentFormPage extends Component
 {
     public ?int $from_warehouse_id = null;
 
@@ -76,10 +76,10 @@ class TransferFormPage extends Component
 
         $this->assertStockAvailability($validated['boxes']);
 
-        $transfer = app(Inventory::class)->createTransfer($validated);
-        $this->dispatch('notify', type: 'success', message: "Transfer {$transfer->transfer_number} created.");
+        $shipment = app(Inventory::class)->createInterWarehouseShipment($validated);
+        $this->dispatch('notify', type: 'success', message: "Shipment {$shipment->shipment_number} created.");
 
-        return redirect()->route('inventory.transfers.show', ['recordId' => $transfer->getKey()]);
+        return redirect()->route('inventory.shipments.show', ['recordId' => $shipment->getKey()]);
     }
 
     public function render(): View
@@ -87,6 +87,7 @@ class TransferFormPage extends Component
         $selectedProductIds = collect($this->boxes)
             ->flatMap(fn (array $box): array => collect($box['items'] ?? [])->pluck('product_id')->filter()->map(fn ($id) => (int) $id)->all())
             ->all();
+
         $availableStock = $this->from_warehouse_id
             ? WarehouseProduct::query()
                 ->where('warehouse_id', $this->from_warehouse_id)
@@ -95,6 +96,7 @@ class TransferFormPage extends Component
                 ->groupBy('product_id')
                 ->map(fn ($rows) => (float) $rows->sum(fn ($wp) => max(0.0, (float) $wp->qty_on_hand - (float) $wp->qty_reserved)))
             : collect();
+
         $availableProductIds = $availableStock->keys()->all();
         $products = Product::query()
             ->when(
@@ -119,7 +121,7 @@ class TransferFormPage extends Component
             'available' => round((float) ($availableStock->get($p->getKey()) ?? 0), 4),
         ])->values()->all();
 
-        return view('inventory::livewire.transactions.transfer-form', [
+        return view('inventory::livewire.transactions.shipment-form', [
             'warehouses'     => Warehouse::query()->orderBy('name')->get(),
             'products'       => $products,
             'productsJson'   => $productsJson,
@@ -175,7 +177,7 @@ class TransferFormPage extends Component
                 $productName = Product::query()->find($productId)?->name ?? ('#' . $productId);
 
                 throw ValidationException::withMessages([
-                    'boxes' => "{$productName} only has {$available} available for transfer.",
+                    'boxes' => "{$productName} only has {$available} available for shipment.",
                 ]);
             }
         }

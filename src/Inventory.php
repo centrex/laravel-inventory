@@ -6,9 +6,9 @@ namespace Centrex\Inventory;
 
 use Carbon\Carbon;
 use Centrex\Accounting\Models\{Bill, Invoice};
-use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, StockReceiptStatus, TransferStatus};
+use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, ShipmentStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
-use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentBox, ShipmentBoxItem, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, SalesTargetCalculator};
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Data;
@@ -402,7 +402,7 @@ class Inventory
         $today = now()->format('Ymd');
         $latest = $model::query()
             ->where($column, 'like', "{$prefix}-{$today}-%")
-            ->orWhere($column, 'like', "{$prefix}-%") // In case of different date formats
+            ->lockForUpdate()
             ->orderByDesc($column)
             ->value($column);
 
@@ -1803,7 +1803,7 @@ class Inventory
                 'transfer_number'      => $this->nextNumber('TRF', Transfer::class, 'transfer_number'),
                 'from_warehouse_id'    => $data['from_warehouse_id'],
                 'to_warehouse_id'      => $data['to_warehouse_id'],
-                'status'               => TransferStatus::DRAFT,
+                'status'               => TransferStatus::PENDING,
                 'shipping_rate_per_kg' => $rate,
                 'total_weight_kg'      => 0,
                 'shipping_cost_amount' => 0,
@@ -1849,7 +1849,20 @@ class Inventory
                     $theoreticalWeight = $unitWeightKg !== null
                         ? round($qty * (float) $unitWeightKg, 4)
                         : 0.0;
-                    $sourceWp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, $variantId);
+                    // When no variant specified, pick the WP record with most available stock
+                    // so dispatch doesn't hit a ghost 0-qty base record.
+                    if ($variantId === null) {
+                        $sourceWp = WarehouseProduct::query()
+                            ->where('warehouse_id', $data['from_warehouse_id'])
+                            ->where('product_id', $product->id)
+                            ->whereRaw('(qty_on_hand - qty_reserved) > 0')
+                            ->orderByRaw('(qty_on_hand - qty_reserved) DESC')
+                            ->first()
+                            ?? $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, null);
+                        $variantId = $sourceWp->variant_id;
+                    } else {
+                        $sourceWp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, $variantId);
+                    }
 
                     $preparedItems[] = [
                         'product'                 => $product,
@@ -1973,7 +1986,7 @@ class Inventory
     public function dispatchTransfer(int $transferId): Transfer
     {
         $transfer = Transfer::with('items.product')->findOrFail($transferId);
-        $this->assertTransition($transfer->status, TransferStatus::IN_TRANSIT, "transfer #{$transferId}");
+        $this->assertTransition($transfer->status, TransferStatus::DISPATCHED, "transfer #{$transferId}");
 
         return DB::transaction(function () use ($transfer): Transfer {
             foreach ($transfer->items as $item) {
@@ -2002,7 +2015,7 @@ class Inventory
                 $this->writeMovement($transfer->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Transfer::class, $transfer->id);
             }
 
-            $transfer->update(['status' => TransferStatus::IN_TRANSIT, 'shipped_at' => now()]);
+            $transfer->update(['status' => TransferStatus::DISPATCHED, 'shipped_at' => now()]);
 
             return $transfer->refresh();
         });
@@ -2016,7 +2029,7 @@ class Inventory
     {
         $transfer = Transfer::with('items.product')->findOrFail($transferId);
 
-        if (!in_array($transfer->status, [TransferStatus::IN_TRANSIT, TransferStatus::PARTIAL])) {
+        if (!in_array($transfer->status, [TransferStatus::DISPATCHED, TransferStatus::PARTIAL])) {
             throw new InvalidTransitionException("Transfer #{$transferId} is not in transit.");
         }
 
@@ -2058,10 +2071,10 @@ class Inventory
                     $fullyReceived = false;
                 }
 
-                $this->writeMovement($transfer->to_warehouse_id, $item->product_id, MovementType::TRANSFER_IN, $qtyReceived, $destQtyBefore, $destQtyAfter, (float) $item->unit_landed_cost_amount, $newDestWac, Transfer::class, $transfer->id);
+                $this->writeMovement($transfer->to_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_IN, $qtyReceived, $destQtyBefore, $destQtyAfter, (float) $item->unit_landed_cost_amount, $newDestWac, Transfer::class, $transfer->id);
             }
 
-            $newStatus = $fullyReceived ? TransferStatus::RECEIVED : TransferStatus::PARTIAL;
+            $newStatus = $fullyReceived ? TransferStatus::DELIVERED : TransferStatus::PARTIAL;
             $transfer->update(['status' => $newStatus, 'received_at' => $fullyReceived ? now() : $transfer->received_at]);
 
             return $transfer->refresh();
@@ -2134,7 +2147,7 @@ class Inventory
 
                 $type = (float) $item->qty_delta > 0 ? MovementType::ADJUSTMENT_IN : MovementType::ADJUSTMENT_OUT;
 
-                $this->writeMovement($adjustment->warehouse_id, $item->product_id, $type, abs((float) $item->qty_delta), $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, Adjustment::class, $adjustment->id);
+                $this->writeMovement($adjustment->warehouse_id, $item->product_id, $item->variant_id, $type, abs((float) $item->qty_delta), $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, Adjustment::class, $adjustment->id);
             }
 
             $adjustment->update(['status' => StockReceiptStatus::POSTED]);
@@ -2349,6 +2362,255 @@ class Inventory
         $shipment->update(['status' => 'delivered']);
 
         return $shipment->refresh();
+    }
+
+    // -------------------------------------------------------------------------
+    // Inter-Warehouse Shipments (box-tracked, stock-moving)
+    // -------------------------------------------------------------------------
+
+    public function createInterWarehouseShipment(array $data): Shipment
+    {
+        if ($data['from_warehouse_id'] === $data['to_warehouse_id']) {
+            throw new \InvalidArgumentException('Source and destination warehouse must differ.');
+        }
+
+        return DB::transaction(function () use ($data): Shipment {
+            $rate = (float) ($data['shipping_rate_per_kg'] ?? 0);
+            $boxes = $this->normalizeTransferBoxes($data);
+
+            $shipment = Shipment::create([
+                'shipment_number'      => $this->nextNumber('SHP', Shipment::class, 'shipment_number'),
+                'from_warehouse_id'    => $data['from_warehouse_id'],
+                'to_warehouse_id'      => $data['to_warehouse_id'],
+                'status'               => ShipmentStatus::DRAFT,
+                'shipping_rate_per_kg' => $rate,
+                'total_weight_kg'      => 0,
+                'shipping_cost_amount' => 0,
+                'notes'                => $data['notes'] ?? null,
+                'created_by'           => $data['created_by'] ?? null,
+            ]);
+
+            $totalWeightKg = 0.0;
+            $aggregates    = [];
+            $createdBoxItems = [];
+
+            foreach ($boxes as $index => $boxData) {
+                $measuredWeight = round((float) ($boxData['measured_weight_kg'] ?? 0), 4);
+                $isDerived = (bool) ($boxData['_derived'] ?? false);
+                if ($isDerived) {
+                    if ($measuredWeight < 0) {
+                        throw new \InvalidArgumentException('measured_weight_kg must be zero or greater.');
+                    }
+                } else {
+                    $this->ensurePositiveQuantity($measuredWeight, 'measured_weight_kg');
+                }
+
+                $box = ShipmentBox::create([
+                    'shipment_id'        => $shipment->id,
+                    'box_code'           => $boxData['box_code'] ?? 'BOX-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
+                    'measured_weight_kg' => $measuredWeight,
+                    'notes'              => $boxData['notes'] ?? null,
+                ]);
+
+                $preparedItems        = [];
+                $theoreticalWeightTotal = 0.0;
+                $fallbackQtyTotal       = 0.0;
+
+                foreach ($boxData['items'] as $item) {
+                    [$productId, $variantId] = $this->resolveProductReference($item);
+                    $product = Product::findOrFail($productId);
+                    $variant = $variantId ? ProductVariant::query()->findOrFail($variantId) : null;
+                    $qty = round((float) $item['qty_sent'], 4);
+                    $this->ensurePositiveQuantity($qty, 'qty_sent');
+
+                    $unitWeightKg = $variant?->weight_kg ?? $product->weight_kg;
+                    $theoreticalWeight = $unitWeightKg !== null ? round($qty * (float) $unitWeightKg, 4) : 0.0;
+
+                    if ($variantId === null) {
+                        $sourceWp = WarehouseProduct::query()
+                            ->where('warehouse_id', $data['from_warehouse_id'])
+                            ->where('product_id', $product->id)
+                            ->whereRaw('(qty_on_hand - qty_reserved) > 0')
+                            ->orderByRaw('(qty_on_hand - qty_reserved) DESC')
+                            ->first()
+                            ?? $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, null);
+                        $variantId = $sourceWp->variant_id;
+                    } else {
+                        $sourceWp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, $variantId);
+                    }
+
+                    $preparedItems[] = [
+                        'product'               => $product,
+                        'variant_id'            => $variantId,
+                        'qty_sent'              => $qty,
+                        'theoretical_weight_kg' => $theoreticalWeight,
+                        'source_unit_cost'      => (float) $sourceWp->wac_amount,
+                        'notes'                 => $item['notes'] ?? null,
+                    ];
+
+                    $theoreticalWeightTotal += $theoreticalWeight;
+                    $fallbackQtyTotal += $qty;
+                }
+
+                if ($preparedItems === []) {
+                    throw new \InvalidArgumentException('Each shipment box must contain at least one product line.');
+                }
+
+                foreach ($preparedItems as $pi) {
+                    $basis       = $theoreticalWeightTotal > 0 ? $pi['theoretical_weight_kg'] : $pi['qty_sent'];
+                    $denominator = $theoreticalWeightTotal > 0 ? $theoreticalWeightTotal : $fallbackQtyTotal;
+                    $allocatedWeight = $denominator > 0 ? round($measuredWeight * $basis / $denominator, 4) : 0.0;
+                    $weightRatio     = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
+
+                    $boxItem = ShipmentBoxItem::create([
+                        'shipment_box_id'           => $box->id,
+                        'product_id'                => $pi['product']->id,
+                        'variant_id'                => $pi['variant_id'],
+                        'qty_sent'                  => $pi['qty_sent'],
+                        'theoretical_weight_kg'     => $pi['theoretical_weight_kg'],
+                        'allocated_weight_kg'       => $allocatedWeight,
+                        'weight_ratio'              => $weightRatio,
+                        'source_unit_cost_amount'   => $pi['source_unit_cost'],
+                        'shipping_allocated_amount' => 0,
+                        'unit_landed_cost_amount'   => $pi['source_unit_cost'],
+                        'notes'                     => $pi['notes'],
+                    ]);
+
+                    $key = $pi['product']->id . ':' . (int) ($pi['variant_id'] ?? 0);
+                    $aggregates[$key] ??= ['product_id' => $pi['product']->id, 'variant_id' => $pi['variant_id'], 'qty_sent' => 0.0, 'weight_total' => 0.0, 'cost_total' => 0.0];
+                    $aggregates[$key]['qty_sent']    += $pi['qty_sent'];
+                    $aggregates[$key]['weight_total'] += $allocatedWeight;
+                    $aggregates[$key]['cost_total']   += $pi['source_unit_cost'] * $pi['qty_sent'];
+
+                    $createdBoxItems[] = ['model' => $boxItem, 'qty_sent' => $pi['qty_sent'], 'allocated_weight_kg' => $allocatedWeight, 'source_unit_cost' => $pi['source_unit_cost']];
+                }
+
+                $totalWeightKg += $measuredWeight;
+            }
+
+            $shippingCost = round($totalWeightKg * $rate, 4);
+
+            foreach ($aggregates as $aggregate) {
+                $qtySent = $aggregate['qty_sent'];
+                $unitCost = $qtySent > 0 ? round($aggregate['cost_total'] / $qtySent, 4) : 0.0;
+                $allocatedShipping = $totalWeightKg > 0 ? round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4) : 0.0;
+                $unitLanded = $qtySent > 0 ? round(($aggregate['cost_total'] + $allocatedShipping) / $qtySent, 4) : 0.0;
+
+                ShipmentItem::create([
+                    'shipment_id'               => $shipment->id,
+                    'product_id'                => $aggregate['product_id'],
+                    'variant_id'                => $aggregate['variant_id'],
+                    'qty_sent'                  => $qtySent,
+                    'qty_received'              => 0,
+                    'unit_cost_source_amount'   => $unitCost,
+                    'weight_kg_total'           => round($aggregate['weight_total'], 4),
+                    'shipping_allocated_amount' => $allocatedShipping,
+                    'unit_landed_cost_amount'   => $unitLanded,
+                    'wac_source_before_amount'  => $unitCost,
+                    'wac_dest_before_amount'    => 0,
+                    'wac_dest_after_amount'     => 0,
+                ]);
+            }
+
+            $shipment->update(['total_weight_kg' => $totalWeightKg, 'shipping_cost_amount' => $shippingCost]);
+
+            return $shipment->refresh();
+        });
+    }
+
+    public function dispatchInterWarehouseShipment(int $shipmentId): Shipment
+    {
+        $shipment = Shipment::with('items.product')->findOrFail($shipmentId);
+
+        if ($shipment->status !== ShipmentStatus::DRAFT) {
+            throw new InvalidTransitionException("Shipment #{$shipmentId} is not in draft status.");
+        }
+
+        return DB::transaction(function () use ($shipment): Shipment {
+            foreach ($shipment->items as $item) {
+                $wp = WarehouseProduct::where('warehouse_id', $shipment->from_warehouse_id)
+                    ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
+
+                if ($available < (float) $item->qty_sent - (float) config('inventory.qty_tolerance', 0.0001)) {
+                    throw new InsufficientStockException("Insufficient stock for shipment: product [{$item->product_id}] available {$available}, needed {$item->qty_sent}.");
+                }
+
+                $qtyBefore = (float) $wp->qty_on_hand;
+                $qtyAfter  = $qtyBefore - (float) $item->qty_sent;
+
+                $wp->update([
+                    'qty_on_hand'    => $qtyAfter,
+                    'qty_in_transit' => (float) $wp->qty_in_transit + (float) $item->qty_sent,
+                ]);
+
+                $item->update(['wac_source_before_amount' => (float) $wp->wac_amount]);
+
+                $this->writeMovement($shipment->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Shipment::class, $shipment->id);
+            }
+
+            $shipment->update(['status' => ShipmentStatus::IN_TRANSIT, 'shipped_at' => now()]);
+
+            return $shipment->refresh();
+        });
+    }
+
+    public function receiveInterWarehouseShipment(int $shipmentId, array $receivedQtys = []): Shipment
+    {
+        $shipment = Shipment::with('items.product')->findOrFail($shipmentId);
+
+        if (!in_array($shipment->status, [ShipmentStatus::IN_TRANSIT, ShipmentStatus::PARTIAL])) {
+            throw new InvalidTransitionException("Shipment #{$shipmentId} is not in transit.");
+        }
+
+        return DB::transaction(function () use ($shipment, $receivedQtys): Shipment {
+            $fullyReceived = true;
+
+            foreach ($shipment->items as $item) {
+                $remainingQty = max(0.0, (float) $item->qty_sent - (float) $item->qty_received);
+                $qtyReceived  = isset($receivedQtys[$item->id]) ? (float) $receivedQtys[$item->id] : $remainingQty;
+
+                if ($qtyReceived <= 0) {
+                    continue;
+                }
+
+                if ($qtyReceived > $remainingQty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    throw new \InvalidArgumentException("Cannot receive {$qtyReceived} units for shipment item [{$item->id}]; only {$remainingQty} remain.");
+                }
+
+                $destWp = $this->lockWarehouseProduct($shipment->to_warehouse_id, $item->product_id, $item->variant_id);
+
+                $destWacBefore = (float) $destWp->wac_amount;
+                $newDestWac    = $this->recalculateWac($destWp, $qtyReceived, (float) $item->unit_landed_cost_amount);
+                $destQtyBefore = (float) $destWp->qty_on_hand;
+                $destQtyAfter  = $destQtyBefore + $qtyReceived;
+
+                $destWp->update(['qty_on_hand' => $destQtyAfter, 'wac_amount' => $newDestWac]);
+
+                WarehouseProduct::where('warehouse_id', $shipment->from_warehouse_id)
+                    ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
+                    ->decrement('qty_in_transit', $qtyReceived);
+
+                $totalReceived = (float) $item->qty_received + $qtyReceived;
+                $item->update(['qty_received' => $totalReceived, 'wac_dest_before_amount' => $destWacBefore, 'wac_dest_after_amount' => $newDestWac]);
+
+                if ($totalReceived < (float) $item->qty_sent - (float) config('inventory.qty_tolerance', 0.0001)) {
+                    $fullyReceived = false;
+                }
+
+                $this->writeMovement($shipment->to_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_IN, $qtyReceived, $destQtyBefore, $destQtyAfter, (float) $item->unit_landed_cost_amount, $newDestWac, Shipment::class, $shipment->id);
+            }
+
+            $newStatus = $fullyReceived ? ShipmentStatus::RECEIVED : ShipmentStatus::PARTIAL;
+            $shipment->update(['status' => $newStatus, 'received_at' => $fullyReceived ? now() : $shipment->received_at]);
+
+            return $shipment->refresh();
+        });
     }
 
     // -------------------------------------------------------------------------

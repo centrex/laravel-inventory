@@ -58,11 +58,38 @@
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Currency" :error="$errors->first('currency')">
-                <x-tallui-input name="currency" wire:model="currency" placeholder="BDT" />
+                <div wire:key="currency-select-{{ $currency }}">
+                    <select
+                        name="currency"
+                        wire:model.live="currency"
+                        class="select select-bordered select-sm w-full {{ $errors->has('currency') ? 'select-error' : '' }}"
+                    >
+                        @foreach ($currencies as $code => $label)
+                            <option value="{{ $code }}" @selected($currency === $code)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </x-tallui-form-group>
 
-            <x-tallui-form-group label="Exchange Rate (BDT)" :error="$errors->first('exchange_rate')">
-                <x-tallui-input name="exchange_rate" type="number" step="0.0001" wire:model="exchange_rate" />
+            <x-tallui-form-group label="Exchange Rate (to base)" :error="$errors->first('exchange_rate')">
+                <div class="relative">
+                    <x-tallui-input
+                        name="exchange_rate"
+                        type="number"
+                        step="0.0001"
+                        wire:model="exchange_rate"
+                        placeholder="Auto-fetched on currency change"
+                    />
+                    <div wire:loading wire:target="updatedCurrency"
+                        class="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                        <span class="loading loading-spinner loading-xs text-primary"></span>
+                    </div>
+                </div>
+                @if($exchange_rate)
+                    <p class="text-xs text-base-content/50 mt-1">
+                        1 {{ $currency }} = {{ $exchange_rate }} {{ config('inventory.base_currency', 'BDT') }}
+                    </p>
+                @endif
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Tax (Local)">
@@ -81,7 +108,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-50 px-4 py-3">
                     <div>
                         <div class="text-xs uppercase text-base-content/50">Pricing Currency</div>
-                        <div class="font-mono text-sm font-semibold">{{ $currency ?: 'Auto' }}</div>
+                        <div class="font-mono text-sm font-semibold">{{ config('inventory.base_currency', 'BDT') }}</div>
                     </div>
                     <x-tallui-button
                         :label="filled($notes) ? 'View Note' : 'Add Note'"

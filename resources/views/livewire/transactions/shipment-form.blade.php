@@ -2,25 +2,26 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    title="New Transfer"
-    subtitle="Prepare inter-warehouse transfers with landed-cost allocation."
-    icon="o-arrows-right-left"
+    title="New Shipment"
+    subtitle="Prepare inter-warehouse shipments with box-level packing and landed-cost allocation."
+    icon="o-paper-airplane"
 >
     <x-slot:breadcrumbs>
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
-            ['label' => 'New Transfer'],
+            ['label' => 'Shipments', 'href' => route('inventory.shipments.index')],
+            ['label' => 'New Shipment'],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
-        <x-tallui-badge type="info">Transfers</x-tallui-badge>
+        <x-tallui-badge type="info">Shipments</x-tallui-badge>
     </x-slot:actions>
 </x-tallui-page-header>
 
 <form wire:submit="save" class="space-y-4">
 
     {{-- Header --}}
-    <x-tallui-card title="Transfer Details" subtitle="Source, destination, and shipment cost." icon="o-truck" :shadow="true">
+    <x-tallui-card title="Shipment Details" subtitle="Source, destination, and shipping cost." icon="o-truck" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <x-tallui-form-group label="From Warehouse *" :error="$errors->first('from_warehouse_id')">
                 <select
@@ -281,8 +282,8 @@
     </div>{{-- end wire:key wrapper --}}
 
     <div class="flex justify-end gap-2">
-        <x-tallui-button label="Cancel" :link="route('inventory.dashboard')" class="btn-ghost" />
-        <x-tallui-button label="Create Transfer" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+        <x-tallui-button label="Cancel" :link="route('inventory.shipments.index')" class="btn-ghost" />
+        <x-tallui-button label="Create Shipment" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
     </div>
 
 </form>

@@ -10,6 +10,7 @@
     </x-slot:breadcrumbs>
     <x-slot:actions>
         <div class="flex flex-wrap gap-2">
+            <x-tallui-button label="New Shipment" icon="o-plus" :link="route('inventory.shipments.create')" class="btn-primary btn-sm" />
             <x-tallui-button label="Transfers" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
             <x-tallui-button label="Excel" icon="o-arrow-down-tray" wire:click="downloadExcel" class="btn-outline btn-sm" />
             <div class="w-60">

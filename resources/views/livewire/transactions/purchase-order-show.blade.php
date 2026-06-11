@@ -24,7 +24,8 @@
             <x-tallui-button label="Create Purchase Order" icon="o-document-duplicate" class="btn-secondary btn-sm" wire:click="createPurchaseOrder" wire:confirm="Create a purchase order from this requisition?" />
         @endif
         @if ($canReceive)
-            <x-tallui-button label="Receive Remaining" icon="o-inbox-arrow-down" class="btn-success btn-sm" wire:click="receive" wire:confirm="Receive all remaining quantities for this purchase order?" />
+            <x-tallui-button label="Receive Partial" icon="o-inbox-arrow-down" class="btn-success btn-sm" wire:click="openReceiveModal" />
+            <x-tallui-button label="Receive All" icon="o-check-circle" class="btn-success btn-outline btn-sm" wire:click="receive" wire:confirm="Receive all remaining quantities for this purchase order?" />
         @endif
         @if ($canCancel)
             <x-tallui-button label="Cancel" icon="o-x-circle" class="btn-error btn-sm" wire:click="cancel" wire:confirm="Cancel this {{ strtolower($documentLabel) }}?" />
@@ -155,6 +156,7 @@
         </x-tallui-card>
     </div>
 
+    <div class="space-y-4 xl:col-span-2">
     <x-tallui-card title="Line Items" subtitle="Products, quantities, and cost lines." icon="o-queue-list" :shadow="true" class="xl:col-span-2">
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
@@ -170,7 +172,7 @@
                 <tbody>
                     @foreach ($record->items as $item)
                         <tr>
-                            <td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : ($item->product?->name ?? 'Product') }}</td>
+                            <td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : 'NA' }}</td>
                             <td>{{ $item->variant?->sku ?? $item->product?->sku ?? '—' }}</td>
                             <td>{{ rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.') }}</td>
                             <td>{{ number_format((float) $item->unit_price_local, 2) }}</td>
@@ -189,5 +191,75 @@
             <div class="flex justify-between text-base font-semibold"><span>Total</span><strong>{{ number_format((float) $record->total_local, 2) }}</strong></div>
         </div>
     </x-tallui-card>
+    </div>
 </div>
+
+{{-- Partial Receive Modal --}}
+@if ($showReceiveModal)
+<div class="modal modal-open">
+    <div class="modal-box w-11/12 max-w-3xl">
+        <h3 class="mb-1 text-lg font-bold">Receive Stock</h3>
+        <p class="mb-4 text-sm text-base-content/60">Enter the quantity actually received for each line. Leave a line at 0 to skip it.</p>
+
+        <div class="overflow-x-auto">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-200/50 text-xs uppercase text-base-content/50">
+                        <th>Product</th>
+                        <th class="text-right">Ordered</th>
+                        <th class="text-right">Already Received</th>
+                        <th class="text-right">Remaining</th>
+                        <th class="w-36 text-right">This Delivery</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($record->items as $item)
+                        @php
+                            $remaining = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
+                            $itemId    = (int) $item->getKey();
+                        @endphp
+                        @if ($remaining > 0)
+                            <tr>
+                                <td class="max-w-[200px] truncate" title="{{ $item->variant ? trim(($item->product?->name ?? '') . ' / ' . $item->variant->name) : ($item->product?->name ?? '—') }}">
+                                    {{ $item->variant ? trim(($item->product?->name ?? '') . ' / ' . $item->variant->name) : ($item->product?->name ?? '—') }}
+                                    @if ($item->variant?->sku ?? $item->product?->sku)
+                                        <span class="block text-xs text-base-content/40">{{ $item->variant?->sku ?? $item->product?->sku }}</span>
+                                    @endif
+                                </td>
+                                <td class="text-right font-mono">{{ rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.') }}</td>
+                                <td class="text-right font-mono text-base-content/60">{{ rtrim(rtrim(number_format((float) $item->qty_received, 4, '.', ''), '0'), '.') }}</td>
+                                <td class="text-right font-mono text-warning">{{ rtrim(rtrim(number_format($remaining, 4, '.', ''), '0'), '.') }}</td>
+                                <td class="text-right">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="{{ $remaining }}"
+                                        step="0.0001"
+                                        wire:model.blur="receiveQtys.{{ $itemId }}"
+                                        class="input input-sm input-bordered w-32 text-right font-mono"
+                                    />
+                                </td>
+                            </tr>
+                        @endif
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4">
+            <label class="label"><span class="label-text text-sm">Notes (optional)</span></label>
+            <textarea wire:model="receiveNotes" rows="2" placeholder="Delivery note, reference number…" class="textarea textarea-bordered w-full text-sm"></textarea>
+        </div>
+
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost btn-sm" wire:click="$set('showReceiveModal', false)">Cancel</button>
+            <button type="button" class="btn btn-success btn-sm" wire:click="receivePartial" wire:loading.attr="disabled">
+                <span wire:loading wire:target="receivePartial" class="loading loading-spinner loading-xs"></span>
+                Post Receipt
+            </button>
+        </div>
+    </div>
+    <div class="modal-backdrop" wire:click="$set('showReceiveModal', false)"></div>
+</div>
+@endif
 </div>

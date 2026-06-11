@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
 use Centrex\Inventory\Http\Livewire\Entities\{CustomerShowPage, EntityFormPage, EntityIndexPage};
-use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, CustomerHeatMapPage, DispatchTerminalPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, ShipmentIndexPage, ShipmentShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
+use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, CustomerHeatMapPage, DispatchTerminalPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -52,6 +52,7 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/transfers/create', TransferFormPage::class)->name('transfers.create');
         Route::get('/transfers/{recordId}', TransferShowPage::class)->name('transfers.show');
         Route::get('/shipments', ShipmentIndexPage::class)->name('shipments.index');
+        Route::get('/shipments/create', ShipmentFormPage::class)->name('shipments.create');
         Route::get('/shipments/{recordId}', ShipmentShowPage::class)->name('shipments.show');
         Route::get('/adjustments/create', AdjustmentFormPage::class)->name('adjustments.create');
         Route::get('/reports', InventoryReportsPage::class)->name('reports.index');

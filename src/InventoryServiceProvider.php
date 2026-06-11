@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
-use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand};
+use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand, SyncExchangeRatesCommand};
 use Centrex\Inventory\Models\{Customer, Supplier};
 use Centrex\Inventory\Observers\{CustomerObserver, InvoicePaymentObserver, SupplierObserver};
 use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
@@ -54,8 +54,17 @@ class InventoryServiceProvider extends ServiceProvider
             $this->commands([
                 InventoryCommand::class,
                 SnapshotTrendsCommand::class,
+                SyncExchangeRatesCommand::class,
                 Commands\FitCustomerClvCommand::class,
             ]);
+
+            $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+                $schedule->command('inventory:sync-exchange-rates')
+                    ->dailyAt('00:30')
+                    ->withoutOverlapping()
+                    ->runInBackground()
+                    ->appendOutputTo(storage_path('logs/exchange-rates-sync.log'));
+            });
         }
     }
 

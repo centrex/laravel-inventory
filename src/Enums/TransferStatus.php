@@ -8,6 +8,7 @@ enum TransferStatus: string
 {
     case PENDING = 'pending';
     case DISPATCHED = 'dispatched';
+    case PARTIAL = 'partial';
     case DELIVERED = 'delivered';
     case RETURNED = 'returned';
 
@@ -16,6 +17,7 @@ enum TransferStatus: string
         return match ($this) {
             self::PENDING    => 'Pending',
             self::DISPATCHED => 'Dispatched',
+            self::PARTIAL    => 'Partially Delivered',
             self::DELIVERED  => 'Delivered',
             self::RETURNED   => 'Returned',
         };
@@ -25,7 +27,8 @@ enum TransferStatus: string
     {
         return match ($this) {
             self::PENDING    => in_array($next, [self::DISPATCHED]),
-            self::DISPATCHED => in_array($next, [self::DELIVERED, self::RETURNED]),
+            self::DISPATCHED => in_array($next, [self::PARTIAL, self::DELIVERED, self::RETURNED]),
+            self::PARTIAL    => in_array($next, [self::DELIVERED, self::RETURNED]),
             default          => false,
         };
     }

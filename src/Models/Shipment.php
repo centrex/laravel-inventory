@@ -61,6 +61,6 @@ class Shipment extends Model implements Auditable
 
     public function boxes(): HasMany
     {
-        return $this->hasMany(TransferBox::class, 'shipment_id');
+        return $this->hasMany(ShipmentBox::class);
     }
 }

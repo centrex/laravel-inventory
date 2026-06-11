@@ -10,14 +10,14 @@ use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
-class TransferBox extends Model implements Auditable
+class ShipmentBox extends Model implements Auditable
 {
     use AddTablePrefix;
     use AuditableTrait;
 
     protected function getTableSuffix(): string
     {
-        return 'transfer_boxes';
+        return 'shipment_boxes';
     }
 
     public function __construct(array $attributes = [])
@@ -27,7 +27,7 @@ class TransferBox extends Model implements Auditable
     }
 
     protected $fillable = [
-        'transfer_id',
+        'shipment_id',
         'box_code',
         'measured_weight_kg',
         'notes',
@@ -37,13 +37,13 @@ class TransferBox extends Model implements Auditable
         'measured_weight_kg' => 'decimal:4',
     ];
 
-    public function transfer(): BelongsTo
+    public function shipment(): BelongsTo
     {
-        return $this->belongsTo(Transfer::class);
+        return $this->belongsTo(Shipment::class);
     }
 
     public function items(): HasMany
     {
-        return $this->hasMany(TransferBoxItem::class, 'transfer_box_id');
+        return $this->hasMany(ShipmentBoxItem::class, 'shipment_box_id');
     }
 }
