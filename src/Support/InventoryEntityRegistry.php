@@ -432,7 +432,6 @@ class InventoryEntityRegistry
                 }
             }
 
-
             $options[$field['name']] = $query
                 ->orderBy($field['related_label'])
                 ->get(['id', $field['related_label']])
