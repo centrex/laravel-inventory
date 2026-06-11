@@ -32,13 +32,14 @@ class Customer extends Model implements Auditable, HasMedia
 
     protected $fillable = [
         'code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment', 'demographic_data', 'currency', 'credit_limit_amount',
-        'price_tier_code', 'sales_owner_id', 'sales_owner_designation', 'sales_manager_id', 'sales_assistant_manager_id', 'sales_executive_id', 'is_active',
+        'price_tier_code', 'sales_owner_id', 'sales_owner_designation', 'sales_manager_id', 'sales_assistant_manager_id', 'sales_executive_id', 'is_active', 'is_agent', 'agent_id',
         'modelable_type', 'modelable_id', 'accounting_customer_id', 'meta',
     ];
 
     protected $casts = [
         'credit_limit_amount' => 'decimal:4',
         'is_active'           => 'boolean',
+        'is_agent'            => 'boolean',
         'geo'                 => 'array',
         'meta'                => 'array',
     ];

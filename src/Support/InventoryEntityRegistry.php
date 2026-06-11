@@ -110,7 +110,7 @@ class InventoryEntityRegistry
                 'singular'      => 'Customer',
                 'model'         => Customer::class,
                 'search'        => ['code', 'name', 'organization_name', 'email', 'phone'],
-                'index_columns' => ['code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment', 'currency', 'credit_limit_amount', 'price_tier_code', 'sales_owner_id', 'sales_owner_designation', 'is_active'],
+                'index_columns' => ['code', 'name', 'organization_name', 'email', 'phone', 'zone', 'area', 'demographic_segment', 'currency', 'credit_limit_amount', 'price_tier_code', 'agent_id', 'is_active'],
                 'form_fields'   => [
                     self::field('code', 'text', ['required', 'string', 'max:30']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
@@ -125,6 +125,7 @@ class InventoryEntityRegistry
                     self::field('credit_limit_amount', 'number', ['nullable', 'numeric', 'min:0'], 0),
                     self::field('price_tier_code', 'select', ['nullable', 'string', Rule::in(PriceTierCode::values())], null, null, null, PriceTierCode::options()),
                     self::field('is_active', 'checkbox', ['boolean'], true),
+                    self::field('is_agent', 'checkbox', ['boolean'], false),
                     self::field('sales_owner_id', 'select', ['nullable', 'required_with:sales_owner_designation', 'integer', 'exists:users,id'], null, self::userModel(), 'name', null, 'Sales owner'),
                     self::field('sales_owner_designation', 'select', ['nullable', 'required_with:sales_owner_id', 'string', Rule::in(['manager', 'assistant_manager', 'executive'])], null, null, null, CommercialTeamAccess::roleOptions(), 'Sales owner designation'),
                     self::field('meta', 'json', ['nullable', 'array'], []),
@@ -430,6 +431,7 @@ class InventoryEntityRegistry
                     $query->whereIn($related->getKeyName(), $visibleSalesUsers);
                 }
             }
+
 
             $options[$field['name']] = $query
                 ->orderBy($field['related_label'])
