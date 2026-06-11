@@ -4,8 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Commands;
 
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
+use Carbon\{Carbon, CarbonPeriod};
 use Centrex\Inventory\Enums\Currency;
 use Centrex\LaravelOpenExchangeRates\Client;
 use Illuminate\Console\Command;
@@ -26,9 +25,9 @@ class SyncExchangeRatesCommand extends Command
 
     public function handle(Client $client): int
     {
-        $symbols  = $this->resolveSymbols();
-        $dates    = $this->resolveDates();
-        $dryRun   = (bool) $this->option('dry-run');
+        $symbols = $this->resolveSymbols();
+        $dates = $this->resolveDates();
+        $dryRun = (bool) $this->option('dry-run');
 
         $this->line('Currencies: ' . implode(', ', $symbols));
 
@@ -41,7 +40,7 @@ class SyncExchangeRatesCommand extends Command
         foreach ($dates as $date) {
             $success = $this->syncHistoricalWithRetry($client, $date, $symbols, $dryRun);
 
-            if (! $success) {
+            if (!$success) {
                 $failed++;
             }
         }
@@ -89,8 +88,8 @@ class SyncExchangeRatesCommand extends Command
                 $this->info("Fetching rates for {$date}…");
 
                 $response = $client->historical($date, implode(',', $symbols));
-                $rates    = $response['rates'] ?? [];
-                $base     = strtoupper($response['base'] ?? 'USD');
+                $rates = $response['rates'] ?? [];
+                $base = strtoupper($response['base'] ?? 'USD');
                 $rateDate = Carbon::parse($response['timestamp'] ?? $date);
 
                 if ($rates === []) {
@@ -98,7 +97,7 @@ class SyncExchangeRatesCommand extends Command
                 }
 
                 if ($dryRun) {
-                    $this->line("Dry run — {$date}: " . count($rates) . " rate(s) (not persisted).");
+                    $this->line("Dry run — {$date}: " . count($rates) . ' rate(s) (not persisted).');
 
                     return true;
                 }
@@ -148,7 +147,7 @@ class SyncExchangeRatesCommand extends Command
 
     private function validateDateFormat(string $value, string $name): void
     {
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
             throw new \InvalidArgumentException("Invalid {$name} format. Use YYYY-MM-DD.");
         }
     }

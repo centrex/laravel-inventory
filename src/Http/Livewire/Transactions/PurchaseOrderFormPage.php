@@ -8,7 +8,6 @@ use Centrex\Inventory\Enums\{Currency, PriceTierCode, PurchaseOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
-use co;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Layout;

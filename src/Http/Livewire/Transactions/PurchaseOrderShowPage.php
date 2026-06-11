@@ -93,7 +93,7 @@ class PurchaseOrderShowPage extends Component
     public function openReceiveModal(): void
     {
         $this->receiveNotes = '';
-        $this->receiveQtys  = [];
+        $this->receiveQtys = [];
 
         foreach ($this->record->items as $item) {
             $remaining = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
@@ -131,8 +131,8 @@ class PurchaseOrderShowPage extends Component
         );
 
         $this->showReceiveModal = false;
-        $this->receiveQtys      = [];
-        $this->receiveNotes     = '';
+        $this->receiveQtys = [];
+        $this->receiveNotes = '';
     }
 
     public function cancel(): void

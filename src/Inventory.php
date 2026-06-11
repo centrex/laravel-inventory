@@ -1849,6 +1849,7 @@ class Inventory
                     $theoreticalWeight = $unitWeightKg !== null
                         ? round($qty * (float) $unitWeightKg, 4)
                         : 0.0;
+
                     // When no variant specified, pick the WP record with most available stock
                     // so dispatch doesn't hit a ghost 0-qty base record.
                     if ($variantId === null) {
@@ -2391,12 +2392,13 @@ class Inventory
             ]);
 
             $totalWeightKg = 0.0;
-            $aggregates    = [];
+            $aggregates = [];
             $createdBoxItems = [];
 
             foreach ($boxes as $index => $boxData) {
                 $measuredWeight = round((float) ($boxData['measured_weight_kg'] ?? 0), 4);
                 $isDerived = (bool) ($boxData['_derived'] ?? false);
+
                 if ($isDerived) {
                     if ($measuredWeight < 0) {
                         throw new \InvalidArgumentException('measured_weight_kg must be zero or greater.');
@@ -2412,9 +2414,9 @@ class Inventory
                     'notes'              => $boxData['notes'] ?? null,
                 ]);
 
-                $preparedItems        = [];
+                $preparedItems = [];
                 $theoreticalWeightTotal = 0.0;
-                $fallbackQtyTotal       = 0.0;
+                $fallbackQtyTotal = 0.0;
 
                 foreach ($boxData['items'] as $item) {
                     [$productId, $variantId] = $this->resolveProductReference($item);
@@ -2457,10 +2459,10 @@ class Inventory
                 }
 
                 foreach ($preparedItems as $pi) {
-                    $basis       = $theoreticalWeightTotal > 0 ? $pi['theoretical_weight_kg'] : $pi['qty_sent'];
+                    $basis = $theoreticalWeightTotal > 0 ? $pi['theoretical_weight_kg'] : $pi['qty_sent'];
                     $denominator = $theoreticalWeightTotal > 0 ? $theoreticalWeightTotal : $fallbackQtyTotal;
                     $allocatedWeight = $denominator > 0 ? round($measuredWeight * $basis / $denominator, 4) : 0.0;
-                    $weightRatio     = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
+                    $weightRatio = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
 
                     $boxItem = ShipmentBoxItem::create([
                         'shipment_box_id'           => $box->id,
@@ -2478,9 +2480,9 @@ class Inventory
 
                     $key = $pi['product']->id . ':' . (int) ($pi['variant_id'] ?? 0);
                     $aggregates[$key] ??= ['product_id' => $pi['product']->id, 'variant_id' => $pi['variant_id'], 'qty_sent' => 0.0, 'weight_total' => 0.0, 'cost_total' => 0.0];
-                    $aggregates[$key]['qty_sent']    += $pi['qty_sent'];
+                    $aggregates[$key]['qty_sent'] += $pi['qty_sent'];
                     $aggregates[$key]['weight_total'] += $allocatedWeight;
-                    $aggregates[$key]['cost_total']   += $pi['source_unit_cost'] * $pi['qty_sent'];
+                    $aggregates[$key]['cost_total'] += $pi['source_unit_cost'] * $pi['qty_sent'];
 
                     $createdBoxItems[] = ['model' => $boxItem, 'qty_sent' => $pi['qty_sent'], 'allocated_weight_kg' => $allocatedWeight, 'source_unit_cost' => $pi['source_unit_cost']];
                 }
@@ -2541,7 +2543,7 @@ class Inventory
                 }
 
                 $qtyBefore = (float) $wp->qty_on_hand;
-                $qtyAfter  = $qtyBefore - (float) $item->qty_sent;
+                $qtyAfter = $qtyBefore - (float) $item->qty_sent;
 
                 $wp->update([
                     'qty_on_hand'    => $qtyAfter,
@@ -2572,7 +2574,7 @@ class Inventory
 
             foreach ($shipment->items as $item) {
                 $remainingQty = max(0.0, (float) $item->qty_sent - (float) $item->qty_received);
-                $qtyReceived  = isset($receivedQtys[$item->id]) ? (float) $receivedQtys[$item->id] : $remainingQty;
+                $qtyReceived = isset($receivedQtys[$item->id]) ? (float) $receivedQtys[$item->id] : $remainingQty;
 
                 if ($qtyReceived <= 0) {
                     continue;
@@ -2585,9 +2587,9 @@ class Inventory
                 $destWp = $this->lockWarehouseProduct($shipment->to_warehouse_id, $item->product_id, $item->variant_id);
 
                 $destWacBefore = (float) $destWp->wac_amount;
-                $newDestWac    = $this->recalculateWac($destWp, $qtyReceived, (float) $item->unit_landed_cost_amount);
+                $newDestWac = $this->recalculateWac($destWp, $qtyReceived, (float) $item->unit_landed_cost_amount);
                 $destQtyBefore = (float) $destWp->qty_on_hand;
-                $destQtyAfter  = $destQtyBefore + $qtyReceived;
+                $destQtyAfter = $destQtyBefore + $qtyReceived;
 
                 $destWp->update(['qty_on_hand' => $destQtyAfter, 'wac_amount' => $newDestWac]);
 
