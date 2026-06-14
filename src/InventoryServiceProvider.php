@@ -100,6 +100,7 @@ class InventoryServiceProvider extends ServiceProvider
 
             // Purchase orders
             'inventory.purchase-orders.view',
+            'inventory.purchase-orders.view-all', // bypass commercial-team scope; see every PO
             'inventory.purchase-orders.create',
             'inventory.purchase-orders.submit',
             'inventory.purchase-orders.confirm',
@@ -111,6 +112,7 @@ class InventoryServiceProvider extends ServiceProvider
 
             // Sale orders
             'inventory.sale-orders.view',
+            'inventory.sale-orders.view-all',   // bypass commercial-team scope; see every SO
             'inventory.sale-orders.create',
             'inventory.sale-orders.approve-credit',
             'inventory.sale-orders.confirm',

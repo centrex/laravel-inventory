@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Models\CommercialTeamMember;
+use Centrex\Inventory\Models\{CommercialTeamMember, Customer};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{Gate, Schema};
@@ -40,7 +40,7 @@ final class CommercialTeamAccess
             'sales_manager_id',
             'sales_assistant_manager_id',
             'sales_executive_id',
-        ]);
+        ], self::customerTeamOrClause());
     }
 
     public static function applyPurchaseScope(Builder $query): Builder
@@ -165,14 +165,19 @@ final class CommercialTeamAccess
     {
         $userId ??= self::currentUserId();
 
-        if (
-            !$userId
-            || self::isPrivilegedUser($userId)
-            || self::canViewAllWorkflowOrders($workflow, $userId)
-            || !self::tableReady()
-            || !self::workflowHasActiveMembers($workflow)
-        ) {
+        if (!$userId) {
             return null;
+        }
+
+        // Admins and explicit view-all grantees bypass the scope entirely.
+        if (self::isPrivilegedUser($userId) || self::canViewAllWorkflowOrders($workflow, $userId)) {
+            return null;
+        }
+
+        // Table not set up or no active team members for this workflow:
+        // scope to the user's own orders rather than showing everything.
+        if (!self::tableReady() || !self::workflowHasActiveMembers($workflow)) {
+            return [$userId];
         }
 
         $memberships = CommercialTeamMember::query()
@@ -194,7 +199,7 @@ final class CommercialTeamAccess
         return $visible->filter()->unique()->values()->map(fn ($id): int => (int) $id)->all();
     }
 
-    private static function applyOwnerScope(Builder $query, string $workflow, array $columns): Builder
+    private static function applyOwnerScope(Builder $query, string $workflow, array $columns, ?\Closure $extraOr = null): Builder
     {
         $visibleUserIds = self::visibleUserIds($workflow);
 
@@ -205,13 +210,60 @@ final class CommercialTeamAccess
         $model = $query->getModel();
         $table = $model->getTable();
 
-        return $query->where(function (Builder $builder) use ($columns, $table, $visibleUserIds): void {
+        return $query->where(function (Builder $builder) use ($columns, $table, $visibleUserIds, $extraOr): void {
             foreach ($columns as $column) {
                 if (Schema::connection($builder->getModel()->getConnectionName())->hasColumn($table, $column)) {
                     $builder->orWhereIn($column, $visibleUserIds);
                 }
             }
+
+            if ($extraOr !== null) {
+                $extraOr($builder);
+            }
         });
+    }
+
+    /**
+     * Returns a closure that adds an OR condition granting access to all sale orders
+     * belonging to customers where the current user is assigned as a sales team member
+     * (sales_owner_id, sales_manager_id, sales_assistant_manager_id, or sales_executive_id).
+     */
+    private static function customerTeamOrClause(): ?\Closure
+    {
+        $userId = self::currentUserId();
+
+        if (!$userId) {
+            return null;
+        }
+
+        return function (Builder $builder) use ($userId): void {
+            $orderTable = $builder->getModel()->getTable();
+            $orderConn  = $builder->getModel()->getConnectionName();
+
+            if (!Schema::connection($orderConn)->hasColumn($orderTable, 'customer_id')) {
+                return;
+            }
+
+            $customerModel = new Customer();
+
+            // Skip subquery when models live on different database connections.
+            if ($customerModel->getConnectionName() !== $orderConn) {
+                return;
+            }
+
+            $customerTable = $customerModel->getTable();
+
+            $builder->orWhereIn('customer_id', function ($sub) use ($customerTable, $userId): void {
+                $sub->select('id')
+                    ->from($customerTable)
+                    ->where(function ($q) use ($userId): void {
+                        $q->where('sales_owner_id', $userId)
+                            ->orWhere('sales_manager_id', $userId)
+                            ->orWhere('sales_assistant_manager_id', $userId)
+                            ->orWhere('sales_executive_id', $userId);
+                    });
+            });
+        };
     }
 
     private static function descendantUserIds(string $workflow, int $userId, string $role): Collection

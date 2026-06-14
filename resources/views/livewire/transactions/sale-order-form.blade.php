@@ -2,13 +2,31 @@
 <x-tallui-notification />
 
 <x-tallui-dialog id="sale-order-credit-limit-dialog" type="warning" title="Credit limit exceeded" size="lg">
-    <div class="text-left">
-        {{ $credit_limit_dialog_message }}
-    </div>
-    <x-slot:footer>
-        <x-tallui-button label="Close" class="btn-ghost" x-on:click="open = false" />
-        <x-tallui-button label="Review Override" class="btn-primary" x-on:click="open = false" />
-    </x-slot:footer>
+    @if ($canApproveCredit)
+        <div class="text-left">
+            {{ $credit_limit_dialog_message }}
+        </div>
+        <x-slot:footer>
+            <x-tallui-button label="Cancel" class="btn-ghost" x-on:click="open = false" />
+            <x-tallui-button label="Review Override" class="btn-warning" x-on:click="open = false" />
+        </x-slot:footer>
+    @else
+        <div class="text-left space-y-3">
+            <p>{{ $credit_limit_dialog_message }}</p>
+            <div class="rounded-xl border border-warning/30 bg-warning/10 p-4 flex gap-3">
+                <x-tallui-icon name="o-phone" class="h-5 w-5 shrink-0 text-warning mt-0.5" />
+                <div>
+                    <p class="font-semibold text-sm">Contact your Relationship Manager</p>
+                    <p class="text-sm text-base-content/70 mt-0.5">
+                        This order cannot be processed until the credit limit is reviewed and approved by an authorised manager. Please reach out to your relationship manager to resolve this before placing the order.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <x-slot:footer>
+            <x-tallui-button label="Close" class="btn-ghost" x-on:click="open = false" />
+        </x-slot:footer>
+    @endif
 </x-tallui-dialog>
 
 <x-tallui-page-header
@@ -151,6 +169,7 @@
                     </div>
                 </div>
 
+                @if ($canApproveCredit)
                 <div class="mt-4 rounded-xl border border-base-200 bg-base-100">
                     <button
                         type="button"
@@ -185,6 +204,7 @@
                         </div>
                     @endif
                 </div>
+                @endif
             </div>
         @endif
     </x-tallui-card>

@@ -9,6 +9,7 @@ use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, ProductPrice, ProductVariant, SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\{DB, Gate};
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -53,12 +54,15 @@ class SaleOrderFormPage extends Component
 
     public string $credit_limit_dialog_message = '';
 
+    public bool $can_approve_credit = false;
+
     public array $items = [];
 
     public function mount(int|string|null $recordId = null, string $documentType = 'order'): void
     {
         $recordId = is_numeric($recordId) && (int) $recordId > 0 ? (int) $recordId : null;
 
+        $this->can_approve_credit = Gate::allows('inventory.sale-orders.approve-credit');
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
         $this->items = [$this->blankItem()];
@@ -169,7 +173,11 @@ class SaleOrderFormPage extends Component
             }
 
             $this->credit_limit_dialog_message = $exception->getMessage();
-            $this->show_credit_override_options = true;
+            $this->show_credit_override_options = $this->can_approve_credit;
+            $this->dispatch('open-dialog', 'sale-order-credit-limit-dialog');
+
+            return null;
+        } catch (AuthorizationException) {
             $this->dispatch('open-dialog', 'sale-order-credit-limit-dialog');
 
             return null;
@@ -221,6 +229,7 @@ class SaleOrderFormPage extends Component
             'editable'               => $this->canEdit(),
             'canOverridePrice'       => $this->canOverridePrice(),
             'canApplyDiscount'       => $this->canApplyDiscount(),
+            'canApproveCredit'       => $this->can_approve_credit,
             'record'                 => $this->recordId ? SaleOrder::query()->with(['customer', 'warehouse'])->find($this->recordId) : null,
             'documentLabel'          => $this->documentLabel(),
             'routeBase'              => $this->routeBase(),
