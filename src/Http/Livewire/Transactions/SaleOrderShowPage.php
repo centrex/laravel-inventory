@@ -70,10 +70,19 @@ class SaleOrderShowPage extends Component
 
     public function reserve(): void
     {
-        $this->runWorkflowAction(
-            fn (Inventory $inventory) => $inventory->reserveStock((int) $this->record->getKey()),
-            "Stock reserved for {$this->record->so_number}.",
-        );
+        try {
+            $so = app(Inventory::class)->reserveStock((int) $this->record->getKey());
+            $this->refreshRecord();
+
+            if (! empty($so->shortageWarnings)) {
+                $lines = implode('; ', $so->shortageWarnings);
+                $this->dispatch('notify', type: 'warning', message: "Reserved with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");
+            } else {
+                $this->dispatch('notify', type: 'success', message: "Stock reserved for {$this->record->so_number}.");
+            }
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+        }
     }
 
     public function fulfill(): void

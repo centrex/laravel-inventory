@@ -13,6 +13,7 @@ use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, SalesTarget
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Data;
 use DateTimeInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
@@ -1532,14 +1533,20 @@ class Inventory
     /** Reserve stock: increment qty_reserved for each line item. */
     public function reserveStock(int $soId): SaleOrder
     {
-        $so = SaleOrder::with('items')->findOrFail($soId);
+        $so = SaleOrder::with('items.product')->findOrFail($soId);
         $this->assertSaleOrderAccess($so);
 
-        if (!in_array($so->status, [SaleOrderStatus::CONFIRMED, SaleOrderStatus::PROCESSING])) {
+        if ($so->status === SaleOrderStatus::PROCESSING) {
+            throw new InvalidTransitionException("Stock is already reserved for sale order #{$soId}.");
+        }
+
+        if ($so->status !== SaleOrderStatus::CONFIRMED) {
             throw new InvalidTransitionException("Cannot reserve stock for sale order in status [{$so->status->value}].");
         }
 
-        return DB::transaction(function () use ($so): SaleOrder {
+        $shortages = [];
+
+        $result = DB::transaction(function () use ($so, &$shortages): SaleOrder {
             foreach ($so->items as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                     ->where('product_id', $item->product_id)
@@ -1547,14 +1554,23 @@ class Inventory
                     ->lockForUpdate()
                     ->first();
 
-                if (!$wp) {
-                    throw new InsufficientStockException("Product [{$item->product_id}] not found in warehouse [{$so->warehouse_id}].");
+                // Auto-create the warehouse product record if it has never been stocked here.
+                if (! $wp) {
+                    $wp = WarehouseProduct::create([
+                        'warehouse_id' => $so->warehouse_id,
+                        'product_id'   => $item->product_id,
+                        'variant_id'   => $item->variant_id,
+                        'qty_on_hand'  => 0,
+                        'qty_reserved' => 0,
+                        'wac_amount'   => 0,
+                    ]);
                 }
 
                 $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
 
                 if ($available < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance', 0.0001)) {
-                    throw new InsufficientStockException("Insufficient stock for product [{$item->product_id}]: available {$available}, required {$item->qty_ordered}.");
+                    $productName = $item->product?->name ?? "Product #{$item->product_id}";
+                    $shortages[] = "{$productName}: {$available} available, {$item->qty_ordered} required";
                 }
 
                 $wp->increment('qty_reserved', $item->qty_ordered);
@@ -1564,6 +1580,14 @@ class Inventory
 
             return $so->refresh();
         });
+
+        if ($shortages !== []) {
+            // Reservation succeeded but stock is short — the caller receives this via the
+            // returned array so the UI can surface a warning without blocking the action.
+            $result->shortageWarnings = $shortages;
+        }
+
+        return $result;
     }
 
     /**
