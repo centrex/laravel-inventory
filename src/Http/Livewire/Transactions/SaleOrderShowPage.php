@@ -94,8 +94,10 @@ class SaleOrderShowPage extends Component
 
             if ($this->financeDocument === null && Gate::allows('accounting.invoice.create')) {
                 $erp = app(ErpIntegration::class);
+
                 if ($erp->enabled()) {
                     $invoiceId = $erp->syncSaleOrderDocument($this->record);
+
                     if ($invoiceId) {
                         $this->refreshRecord();
                         $this->dispatch('notify', type: 'success', message: "Invoice created for {$this->record->so_number}.");
