@@ -13,7 +13,6 @@ use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, SalesTarget
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Data;
 use DateTimeInterface;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
@@ -1555,7 +1554,7 @@ class Inventory
                     ->first();
 
                 // Auto-create the warehouse product record if it has never been stocked here.
-                if (! $wp) {
+                if (!$wp) {
                     $wp = WarehouseProduct::create([
                         'warehouse_id' => $so->warehouse_id,
                         'product_id'   => $item->product_id,

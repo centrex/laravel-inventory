@@ -74,7 +74,7 @@ class SaleOrderShowPage extends Component
             $so = app(Inventory::class)->reserveStock((int) $this->record->getKey());
             $this->refreshRecord();
 
-            if (! empty($so->shortageWarnings)) {
+            if (!empty($so->shortageWarnings)) {
                 $lines = implode('; ', $so->shortageWarnings);
                 $this->dispatch('notify', type: 'warning', message: "Reserved with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");
             } else {
