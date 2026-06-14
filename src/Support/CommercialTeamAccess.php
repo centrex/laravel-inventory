@@ -238,7 +238,7 @@ final class CommercialTeamAccess
 
         return function (Builder $builder) use ($userId): void {
             $orderTable = $builder->getModel()->getTable();
-            $orderConn  = $builder->getModel()->getConnectionName();
+            $orderConn = $builder->getModel()->getConnectionName();
 
             if (!Schema::connection($orderConn)->hasColumn($orderTable, 'customer_id')) {
                 return;
