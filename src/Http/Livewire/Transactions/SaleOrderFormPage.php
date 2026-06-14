@@ -8,7 +8,6 @@ use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, ProductPrice, ProductVariant, SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\{DB, Gate};
 use Illuminate\Validation\ValidationException;
@@ -155,33 +154,22 @@ class SaleOrderFormPage extends Component
         $validated['coupon_code'] = $this->recordId ? ($this->coupon_code ?: null) : null;
         $this->assertStockAvailability($validated['items']);
 
-        try {
-            if ($this->recordId) {
-                $saleOrder = $this->updateOrder($validated);
-                $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} updated.");
-
-                return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
-            }
-
-            $saleOrder = app(Inventory::class)->createSaleOrder($validated);
-            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
+        if ($this->recordId) {
+            $saleOrder = $this->updateOrder($validated);
+            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} updated.");
 
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
-        } catch (\InvalidArgumentException $exception) {
-            if (!str_contains($exception->getMessage(), 'exceeds credit limit')) {
-                throw $exception;
-            }
-
-            $this->credit_limit_dialog_message = $exception->getMessage();
-            $this->show_credit_override_options = $this->can_approve_credit;
-            $this->dispatch('open-dialog', 'sale-order-credit-limit-dialog');
-
-            return null;
-        } catch (AuthorizationException) {
-            $this->dispatch('open-dialog', 'sale-order-credit-limit-dialog');
-
-            return null;
         }
+
+        $saleOrder = app(Inventory::class)->createSaleOrder($validated);
+
+        if ($saleOrder->credit_override_required) {
+            $this->dispatch('notify', type: 'warning', message: "{$this->documentLabel()} {$saleOrder->so_number} created. Customer has exceeded their credit limit — the order has been flagged for credit review.");
+        } else {
+            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
+        }
+
+        return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
     }
 
     public function render(): View

@@ -4004,24 +4004,18 @@ class Inventory
             ];
         }
 
-        $creditOverrideRequested = (bool) ($data['credit_override'] ?? $data['credit_override_required'] ?? false);
+        // Credit limit breached: flag the order for review rather than blocking it.
+        // Approve automatically only when the submitter holds the approve-credit gate.
         $approvedBy = $data['credit_override_approved_by'] ?? $data['created_by'] ?? $this->currentUserId();
-
-        if (!$creditOverrideRequested) {
-            throw new \InvalidArgumentException("Customer [{$customer->name}] exceeds credit limit. Exposure after this order would be {$creditExposureAfter} against a limit of {$creditLimit}.");
-        }
-
-        if (!$this->canApproveCreditOverride($approvedBy)) {
-            throw new AuthorizationException('A higher authority approval is required to override the customer credit limit.');
-        }
+        $canApprove = $this->canApproveCreditOverride($approvedBy);
 
         return [
             'credit_limit_amount'           => $creditLimit,
             'credit_exposure_before_amount' => $creditExposureBefore,
             'credit_exposure_after_amount'  => $creditExposureAfter,
             'credit_override_required'      => true,
-            'credit_override_approved_by'   => $approvedBy,
-            'credit_override_approved_at'   => now(),
+            'credit_override_approved_by'   => $canApprove ? $approvedBy : null,
+            'credit_override_approved_at'   => $canApprove ? now() : null,
             'credit_override_notes'         => $data['credit_override_notes'] ?? null,
         ];
     }
