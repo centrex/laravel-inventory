@@ -87,10 +87,24 @@ class SaleOrderShowPage extends Component
 
     public function fulfill(): void
     {
-        $this->runWorkflowAction(
-            fn (Inventory $inventory) => $inventory->fulfillSaleOrder((int) $this->record->getKey()),
-            "{$this->record->so_number} fulfilled.",
-        );
+        try {
+            app(Inventory::class)->fulfillSaleOrder((int) $this->record->getKey());
+            $this->refreshRecord();
+            $this->dispatch('notify', type: 'success', message: "{$this->record->so_number} fulfilled.");
+
+            if ($this->financeDocument === null && Gate::allows('accounting.invoice.create')) {
+                $erp = app(ErpIntegration::class);
+                if ($erp->enabled()) {
+                    $invoiceId = $erp->syncSaleOrderDocument($this->record);
+                    if ($invoiceId) {
+                        $this->refreshRecord();
+                        $this->dispatch('notify', type: 'success', message: "Invoice created for {$this->record->so_number}.");
+                    }
+                }
+            }
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+        }
     }
 
     public function cancel(): void
