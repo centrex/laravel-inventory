@@ -7,6 +7,7 @@ namespace Centrex\Inventory\Models;
 use Centrex\Inventory\Concerns\{AddTablePrefix, HasPrimaryImage};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use Illuminate\Support\Str;
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\MediaLibrary\HasMedia;
@@ -24,7 +25,10 @@ use Spatie\MediaLibrary\HasMedia;
  * @property array|null $variant_names JSON map of dimension labels, e.g. {"size":"Large","color":"Red"}
  * @property string $sku
  * @property string $name
+ * @property string|null $slug URL-friendly slug; auto-generated from name if blank
  * @property string|null $description
+ * @property string|null $meta_title SEO page title override
+ * @property string|null $meta_description SEO meta description override (max 500 chars)
  * @property string|null $unit Unit of measure (pcs, kg, …)
  * @property float|null $weight_kg
  * @property string|null $barcode
@@ -53,8 +57,41 @@ class Product extends Model implements Auditable, HasMedia
         $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Product $product): void {
+            if (! filled($product->slug)) {
+                $product->slug = static::uniqueSlug(Str::slug((string) $product->name));
+            }
+        });
+
+        static::updating(function (Product $product): void {
+            if (! filled($product->slug)) {
+                $product->slug = static::uniqueSlug(Str::slug((string) $product->name), $product->getKey());
+            }
+        });
+    }
+
+    private static function uniqueSlug(string $base, ?int $ignoreId = null): string
+    {
+        $slug = $base ?: 'product';
+        $suffix = 1;
+
+        while (
+            static::withTrashed()
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->where('slug', $slug)
+                ->exists()
+        ) {
+            $slug = $base . '-' . $suffix++;
+        }
+
+        return $slug;
+    }
+
     protected $fillable = [
-        'category_id', 'brand_id', 'variant_names', 'sku', 'name', 'description',
+        'category_id', 'brand_id', 'variant_names', 'sku', 'name', 'slug', 'description',
+        'meta_title', 'meta_description',
         'unit', 'weight_kg', 'barcode', 'is_active', 'is_stockable', 'costing_method', 'meta',
     ];
 

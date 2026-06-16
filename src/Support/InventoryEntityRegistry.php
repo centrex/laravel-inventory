@@ -65,14 +65,17 @@ class InventoryEntityRegistry
                 'label'         => 'Products',
                 'singular'      => 'Product',
                 'model'         => Product::class,
-                'search'        => ['sku', 'name', 'barcode'],
+                'search'        => ['sku', 'name', 'barcode', 'slug'],
                 'index_columns' => ['sku', 'name', 'category_id', 'brand_id', 'unit', 'weight_kg', 'is_active', 'is_stockable'],
                 'form_fields'   => [
                     self::field('category_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductCategory())->getTable() . ',id'], null, ProductCategory::class, 'name'),
                     self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),
                     self::field('sku', 'text', ['required', 'string', 'max:100']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
+                    self::field('slug', 'text', ['nullable', 'string', 'max:200'], null, null, null, null, 'URL Slug (auto-generated if blank)'),
                     self::field('description', 'textarea', ['nullable', 'string']),
+                    self::field('meta_title', 'text', ['nullable', 'string', 'max:200'], null, null, null, null, 'SEO Title (overrides product name in <title>)'),
+                    self::field('meta_description', 'textarea', ['nullable', 'string', 'max:500'], null, null, null, null, 'SEO Meta Description (max 500 chars)'),
                     self::field('unit', 'text', ['required', 'string', 'max:30'], 'pcs'),
                     self::field('weight_kg', 'number', ['nullable', 'numeric', 'min:0']),
                     self::field('barcode', 'text', ['nullable', 'string', 'max:100']),
@@ -294,7 +297,7 @@ class InventoryEntityRegistry
         foreach ($definition['form_fields'] as $field) {
             $fieldRules = $field['rules'];
 
-            if (in_array($field['name'], ['code', 'slug', 'sku', 'barcode'], true)) {
+            if (in_array($field['name'], ['code', 'slug', 'sku', 'barcode'], true) && filled($field['rules'] ?? [])) {
                 $fieldRules[] = Rule::unique($table, $field['name'])->ignore($record?->getKey());
             }
 
