@@ -60,13 +60,13 @@ class Product extends Model implements Auditable, HasMedia
     protected static function booted(): void
     {
         static::creating(function (Product $product): void {
-            if (! filled($product->slug)) {
+            if (!filled($product->slug)) {
                 $product->slug = static::uniqueSlug(Str::slug((string) $product->name));
             }
         });
 
         static::updating(function (Product $product): void {
-            if (! filled($product->slug)) {
+            if (!filled($product->slug)) {
                 $product->slug = static::uniqueSlug(Str::slug((string) $product->name), $product->getKey());
             }
         });
