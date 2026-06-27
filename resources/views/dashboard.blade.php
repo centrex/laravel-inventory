@@ -17,9 +17,7 @@
         <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" target="_blank" />
         <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Shipment" icon="o-paper-airplane" :link="route('inventory.shipments.index')" class="btn-outline btn-sm" />
-        @if(Route::has('inventory.entities.warehouse-products.index'))
-        <x-tallui-button label="Warehouse Stock" icon="o-cube" :link="route('inventory.entities.warehouse-products.index')" class="btn-outline btn-sm" />
-        @endif
+        <x-tallui-button label="Warehouse Stocks" icon="o-cube" :link="route('inventory.entities.warehouse-products.index')" class="btn-outline btn-sm" />
         @if ($canViewForecast)
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Heat Map" icon="o-map" :link="route('inventory.reports.customer-heatmap')" class="btn-outline btn-sm" />
@@ -32,7 +30,7 @@
 </x-tallui-page-header>
 
     {{-- Quick actions --}}
-    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
         @if(Route::has('payroll.entities.employees.index'))
         <a href="{{ route('payroll.entities.employees.index') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
@@ -74,6 +72,11 @@
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-paper-airplane class="w-7 h-7 text-primary" />
             <span class="text-sm font-medium">Shipments</span>
+        </a>
+        <a href="{{ route('inventory.entities.warehouse-products.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-cube class="w-7 h-7 text-success" />
+            <span class="text-sm font-medium">Warehouse Stocks</span>
         </a>
         @if ($canViewForecast)
         <a href="{{ route('inventory.reports.index') }}"
