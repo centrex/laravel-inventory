@@ -10,10 +10,10 @@
         @if(Route::has('payroll.entities.employees.index'))
         <x-tallui-button label="Employees" icon="o-identification" :link="route('payroll.entities.employees.index')" class="btn-outline btn-sm" />
         @endif
-        <x-tallui-button label="Purchase" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.create')" class="btn-outline btn-sm" />
-        <x-tallui-button label="Requisition" icon="o-clipboard-document-check" :link="route('inventory.requisitions.create')" class="btn-outline btn-sm" />
-        <x-tallui-button label="Sale" icon="o-shopping-cart" :link="route('inventory.sale-orders.create')" class="btn-outline btn-sm" />
-        <x-tallui-button label="Quotation" icon="o-document-duplicate" :link="route('inventory.quotations.create')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Purchase" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Requisition" icon="o-clipboard-document-check" :link="route('inventory.requisitions.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Sale" icon="o-shopping-cart" :link="route('inventory.sale-orders.index')" class="btn-outline btn-sm" />
+        <x-tallui-button label="Quotation" icon="o-document-duplicate" :link="route('inventory.quotations.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" target="_blank" />
         <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Shipment" icon="o-paper-airplane" :link="route('inventory.shipments.index')" class="btn-outline btn-sm" />
