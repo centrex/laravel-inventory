@@ -102,7 +102,7 @@ class SyncExchangeRatesCommand extends Command
                     return true;
                 }
 
-                $count = $client->importRates($rates, $base, $rateDate);
+                $count = $client->importRates($rates, $base, $rateDate, $date);
                 $this->info("✓ {$date}: {$count} rate(s) saved.");
 
                 return true;

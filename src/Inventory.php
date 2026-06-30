@@ -58,17 +58,16 @@ class Inventory
     {
         $baseCurrency = strtoupper(config('inventory.base_currency', 'BDT'));
         $currency = strtoupper($currency);
-        $fetchedAt = Carbon::parse($date ?? now()->toDateString())->endOfDay();
+        $effectiveDate = $date ?? now()->toDateString();
+        $fetchedAt = Carbon::parse($effectiveDate)->endOfDay();
 
         OpenExchangeRate::upsertRates([
             $currency => $rate,
-        ], $baseCurrency, $fetchedAt);
+        ], $baseCurrency, $fetchedAt, $effectiveDate);
 
         return OpenExchangeRate::query()
             ->where('base', $baseCurrency)
-            ->where('currency', $currency)
-            ->where('fetched_at', '<=', $fetchedAt->toDateTimeString())
-            ->latest('fetched_at')
+            ->whereDate('date', $effectiveDate)
             ->firstOrFail();
     }
 
@@ -160,14 +159,7 @@ class Inventory
     /** Return the most-recent stored rate for (base, currency) on or before $asOf, or null if not found. */
     private function lookupExchangeRate(string $base, string $currency, Carbon $asOf): ?float
     {
-        $row = OpenExchangeRate::query()
-            ->where('base', strtoupper($base))
-            ->where('currency', strtoupper($currency))
-            ->where('fetched_at', '<=', $asOf->toDateTimeString())
-            ->orderByDesc('fetched_at')
-            ->first();
-
-        return $row ? (float) $row->rate : null;
+        return OpenExchangeRate::asOf($currency, $base, $asOf->toDateString())?->rateFor($currency);
     }
 
     // -------------------------------------------------------------------------
