@@ -125,6 +125,11 @@ class Product extends Model implements Auditable, HasMedia
         return $this->name . ' (' . implode(', ', $dims) . ')';
     }
 
+    public function getActiveAttribute(): bool
+    {
+        return (bool) $this->is_active;
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(ProductCategory::class, 'category_id');
