@@ -14,6 +14,7 @@ use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Data;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
 use Illuminate\Validation\ValidationException;
@@ -391,7 +392,12 @@ class Inventory
     private function nextNumber(string $prefix, string $model, string $column): string
     {
         $today = now()->format('Ymd');
-        $latest = $model::query()
+
+        $query = in_array(SoftDeletes::class, class_uses_recursive($model), true)
+            ? $model::withTrashed()
+            : $model::query();
+
+        $latest = $query
             ->where($column, 'like', "{$prefix}-%")
             ->lockForUpdate()
             ->orderByDesc($column)
