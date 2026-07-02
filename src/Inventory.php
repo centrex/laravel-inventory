@@ -392,7 +392,7 @@ class Inventory
     {
         $today = now()->format('Ymd');
         $latest = $model::query()
-            ->where($column, 'like', "{$prefix}-{$today}-%")
+            ->where($column, 'like', "{$prefix}-%")
             ->lockForUpdate()
             ->orderByDesc($column)
             ->value($column);
