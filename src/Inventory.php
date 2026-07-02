@@ -13,8 +13,7 @@ use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, SalesTarget
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Data;
 use DateTimeInterface;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
 use Illuminate\Validation\ValidationException;
