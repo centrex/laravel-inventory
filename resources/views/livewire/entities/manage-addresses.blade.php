@@ -140,7 +140,10 @@
 {{-- Add / Edit Address Modal --}}
 <x-tallui-modal id="address-modal" :title="$editId ? 'Edit Address' : 'Add Address'" icon="o-map-pin" size="xl">
     <x-slot:trigger>
-        <span x-effect="if ($wire.showModal) $dispatch('open-modal', 'address-modal'); else $dispatch('close-modal', 'address-modal')"></span>
+        <span
+            x-effect="if ($wire.showModal) $dispatch('open-modal', 'address-modal'); else $dispatch('close-modal', 'address-modal')"
+            @modal-closed.window="if ($event.detail === 'address-modal') $wire.showModal = false"
+        ></span>
     </x-slot:trigger>
 
     <form wire:submit.prevent="save" class="space-y-4">
