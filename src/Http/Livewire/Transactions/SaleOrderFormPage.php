@@ -43,6 +43,8 @@ class SaleOrderFormPage extends Component
 
     public bool $show_notes = false;
 
+    public bool $show_order_details = true;
+
     public bool $show_credit_override_options = false;
 
     public bool $credit_override = false;
@@ -105,6 +107,11 @@ class SaleOrderFormPage extends Component
     public function toggleNotes(): void
     {
         $this->show_notes = !$this->show_notes;
+    }
+
+    public function toggleOrderDetails(): void
+    {
+        $this->show_order_details = !$this->show_order_details;
     }
 
     public function toggleCreditOverrideOptions(): void

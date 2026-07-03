@@ -56,6 +56,27 @@
 
     {{-- Header --}}
     <x-tallui-card title="Order Details" subtitle="Customer, default price tier, and order adjustments." icon="o-banknotes" :shadow="true">
+        <x-slot:actions>
+            <x-tallui-button
+                :label="$show_order_details ? 'Collapse' : 'Expand'"
+                :icon="$show_order_details ? 'o-chevron-up' : 'o-chevron-down'"
+                class="btn-ghost btn-sm"
+                type="button"
+                wire:click="toggleOrderDetails"
+            />
+        </x-slot:actions>
+
+        @unless ($show_order_details)
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-base-content/70">
+                <span><span class="text-base-content/50">Warehouse:</span> {{ $warehouses->firstWhere('id', $warehouse_id)?->name ?? 'Not set' }}</span>
+                <span class="text-base-content/30">·</span>
+                <span><span class="text-base-content/50">Customer:</span> {{ $selectedCustomer ? ($selectedCustomer->organization_name ?: $selectedCustomer->name) : 'Walk-in' }}</span>
+                <span class="text-base-content/30">·</span>
+                <span><span class="text-base-content/50">Price Tier:</span> {{ collect($priceTiers)->firstWhere('code', $price_tier_code)['name'] ?? $price_tier_code }}</span>
+            </div>
+        @endunless
+
+        @if ($show_order_details)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <x-tallui-form-group label="Warehouse *" :error="$errors->first('warehouse_id')">
                 <x-tallui-select name="warehouse_id" wire:model.live="warehouse_id" class="{{ $errors->has('warehouse_id') ? 'select-error' : '' }}">
@@ -206,6 +227,7 @@
                 </div>
                 @endif
             </div>
+        @endif
         @endif
     </x-tallui-card>
 

@@ -31,14 +31,15 @@ class ErpIntegration
                 ->first();
 
         $payload = [
-            'code'           => $customer->code,
-            'name'           => $customer->name,
-            'email'          => $customer->email,
-            'phone'          => $customer->phone,
-            'currency'       => $customer->currency ?? config('inventory.base_currency', 'BDT'),
-            'is_active'      => (bool) $customer->is_active,
-            'modelable_type' => InventoryCustomer::class,
-            'modelable_id'   => $customer->id,
+            'code'              => $customer->code,
+            'name'              => $customer->name,
+            'organization_name' => $customer->organization_name,
+            'email'             => $customer->email,
+            'phone'             => $customer->phone,
+            'currency'          => $customer->currency ?? config('inventory.base_currency', 'BDT'),
+            'is_active'         => (bool) $customer->is_active,
+            'modelable_type'    => InventoryCustomer::class,
+            'modelable_id'      => $customer->id,
         ];
 
         if ($accountingCustomer) {
