@@ -9,8 +9,7 @@ use Centrex\Inventory\Models\Customer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Queue\{InteractsWithQueue, SerializesModels};
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -31,13 +30,13 @@ class RecalculateCustomerCreditExposureJob implements ShouldQueue
 
     public function handle(): void
     {
-        if (! class_exists(\Centrex\Accounting\Models\Invoice::class)) {
+        if (!class_exists(\Centrex\Accounting\Models\Invoice::class)) {
             return;
         }
 
         $customer = Customer::find($this->customerId);
 
-        if (! $customer) {
+        if (!$customer) {
             return;
         }
 
@@ -57,7 +56,7 @@ class RecalculateCustomerCreditExposureJob implements ShouldQueue
         foreach ($saleOrders as $saleOrder) {
             $invoice = $invoices->get($saleOrder->accounting_invoice_id);
 
-            if (! $invoice) {
+            if (!$invoice) {
                 continue;
             }
 
@@ -65,17 +64,17 @@ class RecalculateCustomerCreditExposureJob implements ShouldQueue
 
             $saleOrder->updateQuietly([
                 'paid_amount' => round(max(0.0, (float) $invoice->paid_amount * $rate), 4),
-                'due_amount' => round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4),
+                'due_amount'  => round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4),
             ]);
         }
 
         $snapshot = Inventory::customerCreditSnapshot($this->customerId);
 
         Log::info('inventory.customer_credit_exposure_recalculated', [
-            'customer_id' => $this->customerId,
-            'outstanding_exposure' => $snapshot['outstanding_exposure'],
+            'customer_id'             => $this->customerId,
+            'outstanding_exposure'    => $snapshot['outstanding_exposure'],
             'available_credit_amount' => $snapshot['available_credit_amount'],
-            'is_over_limit' => $snapshot['is_over_limit'],
+            'is_over_limit'           => $snapshot['is_over_limit'],
         ]);
     }
 }

@@ -33,7 +33,7 @@ class InvoicePaymentObserver
         }
 
         $saleOrders->pluck('customer_id')->unique()->each(
-            fn (int $customerId) => RecalculateCustomerCreditExposureJob::dispatch($customerId)
+            fn (int $customerId) => RecalculateCustomerCreditExposureJob::dispatch($customerId),
         );
     }
 }
