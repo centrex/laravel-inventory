@@ -221,7 +221,7 @@ class InventoryEntityRegistry
                 'label'         => 'Product Prices',
                 'singular'      => 'Product Price',
                 'model'         => ProductPrice::class,
-                'search'        => [],
+                'search'        => ['currency'],
                 'index_columns' => ['product_id', 'price_tier_code', 'warehouse_id', 'price_amount', 'cost_price', 'moq', 'preorder_moq', 'currency', 'effective_from', 'effective_to', 'is_active'],
                 'form_fields'   => [
                     self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),

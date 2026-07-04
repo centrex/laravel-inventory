@@ -167,14 +167,14 @@ class EntityIndexPage extends Component
             $query->with($relations);
         }
 
-        if ($this->search !== '' && $definition['search'] !== []) {
+        if ($this->search !== '' && ($definition['search'] !== [] || in_array($this->entity, ['warehouse-products', 'product-prices'], true))) {
             $search = $this->search;
             $query->where(function ($builder) use ($definition, $search): void {
                 foreach ($definition['search'] as $column) {
                     $builder->orWhere($column, 'like', '%' . $search . '%');
                 }
 
-                if ($this->entity === 'warehouse-products') {
+                if (in_array($this->entity, ['warehouse-products', 'product-prices'], true)) {
                     $builder->orWhereHas('product', fn ($q) => $q
                         ->where('sku', 'like', '%' . $search . '%')
                         ->orWhere('name', 'like', '%' . $search . '%'));
