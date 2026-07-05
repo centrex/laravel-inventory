@@ -10,14 +10,30 @@
         @if(Route::has('payroll.entities.employees.index'))
         <x-tallui-button label="Employees" icon="o-identification" :link="route('payroll.entities.employees.index')" class="btn-outline btn-sm" />
         @endif
+        @can('inventory.purchase-orders.view')
         <x-tallui-button label="Purchase" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.purchase-orders.view')
         <x-tallui-button label="Requisition" icon="o-clipboard-document-check" :link="route('inventory.requisitions.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.sale-orders.view')
         <x-tallui-button label="Sale" icon="o-shopping-cart" :link="route('inventory.sale-orders.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.sale-orders.view')
         <x-tallui-button label="Quotation" icon="o-document-duplicate" :link="route('inventory.quotations.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.channels.checkout')
         <x-tallui-button label="POS" icon="o-device-phone-mobile" :link="route('inventory.pos.index')" class="btn-outline btn-sm" target="_blank" />
+        @endcan
+        @can('inventory.transfers.view')
         <x-tallui-button label="Transfer" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.shipments.view')
         <x-tallui-button label="Shipment" icon="o-paper-airplane" :link="route('inventory.shipments.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.master-data.view')
         <x-tallui-button label="Warehouse Stocks" icon="o-cube" :link="route('inventory.entities.warehouse-products.index')" class="btn-outline btn-sm" />
+        @endcan
         @if ($canViewForecast)
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
         <x-tallui-button label="Heat Map" icon="o-map" :link="route('inventory.reports.customer-heatmap')" class="btn-outline btn-sm" />
@@ -25,7 +41,9 @@
         @if(Route::has('payroll.entries.index'))
         <x-tallui-button label="Payroll" icon="o-users" :link="route('payroll.entries.index')" class="btn-outline btn-sm" />
         @endif
+        @can('inventory.adjustments.create')
         <x-tallui-button label="Adjustment" icon="o-scale" :link="route('inventory.adjustments.create')" class="btn-primary btn-sm" />
+        @endcan
     </x-slot:actions>
 </x-tallui-page-header>
 
@@ -51,46 +69,62 @@
             <span class="text-sm font-medium">Employees</span>
         </a>
         @endif
+        @can('inventory.purchase-orders.create')
         <a href="{{ route('inventory.purchase-orders.create') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-arrow-down-tray class="w-7 h-7 text-primary" />
             <span class="text-sm font-medium">New Purchase</span>
         </a>
+        @endcan
+        @can('inventory.purchase-orders.create')
         <a href="{{ route('inventory.requisitions.create') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-clipboard-document-check class="w-7 h-7 text-warning" />
             <span class="text-sm font-medium">Requisition</span>
         </a>
+        @endcan
+        @can('inventory.sale-orders.create')
         <a href="{{ route('inventory.sale-orders.create') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-shopping-cart class="w-7 h-7 text-success" />
             <span class="text-sm font-medium">New Sale</span>
         </a>
+        @endcan
+        @can('inventory.sale-orders.create')
         <a href="{{ route('inventory.quotations.create') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-document-duplicate class="w-7 h-7 text-info" />
             <span class="text-sm font-medium">Quotation</span>
         </a>
+        @endcan
+        @can('inventory.channels.checkout')
         <a href="{{ route('inventory.pos.index') }}" target="_blank"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-device-phone-mobile class="w-7 h-7 text-secondary" />
             <span class="text-sm font-medium">POS Terminal</span>
         </a>
+        @endcan
+        @can('inventory.transfers.view')
         <a href="{{ route('inventory.transfers.index') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-arrows-right-left class="w-7 h-7 text-info" />
             <span class="text-sm font-medium">Transfers</span>
         </a>
+        @endcan
+        @can('inventory.shipments.view')
         <a href="{{ route('inventory.shipments.index') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-paper-airplane class="w-7 h-7 text-primary" />
             <span class="text-sm font-medium">Shipments</span>
         </a>
+        @endcan
+        @can('inventory.master-data.view')
         <a href="{{ route('inventory.entities.warehouse-products.index') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-cube class="w-7 h-7 text-success" />
             <span class="text-sm font-medium">Warehouse Stocks</span>
         </a>
+        @endcan
         @if ($canViewForecast)
         <a href="{{ route('inventory.reports.index') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
@@ -103,11 +137,13 @@
             <span class="text-sm font-medium">Heat Map</span>
         </a>
         @endif
+        @can('inventory.adjustments.create')
         <a href="{{ route('inventory.adjustments.create') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
             <x-heroicon-o-scale class="w-7 h-7 text-warning" />
             <span class="text-sm font-medium">Adjustment</span>
         </a>
+        @endcan
         @if(Route::has('payroll.entries.index'))
         <a href="{{ route('payroll.entries.index') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
@@ -529,6 +565,7 @@
 {{-- Master data entities --}}
 <x-tallui-card title="Master Data" subtitle="Open CRUD screens for inventory master tables." icon="o-squares-2x2" :shadow="true">
     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        @can('inventory.master-data.view')
         @foreach ($entities as $entity => $definition)
             <a href="{{ route("inventory.entities.{$entity}.index") }}"
                class="flex flex-col gap-1 p-4 rounded-xl border border-base-200 bg-base-100 hover:border-primary hover:bg-base-200 transition group">
@@ -540,6 +577,7 @@
                 <span class="text-xs text-base-content/50">Manage records</span>
             </a>
         @endforeach
+        @endcan
 
         {{-- Expenses shortcut --}}
         @if(Route::has('accounting.expenses'))

@@ -13,11 +13,21 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
+        @can('inventory.transfers.view')
         <x-tallui-button label="Transfers" icon="o-arrows-right-left" :link="route('inventory.transfers.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.shipments.view')
         <x-tallui-button label="Shipments" icon="o-paper-airplane" :link="route('inventory.shipments.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.purchase-orders.view')
         <x-tallui-button label="Purchases" icon="o-arrow-down-tray" :link="route('inventory.purchase-orders.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.sale-orders.view')
         <x-tallui-button label="Sales" icon="o-shopping-cart" :link="route('inventory.sale-orders.index')" class="btn-outline btn-sm" />
+        @endcan
+        @can('inventory.reports.view')
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-primary btn-sm" />
+        @endcan
     </x-slot:actions>
 </x-tallui-page-header>
 
