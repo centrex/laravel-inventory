@@ -64,9 +64,9 @@ class ProductPriceSheetIndexPage extends Component
             ->groupBy(fn (ProductPrice $price): string => $price->product_id . ':' . $price->warehouse_id);
 
         $rows = $stockRows->getCollection()->map(fn (WarehouseProduct $stock): array => [
-            'product' => $stock->product,
+            'product'   => $stock->product,
             'warehouse' => $stock->warehouse,
-            'prices' => collect($tiers)->mapWithKeys(
+            'prices'    => collect($tiers)->mapWithKeys(
                 fn (PriceTierCode $tier) => [
                     $tier->value => $prices
                         ->get($stock->product_id . ':' . $stock->warehouse_id, collect())
@@ -76,9 +76,9 @@ class ProductPriceSheetIndexPage extends Component
         ]);
 
         return view('inventory::livewire.entities.product-price-sheet-index', [
-            'rows' => $rows,
-            'stockRows' => $stockRows,
-            'tiers' => $tiers,
+            'rows'       => $rows,
+            'stockRows'  => $stockRows,
+            'tiers'      => $tiers,
             'warehouses' => Warehouse::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
