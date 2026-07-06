@@ -3,7 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
-use Centrex\Inventory\Http\Livewire\Entities\{CustomerShowPage, EntityFormPage, EntityIndexPage};
+use Centrex\Inventory\Http\Livewire\Entities\{CustomerShowPage, EntityFormPage, EntityIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage};
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, CustomerHeatMapPage, DispatchTerminalPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
@@ -19,7 +19,15 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
 
         Route::get('/customers/{recordId}', CustomerShowPage::class)->name('entities.customers.show');
 
+        // Product prices are edited per (product, warehouse) — all tiers at once — rather than as raw rows.
+        Route::get('/product-prices', ProductPriceSheetIndexPage::class)->name('entities.product-prices.index');
+        Route::get('/product-prices/{recordId}/{warehouseId}/edit', ProductPriceSheetFormPage::class)->name('entities.product-prices.edit');
+
         foreach (InventoryEntityRegistry::masterDataEntities() as $entity) {
+            if ($entity === 'product-prices') {
+                continue;
+            }
+
             Route::get("/{$entity}", EntityIndexPage::class)->name("entities.{$entity}.index")->defaults('entity', $entity);
             Route::get("/{$entity}/create", EntityFormPage::class)->name("entities.{$entity}.create")->defaults('entity', $entity);
             Route::get("/{$entity}/{recordId}/edit", EntityFormPage::class)->name("entities.{$entity}.edit")->defaults('entity', $entity);

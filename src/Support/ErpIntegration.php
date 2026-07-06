@@ -168,9 +168,11 @@ class ErpIntegration
                     'description'   => $this->itemDescription($item->product, (float) $item->qty_ordered),
                     'itemable_type' => Product::class,
                     'itemable_id'   => $item->product_id,
-                    'quantity'      => 1,
-                    'unit_price'    => round((float) $item->line_total_amount, 2),
+                    'quantity'      => (int) $item->qty_ordered,
+                    'unit_price'    => round((float) $item->unit_price_local, 2),
+                    'amount'        => round((float) $item->line_total_local, 2),
                     'tax_rate'      => 0,
+                    'tax_amount'    => 0,
                     'reference'     => $saleOrder->so_number,
                 ]);
             }
@@ -182,6 +184,45 @@ class ErpIntegration
         }
 
         return (int) $invoice->id;
+    }
+
+    /**
+     * Void the invoice linked to a cancelled sale order, reversing its journal entry if one
+     * was posted. Invoices that have already received a payment are left untouched — voiding
+     * would misrepresent money that was actually collected — so cancellation doesn't silently
+     * erase that; it needs a manual accounting decision instead.
+     */
+    public function voidSaleOrderInvoice(SaleOrder $saleOrder): void
+    {
+        if (!$this->enabled() || !$saleOrder->accounting_invoice_id) {
+            return;
+        }
+
+        $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
+        $invoice = $invoiceClass::find($saleOrder->accounting_invoice_id);
+
+        if (!$invoice) {
+            return;
+        }
+
+        $status = $invoice->status instanceof \BackedEnum ? $invoice->status->value : (string) $invoice->status;
+
+        if ($status === 'void' || (float) $invoice->paid_amount > 0) {
+            return;
+        }
+
+        DB::connection($invoice->getConnectionName())->transaction(function () use ($invoice): void {
+            if ($invoice->journal_entry_id) {
+                $entry = \Centrex\Accounting\Models\JournalEntry::find($invoice->journal_entry_id);
+                $entryStatus = $entry?->status instanceof \BackedEnum ? $entry->status->value : (string) $entry?->status;
+
+                if ($entry && $entryStatus === 'posted') {
+                    $entry->void();
+                }
+            }
+
+            $invoice->update(['status' => 'void']);
+        });
     }
 
     public function syncPurchaseOrderDocument(PurchaseOrder $purchaseOrder): ?int
@@ -254,9 +295,11 @@ class ErpIntegration
                     'description'   => $this->itemDescription($item->product, (float) $item->qty_ordered),
                     'itemable_type' => Product::class,
                     'itemable_id'   => $item->product_id,
-                    'quantity'      => 1,
-                    'unit_price'    => round((float) $item->line_total_amount, 2),
+                    'quantity'      => (int) $item->qty_ordered,
+                    'unit_price'    => round((float) $item->unit_price_local, 2),
+                    'amount'        => round((float) $item->line_total_local, 2),
                     'tax_rate'      => 0,
+                    'tax_amount'    => 0,
                     'reference'     => $purchaseOrder->po_number,
                 ]);
             }

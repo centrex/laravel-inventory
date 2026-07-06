@@ -1084,6 +1084,13 @@ class Inventory
                 ]);
             }
 
+            // order_role/agent_customer_id/paired_sale_order_id belong to the optional
+            // laravel-inventory-pro add-on (not in this model's $fillable), so an explicit
+            // value is written directly rather than through mass assignment.
+            if (!empty($data['order_role']) && Schema::hasColumn($so->getTable(), 'order_role')) {
+                DB::table($so->getTable())->where('id', $so->id)->update(['order_role' => $data['order_role']]);
+            }
+
             return $so->fresh(['customer', 'items.product']);
         });
 
@@ -1521,7 +1528,6 @@ class Inventory
         $this->assertSaleOrderAccess($so);
         $this->assertTransition($so->status, SaleOrderStatus::CONFIRMED, "sale order #{$soId}");
         $so->update(['status' => SaleOrderStatus::CONFIRMED]);
-        $this->erp()->syncSaleOrderDocument($so->fresh(['customer', 'items.product']));
 
         return $so;
     }
@@ -1773,7 +1779,7 @@ class Inventory
         $this->assertSaleOrderAccess($so);
         $this->assertTransition($so->status, SaleOrderStatus::CANCELLED, "sale order #{$soId}");
 
-        return DB::transaction(function () use ($so): SaleOrder {
+        $result = DB::transaction(function () use ($so): SaleOrder {
             if (in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true)) {
                 foreach ($so->items as $item) {
                     $reserved = (float) $item->qty_ordered - (float) $item->qty_fulfilled;
@@ -1798,6 +1804,10 @@ class Inventory
 
             return $so->refresh();
         });
+
+        $this->erp()->voidSaleOrderInvoice($result);
+
+        return $result;
     }
 
     // -------------------------------------------------------------------------

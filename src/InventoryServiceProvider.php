@@ -56,6 +56,7 @@ class InventoryServiceProvider extends ServiceProvider
                 SnapshotTrendsCommand::class,
                 SyncExchangeRatesCommand::class,
                 Commands\FitCustomerClvCommand::class,
+                Commands\VoidCancelledOrderInvoicesCommand::class,
             ]);
 
             $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
