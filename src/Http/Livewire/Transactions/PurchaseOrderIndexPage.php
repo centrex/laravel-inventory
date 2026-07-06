@@ -62,8 +62,11 @@ class PurchaseOrderIndexPage extends Component
             $query->where('status', $this->status);
         }
 
+        $orders = $query->paginate(15);
+
         return view('inventory::livewire.transactions.purchase-order-index', [
-            'orders'        => $query->paginate(15),
+            'orders'        => $orders,
+            'dueAmounts'    => $this->resolveDueAmounts($orders),
             'documentLabel' => $this->documentType === 'requisition' ? 'Requisitions' : 'Purchase Orders',
             'routeBase'     => $this->documentType === 'requisition' ? 'inventory.requisitions' : 'inventory.purchase-orders',
             'statusOptions' => [
@@ -75,5 +78,53 @@ class PurchaseOrderIndexPage extends Component
                 'cancelled' => 'Cancelled',
             ],
         ]);
+    }
+
+    /**
+     * Resolves outstanding balance per purchase order via the linked accounting Bill
+     * (matched by accounting_bill_id, source polymorphic reference, or inventory_purchase_order_id).
+     * Orders without a bill yet are assumed fully due (nothing paid).
+     */
+    private function resolveDueAmounts(\Illuminate\Contracts\Pagination\LengthAwarePaginator $orders): array
+    {
+        $billClass = \Centrex\Accounting\Models\Bill::class;
+
+        if (!class_exists($billClass)) {
+            return [];
+        }
+
+        $poIds = $orders->pluck('id')->all();
+        $billIds = $orders->pluck('accounting_bill_id')->filter()->all();
+
+        if ($poIds === []) {
+            return [];
+        }
+
+        $bills = $billClass::query()
+            ->where(function ($query) use ($poIds, $billIds): void {
+                if ($billIds !== []) {
+                    $query->orWhereIn('id', $billIds);
+                }
+
+                $query->orWhere(function ($sourceQuery) use ($poIds): void {
+                    $sourceQuery->where('source_type', PurchaseOrder::class)->whereIn('source_id', $poIds);
+                });
+                $query->orWhereIn('inventory_purchase_order_id', $poIds);
+            })
+            ->get();
+
+        $dueAmounts = [];
+
+        foreach ($orders as $order) {
+            $bill = $bills->first(fn ($candidate): bool => (int) $candidate->getKey() === (int) $order->accounting_bill_id
+                || ((string) $candidate->source_type === PurchaseOrder::class && (int) $candidate->source_id === (int) $order->getKey())
+                || (int) $candidate->inventory_purchase_order_id === (int) $order->getKey());
+
+            if ($bill !== null) {
+                $dueAmounts[$order->getKey()] = (float) $bill->balance;
+            }
+        }
+
+        return $dueAmounts;
     }
 }

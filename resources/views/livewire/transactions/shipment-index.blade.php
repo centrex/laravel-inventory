@@ -49,7 +49,11 @@
                         <td class="pl-5 font-mono font-semibold">{{ $shipment->shipment_number }}</td>
                         <td>{{ $shipment->fromWarehouse?->name ?? '—' }}</td>
                         <td>{{ $shipment->toWarehouse?->name ?? '—' }}</td>
-                        <td>{{ $shipment->status?->label() ?? ucfirst((string) $shipment->status) }}</td>
+                        <td>
+                            <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($shipment->status)">
+                                {{ $shipment->status?->label() ?? ucfirst((string) $shipment->status) }}
+                            </x-tallui-badge>
+                        </td>
                         <td>{{ number_format((int) $shipment->boxes_count) }}</td>
                         <td>{{ number_format((float) $shipment->total_weight_kg, 2) }} kg</td>
                         <td>{{ number_format((float) $shipment->shipping_cost_amount, 2) }}</td>

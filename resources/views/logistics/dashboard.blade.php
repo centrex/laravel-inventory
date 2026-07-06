@@ -47,7 +47,7 @@
                         <div class="font-medium">{{ $order->so_number }}</div>
                         <div class="text-xs text-base-content/60">{{ $order->customer?->name ?? 'Walk-in' }} · {{ $order->warehouse?->name ?? '—' }}</div>
                     </div>
-                    <x-tallui-badge type="warning">{{ $order->status?->label() ?? $order->status }}</x-tallui-badge>
+                    <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($order->status)">{{ $order->status?->label() ?? $order->status }}</x-tallui-badge>
                 </div>
             @empty
                 <p class="text-sm text-base-content/60">No sales are waiting on logistics.</p>
@@ -63,7 +63,7 @@
                         <div class="font-medium">{{ $order->po_number }}</div>
                         <div class="text-xs text-base-content/60">{{ $order->supplier?->name ?? '—' }} · {{ $order->expected_at?->format('M d, Y') ?? 'No ETA' }}</div>
                     </div>
-                    <x-tallui-badge type="info">{{ $order->status?->label() ?? $order->status }}</x-tallui-badge>
+                    <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($order->status)">{{ $order->status?->label() ?? $order->status }}</x-tallui-badge>
                 </div>
             @empty
                 <p class="text-sm text-base-content/60">No open purchase orders.</p>
@@ -79,7 +79,7 @@
                         <div class="font-medium">{{ $transfer->transfer_number }}</div>
                         <div class="text-xs text-base-content/60">{{ $transfer->fromWarehouse?->name ?? '—' }} to {{ $transfer->toWarehouse?->name ?? '—' }}</div>
                     </div>
-                    <x-tallui-badge type="primary">{{ $transfer->status?->label() ?? $transfer->status }}</x-tallui-badge>
+                    <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($transfer->status)">{{ $transfer->status?->label() ?? $transfer->status }}</x-tallui-badge>
                 </div>
             @empty
                 <p class="text-sm text-base-content/60">No recent transfers.</p>
@@ -95,7 +95,7 @@
                         <div class="font-medium">{{ $shipment->shipment_number }}</div>
                         <div class="text-xs text-base-content/60">{{ $shipment->fromWarehouse?->name ?? '—' }} to {{ $shipment->toWarehouse?->name ?? '—' }}</div>
                     </div>
-                    <x-tallui-badge type="info">{{ $shipment->status?->label() ?? $shipment->status }}</x-tallui-badge>
+                    <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($shipment->status)">{{ $shipment->status?->label() ?? $shipment->status }}</x-tallui-badge>
                 </div>
             @empty
                 <p class="text-sm text-base-content/60">No recent shipments.</p>

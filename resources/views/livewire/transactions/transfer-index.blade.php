@@ -46,7 +46,11 @@
                         <td class="pl-5 font-mono font-semibold">{{ $transfer->transfer_number }}</td>
                         <td>{{ $transfer->fromWarehouse?->name ?? '—' }}</td>
                         <td>{{ $transfer->toWarehouse?->name ?? '—' }}</td>
-                        <td>{{ $transfer->status?->label() ?? ucfirst((string) $transfer->status) }}</td>
+                        <td>
+                            <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($transfer->status)">
+                                {{ $transfer->status?->label() ?? ucfirst((string) $transfer->status) }}
+                            </x-tallui-badge>
+                        </td>
                         <td>{{ number_format((float) $transfer->total_weight_kg, 2) }} kg</td>
                         <td>{{ number_format((float) $transfer->shipping_cost_amount, 2) }}</td>
                         <td class="pr-5 text-right">

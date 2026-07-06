@@ -46,22 +46,12 @@
                     <th class="py-3">Status</th>
                     <th class="py-3">Currency</th>
                     <th class="py-3 text-right pr-4">Total</th>
+                    <th class="py-3 text-right pr-4">Due</th>
                     <th class="py-3 pr-5 text-right">Actions</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-base-200">
                 @forelse ($orders as $order)
-                    @php
-                        $statusClass = match($order->status?->value) {
-                            'draft'     => 'bg-base-200 text-base-content/60',
-                            'submitted' => 'bg-blue-100 text-blue-700',
-                            'confirmed' => 'bg-violet-100 text-violet-700',
-                            'partial'   => 'bg-amber-100 text-amber-700',
-                            'received'  => 'bg-emerald-100 text-emerald-700',
-                            'cancelled' => 'bg-red-100 text-red-600',
-                            default     => 'bg-base-200 text-base-content/60',
-                        };
-                    @endphp
                     <tr class="hover:bg-base-50 transition-colors">
                         <td class="pl-5 py-3 font-mono text-sm font-semibold">
                             {{ $order->po_number }}
@@ -76,15 +66,19 @@
                             {{ $order->warehouse?->name ?? '—' }}
                         </td>
                         <td class="py-3">
-                            <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $statusClass }}">
+                            <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($order->status)">
                                 {{ $order->status?->label() ?? '—' }}
-                            </span>
+                            </x-tallui-badge>
                         </td>
                         <td class="py-3 text-sm">
                             <span class="text-xs text-base-content/40 mr-0.5">{{ $order->currency }} </span>
                         </td>
                         <td class="py-3 pr-4 text-right font-mono text-sm font-medium whitespace-nowrap">
                             {{ number_format((float) $order->total_local, 2) }}
+                        </td>
+                        <td class="py-3 pr-4 text-right font-mono text-sm font-medium whitespace-nowrap">
+                            @php $due = $dueAmounts[$order->getKey()] ?? (float) $order->total_local; @endphp
+                            <span class="{{ $due > 0 ? 'text-error' : 'text-success' }}">{{ number_format($due, 2) }}</span>
                         </td>
                         <td class="py-3 pr-5">
                             <div class="flex justify-end gap-1">
@@ -102,7 +96,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="py-12">
+                        <td colspan="8" class="py-12">
                             <x-tallui-empty-state
                                 title="No purchase orders yet"
                                 description="Create your first purchase order to manage supplier buying."

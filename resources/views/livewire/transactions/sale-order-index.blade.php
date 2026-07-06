@@ -41,6 +41,7 @@
                     <th>Warehouse</th>
                     <th>Status</th>
                     <th>Total</th>
+                    <th>Due</th>
                     <th class="pr-5 text-right">Actions</th>
                 </tr>
             </thead>
@@ -60,8 +61,15 @@
                             @endif
                         </td>
                         <td class="text-sm">{{ $order->warehouse?->name ?? '—' }}</td>
-                        <td class="text-sm">{{ $order->status?->label() ?? '—' }}</td>
+                        <td class="text-sm">
+                            <x-tallui-badge :type="\Centrex\Inventory\Support\StatusBadge::type($order->status)">
+                                {{ $order->status?->label() ?? '—' }}
+                            </x-tallui-badge>
+                        </td>
                         <td class="text-sm font-medium">{{ number_format((float) $order->total_local, 2) }}</td>
+                        <td class="text-sm font-medium">
+                            <span class="{{ (float) $order->due_amount > 0 ? 'text-error' : 'text-success' }}">{{ number_format((float) $order->due_amount, 2) }}</span>
+                        </td>
                         <td class="pr-5">
                             <div class="flex justify-end gap-1">
                                 <x-tallui-button icon="o-eye" :link="route($routeBase . '.show', ['recordId' => $order->getKey()])" class="btn-ghost btn-xs" label="View" :responsive="true" />
@@ -80,7 +88,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="py-8">
+                        <td colspan="8" class="py-8">
                             <x-tallui-empty-state title="No sale orders yet" description="Create your first sale order to start managing customer transactions." icon="o-shopping-bag" size="sm">
                                 <x-tallui-button :label="$documentLabel === 'Quotations' ? 'New Quote' : 'New Sale'" icon="o-plus" :link="route($routeBase . '.create')" class="btn-primary btn-sm" />
                             </x-tallui-empty-state>

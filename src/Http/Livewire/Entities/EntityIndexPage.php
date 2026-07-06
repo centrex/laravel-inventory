@@ -120,7 +120,12 @@ class EntityIndexPage extends Component
             return SupplierExporter::download($query->get(), 'suppliers-' . now()->format('Ymd-His') . '.xls');
         }
 
-        $query = WarehouseProduct::query()->with(['warehouse', 'product', 'variant']);
+        $query = WarehouseProduct::query()->with(['warehouse', 'product', 'variant'])
+            ->where(function ($builder): void {
+                $builder->where('qty_on_hand', '>', 0)
+                    ->orWhere('qty_reserved', '>', 0)
+                    ->orWhere('qty_in_transit', '>', 0);
+            });
 
         if ($this->filterWarehouseId !== null) {
             $query->where('warehouse_id', $this->filterWarehouseId);
@@ -185,8 +190,16 @@ class EntityIndexPage extends Component
             });
         }
 
-        if ($this->entity === 'warehouse-products' && $this->filterWarehouseId !== null) {
-            $query->where('warehouse_id', $this->filterWarehouseId);
+        if ($this->entity === 'warehouse-products') {
+            $query->where(function ($builder): void {
+                $builder->where('qty_on_hand', '>', 0)
+                    ->orWhere('qty_reserved', '>', 0)
+                    ->orWhere('qty_in_transit', '>', 0);
+            });
+
+            if ($this->filterWarehouseId !== null) {
+                $query->where('warehouse_id', $this->filterWarehouseId);
+            }
         }
 
         $warehouses = $this->entity === 'warehouse-products'
