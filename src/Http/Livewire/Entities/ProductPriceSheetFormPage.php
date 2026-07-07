@@ -14,9 +14,12 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class ProductPriceSheetFormPage extends Component
 {
-    public int $recordId;
+    // Not strictly `int` — Livewire's hydration sets properties directly (bypassing
+    // mount()'s type coercion) on every subsequent request; a round-tripped string
+    // value would otherwise throw a TypeError. Cast to int at each point of use.
+    public int|string $recordId;
 
-    public int $warehouseId;
+    public int|string $warehouseId;
 
     public Product $product;
 
@@ -75,7 +78,7 @@ class ProductPriceSheetFormPage extends Component
                 continue;
             }
 
-            app(Inventory::class)->setPrice($this->recordId, $tierCode, (float) $data['price_amount'], $this->warehouseId, [
+            app(Inventory::class)->setPrice((int) $this->recordId, $tierCode, (float) $data['price_amount'], (int) $this->warehouseId, [
                 'variant_id' => $this->variantId,
                 'cost_price' => $data['cost_price'] !== null && $data['cost_price'] !== '' ? (float) $data['cost_price'] : null,
                 'moq'        => $data['moq'] ?: 1,

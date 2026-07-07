@@ -14,7 +14,10 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class CustomerShowPage extends Component
 {
-    public int $recordId;
+    // Not strictly `int` — Livewire's nested-component hydration sets this property
+    // directly (bypassing mount()'s type coercion), and a round-tripped string value
+    // would otherwise throw a TypeError. Cast to int at each point of use instead.
+    public int|string $recordId;
 
     public function mount(int $recordId): void
     {
@@ -23,18 +26,20 @@ class CustomerShowPage extends Component
 
     public function render(): View
     {
+        $recordId = (int) $this->recordId;
+
         $query = Customer::query();
         CommercialTeamAccess::applySalesScope($query);
-        $customer = $query->findOrFail($this->recordId);
+        $customer = $query->findOrFail($recordId);
 
         $inventory = app(Inventory::class);
 
         return view('inventory::livewire.entities.customer-show', [
             'customer'               => $customer,
             'addresses'              => $customer->addresses()->orderByDesc('is_primary')->orderByDesc('created_at')->get(),
-            'customerCreditSnapshot' => $inventory->customerCreditSnapshot($this->recordId),
-            'customerAnalytics'      => $inventory->customerAnalytics($this->recordId),
-            'customerHistory'        => $inventory->customerHistory($this->recordId),
+            'customerCreditSnapshot' => $inventory->customerCreditSnapshot($recordId),
+            'customerAnalytics'      => $inventory->customerAnalytics($recordId),
+            'customerHistory'        => $inventory->customerHistory($recordId),
         ]);
     }
 }

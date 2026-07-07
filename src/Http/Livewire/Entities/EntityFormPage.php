@@ -17,7 +17,10 @@ class EntityFormPage extends Component
 
     public string $entity = '';
 
-    public ?int $recordId = null;
+    // Not strictly `int` — this nests <livewire:inventory-manage-addresses>, and Livewire's
+    // hydration sets properties directly (bypassing mount()'s type coercion); a round-tripped
+    // string value would otherwise throw a TypeError.
+    public int|string|null $recordId = null;
 
     public array $form = [];
 

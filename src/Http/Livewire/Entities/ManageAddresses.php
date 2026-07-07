@@ -14,7 +14,10 @@ class ManageAddresses extends Component
 {
     public string $entity = '';
 
-    public int $recordId = 0;
+    // Not strictly `int` — this is a nested component, so Livewire's hydration sets
+    // this property directly (bypassing mount()'s type coercion); a round-tripped
+    // string value would otherwise throw a TypeError. Cast to int at point of use.
+    public int|string $recordId = 0;
 
     public bool $showModal = false;
 
@@ -158,7 +161,7 @@ class ManageAddresses extends Component
 
     private function ownerModel(): Model
     {
-        return InventoryEntityRegistry::makeModel($this->entity)->newQuery()->findOrFail($this->recordId);
+        return InventoryEntityRegistry::makeModel($this->entity)->newQuery()->findOrFail((int) $this->recordId);
     }
 
     private function findAddress(int $id): Model
