@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types = 1);
+
 return [
 
     /*
@@ -21,7 +23,6 @@ return [
         'warehouse_name' => env('INVENTORY_PURCHASE_DEFAULT_WAREHOUSE', 'UK'),
         'currency'       => env('INVENTORY_PURCHASE_DEFAULT_CURRENCY', 'GBP'),
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -129,23 +130,23 @@ return [
     'user_foreign_keys'    => env('INVENTORY_USER_FOREIGN_KEYS', false),
 
     // Roles that grant back-office partner access (view own orders, create partner orders)
-    'partner_roles'           => env('INVENTORY_PARTNER_ROLES', 'dropshipper,ecom-partner'),
+    'partner_roles' => env('INVENTORY_PARTNER_ROLES', 'dropshipper,ecom-partner'),
 
     // Roles that can see the Dispatcher tab on the dispatch terminal
-    'dispatcher_roles'        => env('INVENTORY_DISPATCHER_ROLES', 'dispatcher'),
+    'dispatcher_roles' => env('INVENTORY_DISPATCHER_ROLES', 'dispatcher'),
 
     // Roles that can see the Sale Updater tab on the dispatch terminal
-    'updater_roles'           => env('INVENTORY_UPDATER_ROLES', 'sales-manager,logistics-manager'),
+    'updater_roles' => env('INVENTORY_UPDATER_ROLES', 'sales-manager,logistics-manager'),
 
     // Roles allowed to override the system-resolved unit price on a sale order line.
     // Admins (inventory.admin_roles) always bypass this check.
-    'price_override_roles'    => env('INVENTORY_PRICE_OVERRIDE_ROLES', ''),
+    'price_override_roles' => env('INVENTORY_PRICE_OVERRIDE_ROLES', ''),
 
     // Roles allowed to apply a line-level discount % or an order-level discount amount.
     // Admins (inventory.admin_roles) always bypass this check.
-    'discount_roles'          => env('INVENTORY_DISCOUNT_ROLES', ''),
+    'discount_roles' => env('INVENTORY_DISCOUNT_ROLES', ''),
     // Middleware for the partner API key endpoints (no session required — uses X-Partner-Key header)
-    'partner_api_middleware'  => ['api'],
+    'partner_api_middleware' => ['api'],
 
     /*
     |--------------------------------------------------------------------------
@@ -154,13 +155,17 @@ return [
     */
     'erp' => [
         'accounting' => [
-            'enabled' => env('INVENTORY_ACCOUNTING_ENABLED', true),
+            'enabled'  => env('INVENTORY_ACCOUNTING_ENABLED', true),
             'accounts' => [
                 'inventory_asset'      => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
                 'cost_of_goods_sold'   => env('INVENTORY_ACCOUNTING_COGS', '5000'),
                 'goods_received_clear' => env('INVENTORY_ACCOUNTING_GRNI', '2000'),
                 'inventory_gain'       => env('INVENTORY_ACCOUNTING_GAIN', '4900'),
                 'inventory_loss'       => env('INVENTORY_ACCOUNTING_LOSS', '5000'),
+                'accounts_receivable'  => env('INVENTORY_ACCOUNTING_AR', '1200'),
+                'accounts_payable'     => env('INVENTORY_ACCOUNTING_AP', '2000'),
+                'sales_returns'        => env('INVENTORY_ACCOUNTING_SALES_RETURNS', '6134'),
+                'purchase_returns'     => env('INVENTORY_ACCOUNTING_PURCHASE_RETURNS', '5504'),
             ],
         ],
     ],

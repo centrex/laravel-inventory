@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, SaleOrder, StockReceipt, Supplier as InventorySupplier};
+use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, PurchaseReturn, SaleOrder, SaleReturn, StockReceipt, Supplier as InventorySupplier};
 use Illuminate\Support\Facades\DB;
 
 class ErpIntegration
@@ -490,6 +490,195 @@ class ErpIntegration
         $adjustment->forceFill(['accounting_journal_entry_id' => $entry->id])->saveQuietly();
 
         return (int) $entry->id;
+    }
+
+    /**
+     * Post the accounting effect of a customer return: always reverses the inventory/COGS
+     * pairing that fulfillment recognized, and — only when the originating sale order has a
+     * posted accounting invoice — additionally credits AR (debiting Sales Returns & Allowances)
+     * for the returned revenue, mirroring how a discount is netted off AR.
+     */
+    public function postSaleReturn(SaleReturn $saleReturn): ?int
+    {
+        if (!$this->enabled() || $saleReturn->accounting_journal_entry_id) {
+            return $saleReturn->accounting_journal_entry_id ? (int) $saleReturn->accounting_journal_entry_id : null;
+        }
+
+        $saleReturn->loadMissing(['items', 'saleOrder']);
+
+        $totalCost = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_cost_amount), 2);
+        $totalRevenue = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_price_amount), 2);
+
+        $lines = [];
+
+        if ($totalCost > 0) {
+            $lines[] = [
+                'account_id'  => $this->accountId('inventory_asset'),
+                'type'        => 'debit',
+                'amount'      => $totalCost,
+                'description' => 'Inventory restocked from customer return',
+            ];
+            $lines[] = [
+                'account_id'  => $this->accountId('cost_of_goods_sold'),
+                'type'        => 'credit',
+                'amount'      => $totalCost,
+                'description' => 'COGS reversal for customer return',
+            ];
+        }
+
+        $invoice = $this->postedInvoiceFor($saleReturn->saleOrder);
+
+        if ($invoice && $totalRevenue > 0) {
+            $lines[] = [
+                'account_id'  => $this->accountId('sales_returns'),
+                'type'        => 'debit',
+                'amount'      => $totalRevenue,
+                'description' => 'Sales returns & allowances',
+            ];
+            $lines[] = [
+                'account_id'  => $this->accountId('accounts_receivable'),
+                'type'        => 'credit',
+                'amount'      => $totalRevenue,
+                'description' => 'AR reduced for customer return',
+            ];
+        }
+
+        if ($lines === []) {
+            return null;
+        }
+
+        $entry = $this->createPostedJournalEntry([
+            'date'          => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
+            'reference'     => $saleReturn->return_number,
+            'type'          => 'inventory',
+            'description'   => "Customer return {$saleReturn->return_number}",
+            'currency'      => config('inventory.base_currency', 'BDT'),
+            'exchange_rate' => 1,
+            'created_by'    => $saleReturn->created_by,
+            'source_type'   => SaleReturn::class,
+            'source_id'     => $saleReturn->id,
+            'source_action' => 'sale_return',
+            'lines'         => $lines,
+        ]);
+
+        $saleReturn->forceFill(['accounting_journal_entry_id' => $entry->id])->saveQuietly();
+
+        // Audit/ledger record — not linked to $entry above (already booked as a line in it);
+        // this is what CustomerLedger reads to show the credit against the invoice's balance.
+        if ($invoice && $totalRevenue > 0) {
+            \Centrex\Accounting\Models\Expense::create([
+                'chargeable_type' => \Centrex\Accounting\Models\Invoice::class,
+                'chargeable_id'   => $invoice->id,
+                'account_id'      => $this->accountId('sales_returns'),
+                'expense_date'    => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
+                'subtotal'        => $totalRevenue,
+                'tax_amount'      => 0,
+                'total'           => $totalRevenue,
+                'paid_amount'     => $totalRevenue,
+                'currency'        => config('inventory.base_currency', 'BDT'),
+                'status'          => 'paid',
+                'payment_method'  => 'sale_return',
+                'reference'       => $saleReturn->return_number,
+                'notes'           => "Customer return {$saleReturn->return_number}",
+            ]);
+        }
+
+        return (int) $entry->id;
+    }
+
+    /**
+     * Post the accounting effect of a return to a supplier: only when the originating purchase
+     * order has a posted accounting bill, reverses the exact Inventory Asset / Accounts Payable
+     * pairing that bill recognized, for the returned cost. Without a posted bill there is no AP
+     * balance to reduce, so nothing is posted.
+     */
+    public function postPurchaseReturn(PurchaseReturn $purchaseReturn): ?int
+    {
+        if (!$this->enabled() || $purchaseReturn->accounting_journal_entry_id) {
+            return $purchaseReturn->accounting_journal_entry_id ? (int) $purchaseReturn->accounting_journal_entry_id : null;
+        }
+
+        $purchaseReturn->loadMissing(['items', 'purchaseOrder']);
+
+        $totalCost = round((float) $purchaseReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_cost_amount), 2);
+        $bill = $this->postedBillFor($purchaseReturn->purchaseOrder);
+
+        if (!$bill || $totalCost <= 0) {
+            return null;
+        }
+
+        $entry = $this->createPostedJournalEntry([
+            'date'          => $purchaseReturn->returned_at?->toDateString() ?? now()->toDateString(),
+            'reference'     => $purchaseReturn->return_number,
+            'type'          => 'inventory',
+            'description'   => "Supplier return {$purchaseReturn->return_number}",
+            'currency'      => config('inventory.base_currency', 'BDT'),
+            'exchange_rate' => 1,
+            'created_by'    => $purchaseReturn->created_by,
+            'source_type'   => PurchaseReturn::class,
+            'source_id'     => $purchaseReturn->id,
+            'source_action' => 'purchase_return',
+            'lines'         => [
+                [
+                    'account_id'  => $this->accountId('accounts_payable'),
+                    'type'        => 'debit',
+                    'amount'      => $totalCost,
+                    'description' => 'AP reduced for supplier return',
+                ],
+                [
+                    'account_id'  => $this->accountId('inventory_asset'),
+                    'type'        => 'credit',
+                    'amount'      => $totalCost,
+                    'description' => 'Inventory relieved for supplier return',
+                ],
+            ],
+        ]);
+
+        $purchaseReturn->forceFill(['accounting_journal_entry_id' => $entry->id])->saveQuietly();
+
+        // Audit/ledger record — not linked to $entry above (already booked as a line in it);
+        // this is what VendorLedger reads to show the credit against the bill's balance.
+        \Centrex\Accounting\Models\Expense::create([
+            'chargeable_type' => \Centrex\Accounting\Models\Bill::class,
+            'chargeable_id'   => $bill->id,
+            'account_id'      => $this->accountId('purchase_returns'),
+            'expense_date'    => $purchaseReturn->returned_at?->toDateString() ?? now()->toDateString(),
+            'subtotal'        => $totalCost,
+            'tax_amount'      => 0,
+            'total'           => $totalCost,
+            'paid_amount'     => $totalCost,
+            'currency'        => config('inventory.base_currency', 'BDT'),
+            'status'          => 'paid',
+            'payment_method'  => 'purchase_return',
+            'reference'       => $purchaseReturn->return_number,
+            'notes'           => "Supplier return {$purchaseReturn->return_number}",
+        ]);
+
+        return (int) $entry->id;
+    }
+
+    /** The linked accounting invoice for a sale order, only if it has actually been posted. */
+    private function postedInvoiceFor(?SaleOrder $saleOrder): ?\Centrex\Accounting\Models\Invoice
+    {
+        if (!$saleOrder?->accounting_invoice_id) {
+            return null;
+        }
+
+        $invoice = \Centrex\Accounting\Models\Invoice::find($saleOrder->accounting_invoice_id);
+
+        return $invoice && $invoice->journal_entry_id !== null ? $invoice : null;
+    }
+
+    /** The linked accounting bill for a purchase order, only if it has actually been posted. */
+    private function postedBillFor(?PurchaseOrder $purchaseOrder): ?\Centrex\Accounting\Models\Bill
+    {
+        if (!$purchaseOrder?->accounting_bill_id) {
+            return null;
+        }
+
+        $bill = \Centrex\Accounting\Models\Bill::find($purchaseOrder->accounting_bill_id);
+
+        return $bill && $bill->journal_entry_id !== null ? $bill : null;
     }
 
     private function createPostedJournalEntry(array $payload): \Centrex\Accounting\Models\JournalEntry

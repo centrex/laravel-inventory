@@ -1368,7 +1368,7 @@ class Inventory
             throw new InvalidTransitionException("Sale return #{$saleReturn->return_number} is already {$saleReturn->status}.");
         }
 
-        return DB::transaction(function () use ($saleReturn): SaleReturn {
+        $saleReturn = DB::transaction(function () use ($saleReturn): SaleReturn {
             foreach ($saleReturn->items as $item) {
                 $warehouseProduct = $this->lockWarehouseProduct($saleReturn->warehouse_id, $item->product_id, $item->variant_id);
                 $qty = (float) $item->qty_returned;
@@ -1402,6 +1402,10 @@ class Inventory
 
             return $saleReturn->fresh(['items.product', 'customer', 'warehouse', 'saleOrder']);
         });
+
+        $this->erp()->postSaleReturn($saleReturn);
+
+        return $saleReturn;
     }
 
     public function createPurchaseReturn(array $data): PurchaseReturn
@@ -1486,7 +1490,7 @@ class Inventory
             throw new InvalidTransitionException("Purchase return #{$purchaseReturn->return_number} is already {$purchaseReturn->status}.");
         }
 
-        return DB::transaction(function () use ($purchaseReturn): PurchaseReturn {
+        $purchaseReturn = DB::transaction(function () use ($purchaseReturn): PurchaseReturn {
             foreach ($purchaseReturn->items as $item) {
                 $warehouseProduct = $this->lockWarehouseProduct($purchaseReturn->warehouse_id, $item->product_id, $item->variant_id);
                 $qty = (float) $item->qty_returned;
@@ -1520,6 +1524,10 @@ class Inventory
 
             return $purchaseReturn->fresh(['items.product', 'supplier', 'warehouse', 'purchaseOrder']);
         });
+
+        $this->erp()->postPurchaseReturn($purchaseReturn);
+
+        return $purchaseReturn;
     }
 
     public function confirmSaleOrder(int $soId): SaleOrder

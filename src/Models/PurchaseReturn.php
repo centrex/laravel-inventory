@@ -36,6 +36,7 @@ class PurchaseReturn extends Model implements Auditable
         'returned_at',
         'notes',
         'created_by',
+        'accounting_journal_entry_id',
     ];
 
     protected $casts = [
