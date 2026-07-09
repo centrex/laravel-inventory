@@ -167,6 +167,42 @@
     </x-tallui-card>
 </div>
 
+<div class="mt-6">
+    <x-tallui-card title="Sold Products" subtitle="Units sold per product in the selected period, ranked by quantity. Draft and cancelled orders are excluded." icon="o-cube" :shadow="true" padding="none">
+        <div class="overflow-x-auto">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                        <th class="pl-5">Product</th>
+                        <th class="text-right">Qty Sold</th>
+                        <th class="text-right">Revenue</th>
+                        <th class="pr-5 text-right">Orders</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-base-200">
+                    @forelse ($soldProducts as $row)
+                        <tr class="hover:bg-base-50">
+                            <td class="pl-5">
+                                <div class="font-medium text-sm">{{ $row['name'] }}</div>
+                                <div class="text-xs text-base-content/50">{{ $row['sku'] ?: '—' }}</div>
+                            </td>
+                            <td class="text-right font-mono text-sm font-semibold">{{ number_format($row['qty_sold'], 2) }}</td>
+                            <td class="text-right font-mono text-sm">{{ number_format($row['revenue_local'], 2) }}</td>
+                            <td class="pr-5 text-right text-sm text-base-content/60">{{ $row['orders_count'] }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="4">
+                                <x-tallui-empty-state title="No products sold" description="No confirmed sale orders in this period yet." />
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-tallui-card>
+</div>
+
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2 mt-6">
     <x-tallui-card title="Product Forecast" subtitle="Product quantity forecast, stockout timing, and holistic requirement gap." icon="o-cube" :shadow="true">
         <div class="overflow-x-auto">

@@ -181,8 +181,11 @@ class ErpIntegration
 
         if ((int) $saleOrder->accounting_invoice_id !== (int) $invoice->id) {
             $saleOrder->forceFill(['accounting_invoice_id' => $invoice->id])->saveQuietly();
-            $this->resyncSaleOrderDueAmount($saleOrder, $invoice);
         }
+
+        // The invoice total may have just changed above (e.g. the sale order was edited),
+        // so always resync — not only on the first link — or due_amount goes stale.
+        $this->resyncSaleOrderDueAmount($saleOrder, $invoice);
 
         return (int) $invoice->id;
     }

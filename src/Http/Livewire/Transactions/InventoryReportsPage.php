@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{PurchaseOrder, SaleOrder};
+use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, SaleOrder, SaleOrderItem};
 use Centrex\Inventory\Support\CommercialTeamAccess;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
@@ -59,6 +59,7 @@ class InventoryReportsPage extends Component
         $salesMetrics = $this->buildSalesMetrics($saleOrders);
         $purchaseMetrics = $this->buildPurchaseMetrics($purchaseOrders);
         $paymentMetrics = $this->buildPaymentMetrics($this->startDate, $this->endDate);
+        $soldProducts = $this->buildSoldProductsReport();
         $forecast = $inventory->salesForecast(
             lookbackDays: $this->forecastLookbackDays(),
             forecastDays: $this->forecastHorizonDays(),
@@ -70,8 +71,64 @@ class InventoryReportsPage extends Component
             'salesMetrics'    => $salesMetrics,
             'purchaseMetrics' => $purchaseMetrics,
             'paymentMetrics'  => $paymentMetrics,
+            'soldProducts'    => $soldProducts,
             'forecast'        => $forecast,
         ]);
+    }
+
+    /**
+     * Units sold per product/variant in the selected date range, ranked by quantity.
+     * Draft and cancelled orders don't count as "sold". Scoped to the current user's
+     * commercial-team visibility, same as the sale orders list above.
+     */
+    private function buildSoldProductsReport(): Collection
+    {
+        $orderQuery = SaleOrder::query()
+            ->where('document_type', 'order')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
+            ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate));
+
+        CommercialTeamAccess::applySalesScope($orderQuery);
+
+        $orderIds = $orderQuery->pluck('id');
+
+        if ($orderIds->isEmpty()) {
+            return collect();
+        }
+
+        $rows = SaleOrderItem::query()
+            ->whereIn('sale_order_id', $orderIds)
+            ->selectRaw('product_id, variant_id, SUM(qty_ordered) as qty_sold, SUM(line_total_local) as revenue_local, COUNT(DISTINCT sale_order_id) as orders_count')
+            ->groupBy('product_id', 'variant_id')
+            ->orderByDesc('qty_sold')
+            ->limit(50)
+            ->get();
+
+        $productIds = $rows->pluck('product_id')->filter()->unique();
+        $variantIds = $rows->pluck('variant_id')->filter()->unique();
+
+        $products = $productIds->isEmpty()
+            ? collect()
+            : Product::query()->whereIn('id', $productIds)->get()->keyBy('id');
+        $variants = $variantIds->isEmpty()
+            ? collect()
+            : ProductVariant::query()->whereIn('id', $variantIds)->get()->keyBy('id');
+
+        return $rows->map(function (SaleOrderItem $row) use ($products, $variants): array {
+            $product = $products->get((int) $row->product_id);
+            $variant = $row->variant_id ? $variants->get((int) $row->variant_id) : null;
+
+            return [
+                'product_id'    => $row->product_id,
+                'variant_id'    => $row->variant_id,
+                'name'          => $variant?->display_name ?? $product?->name ?? ('Product #' . $row->product_id),
+                'sku'           => $variant?->sku ?: $product?->sku,
+                'qty_sold'      => round((float) $row->qty_sold, 2),
+                'revenue_local' => round((float) $row->revenue_local, 2),
+                'orders_count'  => (int) $row->orders_count,
+            ];
+        })->values();
     }
 
     private function buildSalesMetrics(Collection $saleOrders): array

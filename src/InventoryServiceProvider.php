@@ -112,8 +112,9 @@ class InventoryServiceProvider extends ServiceProvider
             'inventory.stock-receipts.void',
 
             // Sale orders
+            // Note: 'inventory.sale-orders.view-all' is defined separately below (it also
+            // checks inventory.sale_orders_view_all_roles, not just inventory.admin_roles).
             'inventory.sale-orders.view',
-            'inventory.sale-orders.view-all',   // bypass commercial-team scope; see every SO
             'inventory.sale-orders.create',
             'inventory.sale-orders.approve-credit',
             'inventory.sale-orders.confirm',
@@ -214,6 +215,41 @@ class InventoryServiceProvider extends ServiceProvider
                     return false;
                 });
             }
+        }
+
+        // Sale-order "view all" bypass for CommercialTeamAccess scoping. Unlike the generic
+        // abilities below (which only auto-grant via inventory.admin_roles or a Jetstream Team
+        // permission), this also checks inventory.sale_orders_view_all_roles — so a role like
+        // 'dispatcher' can see every sale order without being a full inventory admin.
+        if (!Gate::has('inventory.sale-orders.view-all')) {
+            Gate::define('inventory.sale-orders.view-all', function ($user): bool {
+                if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
+                    return true;
+                }
+
+                if (method_exists($user, 'allTeams') && method_exists($user, 'hasTeamPermission')) {
+                    try {
+                        if ($user->allTeams()->contains(
+                            fn ($team): bool => $user->hasTeamPermission($team, 'inventory.sale-orders.view-all'),
+                        )) {
+                            return true;
+                        }
+                    } catch (\Throwable) {
+                        // Fall through to role-based fallback.
+                    }
+                }
+
+                if (method_exists($user, 'hasRole')) {
+                    $roles = array_values(array_unique([
+                        ...$this->normalizeAdminRoles(config('inventory.admin_roles', [])),
+                        ...$this->normalizeAdminRoles(config('inventory.sale_orders_view_all_roles', '')),
+                    ]));
+
+                    return $roles !== [] && $user->hasRole($roles);
+                }
+
+                return false;
+            });
         }
 
         foreach ($abilities as $ability) {

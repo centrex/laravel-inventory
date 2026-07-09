@@ -138,6 +138,12 @@ return [
     // Roles that can see the Sale Updater tab on the dispatch terminal
     'updater_roles' => env('INVENTORY_UPDATER_ROLES', 'sales-manager,logistics-manager'),
 
+    // Roles that bypass CommercialTeamAccess scoping on the regular Sale Orders list/show/edit
+    // pages and see every sale order, regardless of team assignment (inventory.admin_roles
+    // always bypasses too — this is for roles that need the same reach without being full
+    // inventory admins, e.g. dispatchers who need to look up any order, not just their own).
+    'sale_orders_view_all_roles' => env('INVENTORY_SALE_ORDERS_VIEW_ALL_ROLES', ''),
+
     // Roles allowed to override the system-resolved unit price on a sale order line.
     // Admins (inventory.admin_roles) always bypass this check.
     'price_override_roles' => env('INVENTORY_PRICE_OVERRIDE_ROLES', ''),
