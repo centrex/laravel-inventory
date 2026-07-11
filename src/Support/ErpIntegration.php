@@ -127,14 +127,14 @@ class ErpIntegration
         $lockedStatuses = ['issued', 'settled', 'partially_settled', 'overdue'];
 
         $invoiceData = [
-            'customer_id'             => $customerId,
-            'invoice_date'            => $invoiceDate,
-            'due_date'                => $dueDate,
-            'subtotal'                => round((float) $saleOrder->subtotal_amount, 2),
-            'tax_amount'              => round((float) $saleOrder->tax_amount, 2),
-            'discount_amount'         => round((float) $saleOrder->discount_amount + (float) $saleOrder->coupon_discount_amount, 2),
-            'shipping_amount'         => round((float) $saleOrder->shipping_amount, 2),
-            'total'                   => round((float) $saleOrder->total_amount, 2),
+            'customer_id'     => $customerId,
+            'invoice_date'    => $invoiceDate,
+            'due_date'        => $dueDate,
+            'subtotal'        => round((float) $saleOrder->subtotal_amount, 2),
+            'tax_amount'      => round((float) $saleOrder->tax_amount, 2),
+            'discount_amount' => round((float) $saleOrder->discount_amount + (float) $saleOrder->coupon_discount_amount, 2),
+            'shipping_amount' => round((float) $saleOrder->shipping_amount, 2),
+            'total'           => round((float) $saleOrder->total_amount, 2),
             // The amounts above are already converted to base currency (see SaleOrder::total_amount
             // et al.), so the invoice must be booked in base currency too — otherwise Invoice's
             // convertToBase()/base_* accessors and the due-amount resync below would convert twice.
@@ -264,16 +264,16 @@ class ErpIntegration
         $lockedStatuses = ['issued', 'settled', 'partially_settled', 'overdue'];
 
         $billData = [
-            'vendor_id'                   => $vendorId,
-            'bill_date'                   => $billDate,
-            'due_date'                    => $dueDate,
-            'subtotal'                    => round((float) $purchaseOrder->subtotal_amount, 2),
-            'tax_amount'                  => round((float) $purchaseOrder->tax_amount, 2),
-            'discount_amount'             => round((float) $purchaseOrder->discount_amount, 2),
-            'shipping_amount'             => round((float) $purchaseOrder->shipping_amount, 2),
-            'other_charges_amount'        => round((float) $purchaseOrder->other_charges_amount, 2),
-            'grni_clearing_amount'        => $this->grniClearingAmountFor($purchaseOrder),
-            'total'                       => round((float) $purchaseOrder->total_amount, 2),
+            'vendor_id'            => $vendorId,
+            'bill_date'            => $billDate,
+            'due_date'             => $dueDate,
+            'subtotal'             => round((float) $purchaseOrder->subtotal_amount, 2),
+            'tax_amount'           => round((float) $purchaseOrder->tax_amount, 2),
+            'discount_amount'      => round((float) $purchaseOrder->discount_amount, 2),
+            'shipping_amount'      => round((float) $purchaseOrder->shipping_amount, 2),
+            'other_charges_amount' => round((float) $purchaseOrder->other_charges_amount, 2),
+            'grni_clearing_amount' => $this->grniClearingAmountFor($purchaseOrder),
+            'total'                => round((float) $purchaseOrder->total_amount, 2),
             // Same rationale as syncSaleOrderDocument(): these amounts are already in base
             // currency, so the bill must be booked in base currency to avoid double conversion.
             'currency'                    => config('inventory.base_currency', 'BDT'),
