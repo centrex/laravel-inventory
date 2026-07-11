@@ -15,6 +15,7 @@ class AdjustmentItemResource extends JsonResource
             'id'               => $this->id,
             'adjustment_id'    => $this->adjustment_id,
             'product_id'       => $this->product_id,
+            'variant_id'       => $this->variant_id,
             'qty_system'       => $this->qty_system,
             'qty_actual'       => $this->qty_actual,
             'qty_delta'        => $this->qty_delta,

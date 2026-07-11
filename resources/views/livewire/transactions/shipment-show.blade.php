@@ -40,7 +40,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Product</th>
                         <th class="text-right">Qty Sent</th>
                         <th class="text-right">Qty Received</th>
@@ -89,7 +89,7 @@
                 <div class="overflow-x-auto">
                     <table class="table table-sm w-full">
                         <thead>
-                            <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                            <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                                 <th class="pl-4">Product</th>
                                 <th>Variant</th>
                                 <th class="text-right">Qty Sent</th>
@@ -101,7 +101,7 @@
                         </thead>
                         <tbody>
                             @forelse ($box->items as $item)
-                                <tr>
+                                <tr class="even:bg-base-200/50 hover:bg-base-200">
                                     <td class="pl-4">{{ $item->product?->name ?? '—' }}</td>
                                     <td>{{ $item->variant?->name ?? $item->variant?->sku ?? '—' }}</td>
                                     <td class="text-right font-mono">{{ number_format((float) $item->qty_sent, 4) }}</td>
@@ -130,7 +130,7 @@
             <div class="overflow-x-auto">
                 <table class="table table-sm w-full">
                     <thead>
-                        <tr class="text-xs text-base-content/50 uppercase">
+                        <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                             <th>Product</th>
                             <th class="text-right w-24">Sent</th>
                             <th class="text-right w-24">Received</th>

@@ -51,6 +51,7 @@ class AdjustmentFormPage extends Component
             'notes'              => ['nullable', 'string'],
             'items'              => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer'],
+            'items.*.variant_id' => ['nullable', 'integer'],
             'items.*.qty_actual' => ['required', 'numeric'],
             'items.*.notes'      => ['nullable', 'string'],
         ]);
@@ -61,11 +62,20 @@ class AdjustmentFormPage extends Component
         return redirect()->route('inventory.adjustments.create');
     }
 
+    /** Clear the previously selected variant whenever the product for a row changes. */
+    public function updatedItems(mixed $value, string $key): void
+    {
+        if (str_ends_with($key, '.product_id')) {
+            $index = (int) explode('.', $key)[0];
+            $this->items[$index]['variant_id'] = null;
+        }
+    }
+
     public function render(): View
     {
         return view('inventory::livewire.transactions.adjustment-form', [
             'warehouses' => Warehouse::query()->orderBy('name')->get(),
-            'products'   => Product::query()->orderBy('name')->get(),
+            'products'   => Product::query()->with('variants')->orderBy('name')->get(),
             'reasons'    => AdjustmentReason::cases(),
         ]);
     }
@@ -74,6 +84,7 @@ class AdjustmentFormPage extends Component
     {
         return [
             'product_id' => null,
+            'variant_id' => null,
             'qty_actual' => 0,
             'notes'      => '',
         ];

@@ -35,7 +35,7 @@
     <div class="overflow-x-auto">
         <table class="table table-sm w-full">
             <thead>
-                <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                     <th class="pl-5">Product</th>
                     <th>Warehouse</th>
                     @foreach ($tiers as $tier)
@@ -46,7 +46,7 @@
             </thead>
             <tbody class="divide-y divide-base-200">
                 @forelse ($rows as $row)
-                    <tr class="hover:bg-base-50">
+                    <tr class="even:bg-base-200/50 hover:bg-base-200">
                         <td class="pl-5 py-2 text-sm">
                             <div class="font-medium">{{ $row['product']->name }}</div>
                             <div class="text-xs text-base-content/50">{{ $row['product']->sku }}</div>

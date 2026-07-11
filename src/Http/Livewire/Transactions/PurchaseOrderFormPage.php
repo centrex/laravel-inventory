@@ -9,7 +9,7 @@ use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\{DB, Gate};
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -47,6 +47,8 @@ class PurchaseOrderFormPage extends Component
     public function mount(int|string|null $recordId = null, string $documentType = 'order'): void
     {
         $recordId = is_numeric($recordId) && (int) $recordId > 0 ? (int) $recordId : null;
+
+        Gate::authorize($recordId === null ? 'inventory.purchase-orders.create' : 'inventory.purchase-orders.edit');
 
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
         $this->items = [$this->blankItem()];

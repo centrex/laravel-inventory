@@ -103,8 +103,11 @@ class InventoryServiceProvider extends ServiceProvider
             'inventory.purchase-orders.view',
             'inventory.purchase-orders.view-all', // bypass commercial-team scope; see every PO
             'inventory.purchase-orders.create',
+            'inventory.purchase-orders.edit',
             'inventory.purchase-orders.submit',
             'inventory.purchase-orders.confirm',
+            'inventory.purchase-orders.receive',
+            'inventory.purchase-orders.cancel',
 
             // Stock receipts (GRN)
             'inventory.stock-receipts.create',
@@ -116,6 +119,7 @@ class InventoryServiceProvider extends ServiceProvider
             // checks inventory.sale_orders_view_all_roles, not just inventory.admin_roles).
             'inventory.sale-orders.view',
             'inventory.sale-orders.create',
+            'inventory.sale-orders.edit',
             'inventory.sale-orders.approve-credit',
             'inventory.sale-orders.confirm',
             'inventory.sale-orders.reserve',
@@ -244,6 +248,37 @@ class InventoryServiceProvider extends ServiceProvider
                         ...$this->normalizeAdminRoles(config('inventory.admin_roles', [])),
                         ...$this->normalizeAdminRoles(config('inventory.sale_orders_view_all_roles', '')),
                     ]));
+
+                    return $roles !== [] && $user->hasRole($roles);
+                }
+
+                return false;
+            });
+        }
+
+        // High-value sale order confirmation — deliberately a separate role list from
+        // sale_order_high_value_confirm_roles rather than the generic inventory.admin_roles,
+        // since not every day-to-day admin should necessarily be trusted to confirm large orders.
+        if (!Gate::has('inventory.sale-orders.confirm-high-value')) {
+            Gate::define('inventory.sale-orders.confirm-high-value', function ($user): bool {
+                if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
+                    return true;
+                }
+
+                if (method_exists($user, 'allTeams') && method_exists($user, 'hasTeamPermission')) {
+                    try {
+                        if ($user->allTeams()->contains(
+                            fn ($team): bool => $user->hasTeamPermission($team, 'inventory.sale-orders.confirm-high-value'),
+                        )) {
+                            return true;
+                        }
+                    } catch (\Throwable) {
+                        // Fall through to role-based fallback.
+                    }
+                }
+
+                if (method_exists($user, 'hasRole')) {
+                    $roles = $this->normalizeAdminRoles(config('inventory.sale_order_high_value_confirm_roles', 'general_manager,system_administrator'));
 
                     return $roles !== [] && $user->hasRole($roles);
                 }

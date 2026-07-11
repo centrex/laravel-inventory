@@ -37,7 +37,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Product</th>
                         <th class="text-right">Qty Sent</th>
                         <th class="text-right">Qty Received</th>
@@ -76,7 +76,7 @@
             <div class="overflow-x-auto">
                 <table class="table table-sm w-full">
                     <thead>
-                        <tr class="text-xs text-base-content/50 uppercase">
+                        <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                             <th>Product</th>
                             <th class="text-right w-24">Sent</th>
                             <th class="text-right w-24">Already Received</th>

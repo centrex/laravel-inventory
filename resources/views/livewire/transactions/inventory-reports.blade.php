@@ -172,7 +172,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th class="pl-5">Product</th>
                         <th class="text-right">Qty Sold</th>
                         <th class="text-right">Revenue</th>
@@ -181,7 +181,7 @@
                 </thead>
                 <tbody class="divide-y divide-base-200">
                     @forelse ($soldProducts as $row)
-                        <tr class="hover:bg-base-50">
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5">
                                 <div class="font-medium text-sm">{{ $row['name'] }}</div>
                                 <div class="text-xs text-base-content/50">{{ $row['sku'] ?: '—' }}</div>
@@ -208,7 +208,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Product</th>
                         <th>Forecast</th>
                         <th>Available Soon</th>
@@ -218,7 +218,7 @@
                 </thead>
                 <tbody>
                     @forelse (data_get($forecast, 'products', []) as $product)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td>
                                 <div class="font-medium">{{ $product['product_name'] }}</div>
                                 <div class="text-xs text-base-content/60">{{ $product['sku'] ?: '—' }}</div>
@@ -251,7 +251,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Customer</th>
                         <th>Zone</th>
                         <th>Area</th>
@@ -265,7 +265,7 @@
                 </thead>
                 <tbody>
                     @forelse (data_get($forecast, 'customers', []) as $customer)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td>{{ $customer['customer_name'] }}</td>
                             <td>{{ $customer['zone'] ?? 'Unassigned' }}</td>
                             <td>{{ $customer['area'] ?? 'Unassigned' }}</td>
@@ -292,7 +292,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Zone</th>
                         <th>Segment</th>
                         <th>Customers</th>
@@ -303,7 +303,7 @@
                 </thead>
                 <tbody>
                     @forelse (data_get($forecast, 'zones', []) as $zone)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td>{{ $zone['zone'] ?? 'Unassigned' }}</td>
                             <td>{{ $zone['segment'] ?? 'New' }}</td>
                             <td>{{ $zone['customers_count'] }}</td>
@@ -325,7 +325,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Area</th>
                         <th>Segment</th>
                         <th>Customers</th>
@@ -336,7 +336,7 @@
                 </thead>
                 <tbody>
                     @forelse (data_get($forecast, 'areas', []) as $area)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td>{{ $area['area'] ?? 'Unassigned' }}</td>
                             <td>{{ $area['segment'] ?? 'New' }}</td>
                             <td>{{ $area['customers_count'] }}</td>
@@ -358,7 +358,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th>Demography</th>
                         <th>Segment</th>
                         <th>Customers</th>
@@ -369,7 +369,7 @@
                 </thead>
                 <tbody>
                     @forelse (data_get($forecast, 'demographics', []) as $demographic)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td>{{ $demographic['demographic_segment'] ?? 'Unassigned' }}</td>
                             <td>{{ $demographic['segment'] ?? 'New' }}</td>
                             <td>{{ $demographic['customers_count'] }}</td>

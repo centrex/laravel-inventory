@@ -61,8 +61,9 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th class="pl-5">Product</th>
+                        <th class="w-40">Variant</th>
                         <th class="w-32">Actual Qty</th>
                         <th>Notes</th>
                         <th class="pr-5 w-16"></th>
@@ -70,14 +71,27 @@
                 </thead>
                 <tbody class="divide-y divide-base-200">
                     @forelse ($items as $index => $item)
-                        <tr wire:key="adj-item-{{ $index }}" class="hover:bg-base-50">
+                        @php($selectedProduct = $products->firstWhere('id', (int) ($item['product_id'] ?? 0)))
+                        <tr wire:key="adj-item-{{ $index }}" class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5 py-2">
-                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model="items.{{ $index }}.product_id" class="select-sm w-full max-w-sm">
+                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model.live="items.{{ $index }}.product_id" class="select-sm w-full max-w-sm">
                                     <option value="">Select product…</option>
                                     @foreach ($products as $product)
                                         <option value="{{ $product->id }}">{{ $product->name }}</option>
                                     @endforeach
                                 </x-tallui-select>
+                            </td>
+                            <td class="py-2">
+                                @if ($selectedProduct && $selectedProduct->variants->isNotEmpty())
+                                    <x-tallui-select name="items.{{ $index }}.variant_id" wire:model="items.{{ $index }}.variant_id" class="select-sm w-full">
+                                        <option value="">Base product</option>
+                                        @foreach ($selectedProduct->variants as $variant)
+                                            <option value="{{ $variant->id }}">{{ $variant->display_name ?? $variant->sku }}</option>
+                                        @endforeach
+                                    </x-tallui-select>
+                                @else
+                                    <span class="text-xs text-base-content/40">—</span>
+                                @endif
                             </td>
                             <td class="py-2">
                                 <x-tallui-input name="items.{{ $index }}.qty_actual" type="number" step="0.0001" wire:model="items.{{ $index }}.qty_actual" class="input-sm text-right w-28" />
@@ -91,7 +105,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="py-6 text-center">
+                            <td colspan="5" class="py-6 text-center">
                                 <x-tallui-empty-state title="No items yet" description="Add products to adjust." icon="o-scale" size="sm">
                                     <x-tallui-button label="Add Line" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addItem" />
                                 </x-tallui-empty-state>

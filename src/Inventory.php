@@ -7,12 +7,14 @@ namespace Centrex\Inventory;
 use Carbon\Carbon;
 use Centrex\Accounting\Models\{Bill, Invoice};
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, ShipmentStatus, StockReceiptStatus, TransferStatus};
-use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
+use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException, StaleExchangeRateException};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentBox, ShipmentBoxItem, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, SalesTargetCalculator};
+use Centrex\LaravelOpenExchangeRates\Client as OpenExchangeRatesClient;
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Data;
 use DateTimeInterface;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
@@ -80,50 +82,153 @@ class Inventory
      *   3. If $currency is the anchor (e.g. USD): anchor → base
      *   4. Cross-rate: (anchor → base) / (anchor → currency)
      *
+     * When no stored rate covers the request and `inventory.exchange_rate_live_fetch` is enabled,
+     * falls back to a live Open Exchange Rates API call, persists the result to `oer_exchange_rates`
+     * for future lookups, and retries the resolution once.
+     *
      * Throws \RuntimeException when no rate can be resolved.
      */
     public function getExchangeRate(string $currency, ?string $date = null): float
     {
-        $currency = strtoupper($currency);
+        return $this->resolveExchangeRate(strtoupper($currency), $date, allowLiveFetch: true);
+    }
 
+    private function resolveExchangeRate(string $currency, ?string $date, bool $allowLiveFetch): float
+    {
         if ($currency === strtoupper(config('inventory.base_currency', 'BDT'))) {
             return 1.0;
         }
 
         $date ??= now()->toDateString();
+        $baseCurrency = strtoupper(config('inventory.base_currency', 'BDT'));
+        $anchorCurrency = strtoupper(config('laravel-open-exchange-rates.default_base_currency', 'USD'));
+
+        try {
+            return $this->resolveStoredExchangeRate($currency, $baseCurrency, $anchorCurrency, $date);
+        } catch (\RuntimeException $e) {
+            // Covers both "nothing in the database at all" and "found but stale"
+            // (StaleExchangeRateException extends RuntimeException) — in either case a live
+            // refresh is worth trying before giving up; it's precisely the fix for the case the
+            // staleness guard exists to catch. allowLiveFetch: false on the retry stops recursion.
+            if ($allowLiveFetch && $this->fetchLiveExchangeRate($currency, $baseCurrency, $anchorCurrency, $date)) {
+                return $this->resolveExchangeRate($currency, $date, allowLiveFetch: false);
+            }
+
+            throw $e;
+        }
+    }
+
+    /** @throws \RuntimeException|StaleExchangeRateException */
+    private function resolveStoredExchangeRate(string $currency, string $baseCurrency, string $anchorCurrency, string $date): float
+    {
         $asOf = Carbon::parse($date)->endOfDay();
 
         // 1. Direct stored rate: base → currency
-        $rate = $this->lookupExchangeRate($baseCurrency = strtoupper(config('inventory.base_currency', 'BDT')), $currency, $asOf);
+        $direct = $this->lookupExchangeRate($baseCurrency, $currency, $asOf);
 
-        if ($rate !== null) {
-            return $rate;
+        if ($direct !== null) {
+            $this->assertRateFresh($currency, $asOf, $direct['date']);
+
+            return $direct['rate'];
         }
 
-        $anchorCurrency = strtoupper(config('laravel-open-exchange-rates.default_base_currency', 'USD'));
-
         // 2. Reversed stored rate: currency → base (same pair, inverted direction)
-        $sourceToBase = $this->lookupExchangeRate($currency, $baseCurrency, $asOf);
+        $reversed = $this->lookupExchangeRate($currency, $baseCurrency, $asOf);
 
-        if ($sourceToBase !== null) {
-            return $sourceToBase;
+        if ($reversed !== null) {
+            $this->assertRateFresh($currency, $asOf, $reversed['date']);
+
+            return $reversed['rate'];
         }
 
         $anchorToBase = $this->lookupExchangeRate($anchorCurrency, $baseCurrency, $asOf);
 
         // 3. Currency IS the anchor (e.g. asking for USD when anchor is USD)
         if ($currency === $anchorCurrency && $anchorToBase !== null) {
-            return $anchorToBase;
+            $this->assertRateFresh($currency, $asOf, $anchorToBase['date']);
+
+            return $anchorToBase['rate'];
         }
 
         // 4. Cross-rate via anchor: (anchor→base) / (anchor→currency)
         $anchorToCurrency = $this->lookupExchangeRate($anchorCurrency, $currency, $asOf);
 
-        if ($anchorToBase !== null && $anchorToCurrency !== null && $anchorToCurrency != 0.0) {
-            return round($anchorToBase / $anchorToCurrency, 8);
+        if ($anchorToBase !== null && $anchorToCurrency !== null && $anchorToCurrency['rate'] != 0.0) {
+            // A cross-rate is only as fresh as whichever of its two legs is older.
+            $staleAsOf = $anchorToBase['date']->lessThan($anchorToCurrency['date']) ? $anchorToBase['date'] : $anchorToCurrency['date'];
+            $this->assertRateFresh($currency, $asOf, $staleAsOf);
+
+            return round($anchorToBase['rate'] / $anchorToCurrency['rate'], 8);
         }
 
         throw new \RuntimeException("No exchange rate found for currency [{$currency}] on or before [{$date}].");
+    }
+
+    /**
+     * Fetch $currency and $baseCurrency rates (relative to $anchorCurrency) from the live Open
+     * Exchange Rates API and persist them via {@see OpenExchangeRatesClient::importRates()} so
+     * subsequent lookups for the same day resolve from the database. Returns false (without
+     * throwing) on any failure — a missing/invalid app_id, network error, or empty response —
+     * so the caller falls through to the standard "no rate found" exception.
+     */
+    private function fetchLiveExchangeRate(string $currency, string $baseCurrency, string $anchorCurrency, string $date): bool
+    {
+        if (!config('inventory.exchange_rate_live_fetch', true)) {
+            return false;
+        }
+
+        $symbols = implode(',', array_unique([$currency, $baseCurrency, $anchorCurrency]));
+
+        try {
+            $client = app(OpenExchangeRatesClient::class);
+            $isLatest = Carbon::parse($date)->isToday();
+
+            $response = $isLatest
+                ? $client->latest($symbols)
+                : $client->historical($date, $symbols);
+
+            $rates = $response['rates'] ?? [];
+
+            if ($rates === []) {
+                return false;
+            }
+
+            $responseBase = strtoupper((string) ($response['base'] ?? $anchorCurrency));
+            $fetchedAt = $isLatest ? now() : Carbon::parse($response['timestamp'] ?? $date);
+
+            return $client->importRates($rates, $responseBase, $fetchedAt, $isLatest ? null : $date) > 0;
+        } catch (\Throwable $e) {
+            logger()->warning('Live exchange rate fetch failed: ' . $e->getMessage(), [
+                'currency' => $currency,
+                'date'     => $date,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Guard against silently converting at a rate older than INVENTORY_EXCHANGE_RATE_STALE_DAYS
+     * (default 1 day) — e.g. because the daily `inventory:sync-exchange-rates` job stopped
+     * running. Without this, PO/SO currency conversion would keep using an increasingly outdated
+     * rate with no warning. A threshold of 0 disables the check (matches this codebase's existing
+     * "0 = off" convention for other tolerances).
+     */
+    private function assertRateFresh(string $currency, Carbon $asOf, Carbon $rateDate): void
+    {
+        $staleDays = (int) config('inventory.exchange_rate_stale_days', 1);
+
+        if ($staleDays <= 0) {
+            return;
+        }
+
+        $ageInDays = $rateDate->diffInDays($asOf);
+
+        if ($ageInDays > $staleDays) {
+            throw new StaleExchangeRateException(
+                "Exchange rate for [{$currency}] is {$ageInDays} day(s) old (last updated {$rateDate->toDateString()}), exceeding the configured staleness limit of {$staleDays} day(s). Run `php artisan inventory:sync-exchange-rates` to refresh rates, or raise INVENTORY_EXCHANGE_RATE_STALE_DAYS if this is expected.",
+            );
+        }
     }
 
     /** Convert an amount in $currency to the base currency (e.g. BDT). */
@@ -156,10 +261,22 @@ class Inventory
         return $this->convertFromBase($amountBdt, $currency, $date);
     }
 
-    /** Return the most-recent stored rate for (base, currency) on or before $asOf, or null if not found. */
-    private function lookupExchangeRate(string $base, string $currency, Carbon $asOf): ?float
+    /**
+     * Return the most-recent stored rate for (base, currency) on or before $asOf, along with the
+     * date it was recorded under (needed by assertRateFresh()), or null if not found.
+     *
+     * @return array{rate: float, date: Carbon}|null
+     */
+    private function lookupExchangeRate(string $base, string $currency, Carbon $asOf): ?array
     {
-        return OpenExchangeRate::asOf($currency, $base, $asOf->toDateString())?->rateFor($currency);
+        $row = OpenExchangeRate::asOf($currency, $base, $asOf->toDateString());
+        $rate = $row?->rateFor($currency);
+
+        if ($row === null || $rate === null) {
+            return null;
+        }
+
+        return ['rate' => $rate, 'date' => Carbon::parse($row->date)];
     }
 
     // -------------------------------------------------------------------------
@@ -769,6 +886,17 @@ class Inventory
                 $unitCostLocal = (float) ($item['unit_cost_local'] ?? $poItem->unit_price_local);
                 $unitCostBdt = round($unitCostLocal * $rate, 4);
 
+                $qtyDamaged = (float) ($item['qty_damaged'] ?? 0);
+                $qtyLost = (float) ($item['qty_lost'] ?? 0);
+
+                if ($qtyDamaged < 0 || $qtyLost < 0) {
+                    throw new \InvalidArgumentException('qty_damaged and qty_lost must be zero or greater.');
+                }
+
+                if ($qtyDamaged + $qtyLost > $qty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    throw new \InvalidArgumentException("qty_damaged + qty_lost cannot exceed qty_received ({$qty}) for purchase order item [{$poItem->id}].");
+                }
+
                 // Lot tracking: find-or-create Lot at draft time so lot_id is stored on the item.
                 // qty_on_hand is incremented only when the GRN is posted.
                 $lotId = null;
@@ -802,6 +930,8 @@ class Inventory
                     'lot_id'                 => $lotId,
                     'serial_numbers'         => !empty($item['serial_numbers']) ? $item['serial_numbers'] : null,
                     'qty_received'           => $qty,
+                    'qty_damaged'            => $qtyDamaged,
+                    'qty_lost'               => $qtyLost,
                     'unit_cost_local'        => $unitCostLocal,
                     'unit_cost_amount'       => $unitCostBdt,
                     'exchange_rate'          => $rate,
@@ -827,24 +957,41 @@ class Inventory
             foreach ($grn->items as $item) {
                 $wp = $this->lockWarehouseProduct($grn->warehouse_id, $item->product_id, $item->variant_id);
 
+                // Only fully usable units join qty_on_hand and the WAC pool. Damaged units move to
+                // the separate damaged bin and lost units are written off — counting them here too
+                // (as the previous logic did) double-books stock that isn't actually sellable.
+                $qtyReceived = (float) $item->qty_received;
+                $qtyDamaged = (float) $item->qty_damaged;
+                $qtyLost = (float) $item->qty_lost;
+                $qtyGood = max(0.0, $qtyReceived - $qtyDamaged - $qtyLost);
+
                 $qtyBefore = (float) $wp->qty_on_hand;
                 $wacBefore = (float) $wp->wac_amount;
-                $newWac = $this->recalculateWac($wp, (float) $item->qty_received, (float) $item->unit_cost_amount);
-                $qtyAfter = $qtyBefore + (float) $item->qty_received;
+                $qtyAfter = $qtyBefore;
+                $newWac = $wacBefore;
 
-                $wp->update(['qty_on_hand' => $qtyAfter, 'wac_amount' => $newWac]);
+                if ($qtyGood > 0) {
+                    $newWac = $this->recalculateWac($wp, $qtyGood, (float) $item->unit_cost_amount);
+                    $qtyAfter = $qtyBefore + $qtyGood;
+                    $wp->update(['qty_on_hand' => $qtyAfter, 'wac_amount' => $newWac]);
+                }
+
                 $item->update(['wac_before_amount' => $wacBefore, 'wac_after_amount' => $newWac]);
 
                 if ($item->purchase_order_item_id) {
                     PurchaseOrderItem::where('id', $item->purchase_order_item_id)
-                        ->increment('qty_received', $item->qty_received);
+                        ->increment('qty_received', $qtyReceived);
                 }
 
-                // Lot tracking: increment lot qty_on_hand and update cost
+                // Lot tracking: qty_initial reflects everything physically received; qty_on_hand
+                // only the sellable (good) portion, since FIFO/LIFO fulfillment draws from it directly.
                 if ($item->lot_id !== null) {
-                    Lot::where('id', $item->lot_id)->lockForUpdate()->first()?->increment('qty_on_hand', $item->qty_received);
+                    if ($qtyGood > 0) {
+                        Lot::where('id', $item->lot_id)->lockForUpdate()->first()?->increment('qty_on_hand', $qtyGood);
+                    }
+
                     Lot::where('id', $item->lot_id)->update([
-                        'qty_initial'      => DB::raw("qty_initial + {$item->qty_received}"),
+                        'qty_initial'      => DB::raw("qty_initial + {$qtyReceived}"),
                         'unit_cost_amount' => $item->unit_cost_amount,
                     ]);
                 }
@@ -864,17 +1011,20 @@ class Inventory
                     }
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::PURCHASE_RECEIPT, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, null, $item->lot_id);
-
-                // Damaged units go into a separate bin (qty_damaged) — can be sold at discounted price.
-                // Lost units are written off entirely. Neither affects qty_on_hand.
-                if ((float) $item->qty_damaged > 0) {
-                    $wp->increment('qty_damaged', $item->qty_damaged);
-                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::ADJUSTMENT_OUT, (float) $item->qty_damaged, $qtyAfter, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, 'damaged at receipt', $item->lot_id);
+                if ($qtyGood > 0) {
+                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::PURCHASE_RECEIPT, $qtyGood, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, null, $item->lot_id);
                 }
 
-                if ((float) $item->qty_lost > 0) {
-                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::ADJUSTMENT_OUT, (float) $item->qty_lost, $qtyAfter, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, 'lost at receipt', $item->lot_id);
+                // Damaged units go into a separate bin (qty_damaged) — excluded from qty_on_hand/WAC
+                // above — can later be sold at a discounted price via from_damaged sale order items.
+                if ($qtyDamaged > 0) {
+                    $wp->increment('qty_damaged', $qtyDamaged);
+                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::ADJUSTMENT_OUT, $qtyDamaged, $qtyAfter, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, 'damaged at receipt', $item->lot_id);
+                }
+
+                // Lost units are written off entirely — never added to on-hand or any bin.
+                if ($qtyLost > 0) {
+                    $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::ADJUSTMENT_OUT, $qtyLost, $qtyAfter, $qtyAfter, (float) $item->unit_cost_amount, $newWac, StockReceipt::class, $grn->id, null, 'lost at receipt', $item->lot_id);
                 }
             }
 
@@ -889,6 +1039,13 @@ class Inventory
         });
 
         $this->erp()->postStockReceipt($grn);
+
+        // Keep the PO's linked bill (if any) in sync so its grni_clearing_amount reflects this
+        // newly posted GRN — otherwise Accounting::postBill() would still re-debit Inventory for
+        // goods this receipt already capitalized. No-op if the bill is already posted/locked.
+        if ($grn->purchase_order_id) {
+            $this->erp()->syncPurchaseOrderDocument(PurchaseOrder::findOrFail($grn->purchase_order_id));
+        }
 
         return $grn;
     }
@@ -910,24 +1067,47 @@ class Inventory
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $qtyBefore = (float) $wp->qty_on_hand;
-                $qtyDelta = (float) $item->qty_received;
+                // Only the good (non-damaged, non-lost) portion was ever added to qty_on_hand/WAC
+                // at post time — reverse the same quantity, not the full qty_received.
+                $qtyDamaged = (float) $item->qty_damaged;
+                $qtyGood = max(0.0, (float) $item->qty_received - $qtyDamaged - (float) $item->qty_lost);
+                $tolerance = (float) config('inventory.qty_tolerance', 0.0001);
 
-                if ($qtyBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qtyDelta) {
+                $qtyBefore = (float) $wp->qty_on_hand;
+
+                if ($qtyBefore + $tolerance < $qtyGood) {
                     throw new InsufficientStockException("Cannot void GRN #{$grnId} for product [{$item->product_id}] because only {$qtyBefore} units remain in stock.");
                 }
 
-                $qtyAfter = $qtyBefore - $qtyDelta;
-                $wp->update(['qty_on_hand' => $qtyAfter]);
+                $qtyAfter = $qtyBefore - $qtyGood;
+
+                // WAC can only be safely un-blended if nothing else has changed it since this
+                // receipt posted (i.e. it's still the top of the cost stack) — otherwise a precise
+                // retroactive reversal isn't well-defined, so leave the current WAC untouched rather
+                // than guess.
+                $wacUnchangedSincePost = abs((float) $wp->wac_amount - (float) $item->wac_after_amount) < 0.0001;
+                $restoredWac = $wacUnchangedSincePost ? (float) $item->wac_before_amount : (float) $wp->wac_amount;
+
+                $wp->update(['qty_on_hand' => $qtyAfter, 'wac_amount' => $restoredWac]);
+
+                if ($qtyDamaged > 0) {
+                    $damagedAvailable = (float) $wp->qty_damaged;
+
+                    if ($damagedAvailable + $tolerance < $qtyDamaged) {
+                        throw new InsufficientStockException("Cannot void GRN #{$grnId} for product [{$item->product_id}]: {$qtyDamaged} damaged units were received but only {$damagedAvailable} remain in the damaged bin (some may already be sold).");
+                    }
+
+                    $wp->decrement('qty_damaged', $qtyDamaged);
+                }
 
                 if ($item->purchase_order_item_id) {
                     PurchaseOrderItem::where('id', $item->purchase_order_item_id)
                         ->decrement('qty_received', $item->qty_received);
                 }
 
-                // Reverse lot qty_on_hand
-                if ($item->lot_id !== null) {
-                    Lot::where('id', $item->lot_id)->decrement('qty_on_hand', $item->qty_received);
+                // Reverse lot qty_on_hand by the same good quantity that was added at post time
+                if ($item->lot_id !== null && $qtyGood > 0) {
+                    Lot::where('id', $item->lot_id)->decrement('qty_on_hand', $qtyGood);
                 }
 
                 // Mark serial numbers as lost (they are being returned to supplier)
@@ -937,7 +1117,7 @@ class Inventory
                         ->update(['status' => SerialNumber::STATUS_LOST]);
                 }
 
-                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::RETURN_TO_SUPPLIER, (float) $item->qty_received, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, (float) $wp->fresh()->wac_amount, StockReceipt::class, $grn->id, null, 'GRN void', $item->lot_id);
+                $this->writeMovement($grn->warehouse_id, $item->product_id, $item->variant_id, MovementType::RETURN_TO_SUPPLIER, $qtyGood, $qtyBefore, $qtyAfter, (float) $item->unit_cost_amount, $restoredWac, StockReceipt::class, $grn->id, null, 'GRN void', $item->lot_id);
             }
 
             $grn->update(['status' => StockReceiptStatus::VOID]);
@@ -946,6 +1126,13 @@ class Inventory
         });
 
         $this->erp()->voidStockReceipt($grn);
+
+        // Voiding un-capitalizes these goods from Inventory, so the linked bill's
+        // grni_clearing_amount must drop back down too — otherwise a later bill post would clear
+        // more GRNI than was actually recognized.
+        if ($grn->purchase_order_id) {
+            $this->erp()->syncPurchaseOrderDocument(PurchaseOrder::findOrFail($grn->purchase_order_id));
+        }
 
         return $grn;
     }
@@ -1535,9 +1722,38 @@ class Inventory
         $so = SaleOrder::findOrFail($soId);
         $this->assertSaleOrderAccess($so);
         $this->assertTransition($so->status, SaleOrderStatus::CONFIRMED, "sale order #{$soId}");
+        $this->assertHighValueConfirmAuthorized($so);
         $so->update(['status' => SaleOrderStatus::CONFIRMED]);
 
         return $so;
+    }
+
+    /**
+     * Sale orders at or above inventory.sale_order_high_value_threshold require confirmation by
+     * a user holding inventory.sale-orders.confirm-high-value (General Manager / System
+     * Administrator by default) — a stricter check layered on top of the ordinary confirm
+     * ability, since a large order shouldn't be confirmable by whoever merely has the everyday
+     * sales-confirm permission. Skipped for console callers (seeders, artisan, tinker) — there's
+     * no web user to check, and CLI access is already a higher trust boundary.
+     */
+    private function assertHighValueConfirmAuthorized(SaleOrder $so): void
+    {
+        if (app()->runningInConsole()) {
+            return;
+        }
+
+        $threshold = (float) config('inventory.sale_order_high_value_threshold', 0);
+
+        if ($threshold <= 0 || (float) $so->total_amount < $threshold) {
+            return;
+        }
+
+        if (Gate::forUser(auth()->user())->denies('inventory.sale-orders.confirm-high-value')) {
+            throw new AuthorizationException(
+                "Sale order #{$so->so_number} totals " . number_format((float) $so->total_amount, 2)
+                . ' and can only be confirmed by a General Manager or System Administrator.',
+            );
+        }
     }
 
     /** Reserve stock: increment qty_reserved for each line item. */
@@ -2141,13 +2357,15 @@ class Inventory
             ]);
 
             foreach ($data['items'] as $item) {
-                $wp = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $item['product_id']);
+                [$productId, $variantId] = $this->resolveProductReference($item);
+                $wp = $this->getOrCreateWarehouseProduct($data['warehouse_id'], $productId, $variantId);
                 $qtySystem = (float) $wp->qty_on_hand;
                 $qtyActual = (float) $item['qty_actual'];
 
                 AdjustmentItem::create([
                     'adjustment_id'    => $adjustment->id,
-                    'product_id'       => $item['product_id'],
+                    'product_id'       => $productId,
+                    'variant_id'       => $variantId,
                     'qty_system'       => $qtySystem,
                     'qty_actual'       => $qtyActual,
                     'qty_delta'        => round($qtyActual - $qtySystem, 4),
@@ -2176,6 +2394,7 @@ class Inventory
 
                 $wp = WarehouseProduct::where('warehouse_id', $adjustment->warehouse_id)
                     ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 

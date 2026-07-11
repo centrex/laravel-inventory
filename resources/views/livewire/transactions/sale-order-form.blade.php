@@ -242,7 +242,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th class="pl-5 w-52">Product</th>
                         <th class="w-24">Qty</th>
                         <th class="w-24">Available</th>
@@ -255,7 +255,7 @@
                 </thead>
                 <tbody class="divide-y divide-base-200">
                     @forelse ($items as $index => $item)
-                        <tr wire:key="so-item-{{ $index }}" class="hover:bg-base-50">
+                        <tr wire:key="so-item-{{ $index }}" class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5 py-2">
                                 <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
@@ -339,7 +339,7 @@
                             </td>
                         </tr>
                         @if (($item['show_notes'] ?? false) || filled($item['notes'] ?? ''))
-                            <tr wire:key="so-item-notes-{{ $index }}" class="bg-base-50/60">
+                            <tr wire:key="so-item-notes-{{ $index }}" class="bg-base-200/30">
                                 <td colspan="8" class="px-5 py-3">
                                     <x-tallui-form-group label="Line Note">
                                         <x-tallui-textarea

@@ -171,7 +171,7 @@
                             <button
                                 wire:click="tapProduct({{ $product->id }})"
                                 wire:key="product-{{ $product->id }}"
-                                class="card card-compact bg-base-200 hover:bg-base-300 active:scale-95 transition-all text-left overflow-hidden touch-manipulation select-none border border-transparent hover:border-primary/30 focus:outline-none focus:border-primary rounded-xl max-w-sm"
+                                class="card card-compact bg-base-200 even:bg-base-200/50 hover:bg-base-200 active:scale-95 transition-all text-left overflow-hidden touch-manipulation select-none border border-transparent hover:border-primary/30 focus:outline-none focus:border-primary rounded-xl max-w-sm"
                             >
                                 {{-- Image --}}
                                 <figure class="aspect-square bg-base-300 overflow-hidden">

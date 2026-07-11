@@ -8,6 +8,7 @@ use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\PurchaseOrder;
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -31,6 +32,8 @@ class PurchaseOrderShowPage extends Component
 
     public function mount(int $recordId, string $documentType = 'order'): void
     {
+        Gate::authorize('inventory.purchase-orders.view');
+
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
         $query = PurchaseOrder::query()
             ->with(['supplier', 'warehouse', 'items.product', 'items.variant'])
@@ -54,10 +57,11 @@ class PurchaseOrderShowPage extends Component
             'documentLabel'          => $this->documentType === 'requisition' ? 'Requisition' : 'Purchase Order',
             'routeBase'              => $this->documentType === 'requisition' ? 'inventory.requisitions' : 'inventory.purchase-orders',
             'statusValue'            => $this->record->status?->value,
-            'canSubmit'              => in_array($this->record->status?->value, ['draft'], true),
-            'canConfirm'             => in_array($this->record->status?->value, ['submitted'], true),
-            'canReceive'             => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed', 'partial'], true),
-            'canCancel'              => in_array($this->record->status?->value, ['draft', 'submitted', 'confirmed', 'partial'], true),
+            'canSubmit'              => Gate::allows('inventory.purchase-orders.submit') && in_array($this->record->status?->value, ['draft'], true),
+            'canConfirm'             => Gate::allows('inventory.purchase-orders.confirm') && in_array($this->record->status?->value, ['submitted'], true),
+            'canReceive'             => Gate::allows('inventory.purchase-orders.receive') && $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed', 'partial'], true),
+            'canCancel'              => Gate::allows('inventory.purchase-orders.cancel') && in_array($this->record->status?->value, ['draft', 'submitted', 'confirmed', 'partial'], true),
+            'canEdit'                => Gate::allows('inventory.purchase-orders.edit'),
             'canCreateBill'          => $this->documentType === 'order' && $this->financeDocument === null,
             'canCreatePurchaseOrder' => $this->documentType === 'requisition'
                 && $this->record->status?->value === 'confirmed'
@@ -68,6 +72,8 @@ class PurchaseOrderShowPage extends Component
 
     public function submit(): void
     {
+        Gate::authorize('inventory.purchase-orders.submit');
+
         $this->runWorkflowAction(
             fn (Inventory $inventory) => $inventory->submitPurchaseOrder((int) $this->record->getKey()),
             "{$this->record->po_number} submitted.",
@@ -76,6 +82,8 @@ class PurchaseOrderShowPage extends Component
 
     public function confirm(): void
     {
+        Gate::authorize('inventory.purchase-orders.confirm');
+
         $this->runWorkflowAction(
             fn (Inventory $inventory) => $inventory->confirmPurchaseOrder((int) $this->record->getKey()),
             "{$this->record->po_number} confirmed.",
@@ -84,6 +92,8 @@ class PurchaseOrderShowPage extends Component
 
     public function receive(): void
     {
+        Gate::authorize('inventory.purchase-orders.receive');
+
         $this->runWorkflowAction(
             fn (Inventory $inventory) => $inventory->receivePurchaseOrder((int) $this->record->getKey()),
             "Items received for {$this->record->po_number}.",
@@ -92,6 +102,8 @@ class PurchaseOrderShowPage extends Component
 
     public function openReceiveModal(): void
     {
+        Gate::authorize('inventory.purchase-orders.receive');
+
         $this->receiveNotes = '';
         $this->receiveQtys = [];
 
@@ -108,6 +120,8 @@ class PurchaseOrderShowPage extends Component
 
     public function receivePartial(): void
     {
+        Gate::authorize('inventory.purchase-orders.receive');
+
         $qtys = array_filter(
             array_map(fn ($v) => max(0.0, (float) $v), $this->receiveQtys),
             fn (float $v) => $v > 0,
@@ -137,6 +151,8 @@ class PurchaseOrderShowPage extends Component
 
     public function cancel(): void
     {
+        Gate::authorize('inventory.purchase-orders.cancel');
+
         $this->runWorkflowAction(
             fn (Inventory $inventory) => $inventory->cancelPurchaseOrder((int) $this->record->getKey()),
             "{$this->record->po_number} cancelled.",
@@ -168,6 +184,8 @@ class PurchaseOrderShowPage extends Component
     public function createPurchaseOrder(): mixed
     {
         try {
+            Gate::authorize('inventory.purchase-orders.create');
+
             $purchaseOrder = app(Inventory::class)->createPurchaseOrderFromRequisition((int) $this->record->getKey());
             $this->dispatch('notify', type: 'success', message: "Purchase order {$purchaseOrder->po_number} created from {$this->record->po_number}.");
 

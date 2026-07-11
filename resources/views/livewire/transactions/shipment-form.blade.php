@@ -110,7 +110,7 @@
                     <div class="overflow-x-auto">
                         <table class="table table-sm w-full">
                             <thead>
-                                <tr class="bg-base-100 text-xs text-base-content/50 uppercase">
+                                <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                                     <th class="pl-5">Product</th>
                                     <th class="w-24">Available</th>
                                     <th class="w-32">Qty to Send</th>
@@ -120,7 +120,7 @@
                             </thead>
                             <tbody class="divide-y divide-base-200">
                                 @foreach ($box['items'] as $itemIndex => $item)
-                                    <tr wire:key="trf-box-{{ $boxIndex }}-item-{{ $itemIndex }}">
+                                    <tr wire:key="trf-box-{{ $boxIndex }}-item-{{ $itemIndex }}" class="even:bg-base-200/50 hover:bg-base-200">
                                         <td class="pl-5 py-2">
                                             @if ($from_warehouse_id)
                                             <div

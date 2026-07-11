@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Inventory;
+use Centrex\LaravelOpenExchangeRates\Client as OpenExchangeRatesClient;
 use Illuminate\Support\Facades\DB;
 
 it('stores manual inventory exchange rates in the open exchange rates table', function (): void {
@@ -31,4 +32,39 @@ it('derives inventory exchange rates from a shared open exchange rates base', fu
 
     expect($inventory->getExchangeRate('USD', '2026-04-10'))->toBe(120.0)
         ->and($inventory->getExchangeRate('GBP', '2026-04-10'))->toBe(150.0);
+});
+
+it('fetches a missing exchange rate live and persists it for future lookups', function (): void {
+    $client = Mockery::mock(OpenExchangeRatesClient::class);
+    $client->shouldReceive('latest')
+        ->once()
+        ->with('EUR,BDT,USD')
+        ->andReturn([
+            'base'  => 'USD',
+            'rates' => ['EUR' => 0.92, 'BDT' => 110.5],
+        ]);
+
+    app()->instance(OpenExchangeRatesClient::class, $client);
+
+    $inventory = app(Inventory::class);
+
+    expect($inventory->getExchangeRate('EUR'))->toBe(round(110.5 / 0.92, 8))
+        ->and(DB::table('oer_exchange_rates')->where('base', 'USD')->exists())->toBeTrue();
+
+    // Second call must not hit the API again — it now resolves from the persisted row.
+    expect($inventory->getExchangeRate('EUR'))->toBe(round(110.5 / 0.92, 8));
+});
+
+it('does not fetch live rates when exchange_rate_live_fetch is disabled', function (): void {
+    config()->set('inventory.exchange_rate_live_fetch', false);
+
+    $client = Mockery::mock(OpenExchangeRatesClient::class);
+    $client->shouldNotReceive('latest');
+    $client->shouldNotReceive('historical');
+
+    app()->instance(OpenExchangeRatesClient::class, $client);
+
+    $inventory = app(Inventory::class);
+
+    expect(fn () => $inventory->getExchangeRate('EUR'))->toThrow(RuntimeException::class);
 });

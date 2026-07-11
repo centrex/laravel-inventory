@@ -21,9 +21,11 @@ class InvoicePaymentObserver
             return;
         }
 
-        $rate = (float) ($invoice->exchange_rate ?? 1.0);
-        $paid = round(max(0.0, (float) $invoice->paid_amount * $rate), 4);
-        $due = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
+        // $invoice->total/paid_amount are already in base currency (see
+        // ErpIntegration::syncSaleOrderDocument()), same as SaleOrder::due_amount/paid_amount —
+        // no rate conversion needed here (multiplying by exchange_rate again double-converts).
+        $paid = round(max(0.0, (float) $invoice->paid_amount), 4);
+        $due = round(max(0.0, (float) $invoice->total - (float) $invoice->paid_amount), 4);
 
         foreach ($saleOrders as $saleOrder) {
             $saleOrder->updateQuietly([

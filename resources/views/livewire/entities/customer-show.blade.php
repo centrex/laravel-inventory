@@ -450,7 +450,7 @@
     <div class="hidden overflow-x-auto sm:block">
         <table class="table table-sm w-full">
             <thead>
-                <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                     <th class="pl-4">Order</th>
                     <th>Warehouse</th>
                     <th>Ordered At</th>
@@ -471,7 +471,7 @@
                             default      => 'neutral',
                         };
                     @endphp
-                    <tr class="hover:bg-base-50/50">
+                    <tr class="even:bg-base-200/50 hover:bg-base-200/50">
                         <td class="pl-4 py-2.5 text-sm font-medium">
                             @if (Route::has('inventory.sale-orders.show'))
                                 <a href="{{ route('inventory.sale-orders.show', ['recordId' => $saleOrder->getKey()]) }}" class="text-primary hover:underline" wire:navigate>

@@ -10,7 +10,7 @@ use Centrex\ModelData\Models\Data;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\{Collection as EloquentCollection, Model};
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\{Schema, Validator};
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
@@ -32,6 +32,18 @@ class DispatchTerminalPage extends Component
         'Returned',
         'Cancelled',
     ];
+
+    /**
+     * A sale order can only be dispatched once its stock has actually been reserved
+     * (SaleOrder::reserveStock() moves it from CONFIRMED to PROCESSING). SHIPPED/FULFILLED are
+     * included because quickDispatch() force-sets those statuses itself between the three quick
+     * actions (dispatched → out_for_delivery → delivered), so a later action must still see the
+     * order as dispatchable after an earlier one already advanced it.
+     */
+    private const DISPATCHABLE_STATUSES = ['processing', 'partial', 'shipped', 'fulfilled'];
+
+    /** Parcel-status labels that don't yet imply stock has left the warehouse — safe from any order status. */
+    private const PRE_RESERVATION_PARCEL_STATUSES = ['', 'Order confirmed'];
 
     public string $search = '';
 
@@ -150,7 +162,7 @@ class DispatchTerminalPage extends Component
 
         $form = $this->orderForms[$saleOrderId] ?? [];
 
-        validator($form, [
+        Validator::make($form, [
             'carrier'         => ['nullable', 'string', 'max:80'],
             'tracking_number' => ['nullable', 'string', 'max:120'],
             'parcel_status'   => ['required', 'string', Rule::in(self::PARCEL_STATUSES)],
@@ -158,7 +170,16 @@ class DispatchTerminalPage extends Component
             'location'        => ['nullable', 'string', 'max:160'],
             'dispatch_note'   => ['nullable', 'string', 'max:1000'],
             'order_status'    => ['required', Rule::in(array_column(SaleOrderStatus::cases(), 'value'))],
-        ])->validate();
+        ])->after(function ($validator) use ($saleOrder, $form): void {
+            $advancesPastReservation = !in_array($form['parcel_status'] ?? '', self::PRE_RESERVATION_PARCEL_STATUSES, true);
+
+            if ($advancesPastReservation && !in_array($saleOrder->status?->value, self::DISPATCHABLE_STATUSES, true)) {
+                $validator->errors()->add(
+                    'parcel_status',
+                    "{$saleOrder->so_number} is still {$saleOrder->status?->label()} — reserve its stock (move it to Processing) before it can be dispatched.",
+                );
+            }
+        })->validate();
 
         $metadata = $this->metadataFor($saleOrder);
 
@@ -193,6 +214,12 @@ class DispatchTerminalPage extends Component
             ->with('warehouse')
             ->where('document_type', 'order')
             ->findOrFail($saleOrderId);
+
+        if (!in_array($saleOrder->status?->value, self::DISPATCHABLE_STATUSES, true)) {
+            session()->flash('dispatch_error', "{$saleOrder->so_number} is still {$saleOrder->status?->label()} — reserve its stock (move it to Processing) before it can be dispatched.");
+
+            return;
+        }
 
         $meta = $this->metadataFor($saleOrder);
 

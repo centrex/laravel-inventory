@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
+use Centrex\Inventory\Enums\StockReceiptStatus;
 use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, PurchaseReturn, SaleOrder, SaleReturn, StockReceipt, Supplier as InventorySupplier};
 use Illuminate\Support\Facades\DB;
 
@@ -134,8 +135,12 @@ class ErpIntegration
             'discount_amount'         => round((float) $saleOrder->discount_amount + (float) $saleOrder->coupon_discount_amount, 2),
             'shipping_amount'         => round((float) $saleOrder->shipping_amount, 2),
             'total'                   => round((float) $saleOrder->total_amount, 2),
-            'currency'                => $saleOrder->currency,
-            'exchange_rate'           => (float) $saleOrder->exchange_rate,
+            // The amounts above are already converted to base currency (see SaleOrder::total_amount
+            // et al.), so the invoice must be booked in base currency too — otherwise Invoice's
+            // convertToBase()/base_* accessors and the due-amount resync below would convert twice.
+            // The sale order's own currency/exchange_rate remain available on $saleOrder for display.
+            'currency'                => config('inventory.base_currency', 'BDT'),
+            'exchange_rate'           => 1.0,
             'status'                  => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
             'notes'                   => $saleOrder->notes,
             'source_type'             => SaleOrder::class,
@@ -267,9 +272,12 @@ class ErpIntegration
             'discount_amount'             => round((float) $purchaseOrder->discount_amount, 2),
             'shipping_amount'             => round((float) $purchaseOrder->shipping_amount, 2),
             'other_charges_amount'        => round((float) $purchaseOrder->other_charges_amount, 2),
+            'grni_clearing_amount'        => $this->grniClearingAmountFor($purchaseOrder),
             'total'                       => round((float) $purchaseOrder->total_amount, 2),
-            'currency'                    => $purchaseOrder->currency,
-            'exchange_rate'               => (float) $purchaseOrder->exchange_rate,
+            // Same rationale as syncSaleOrderDocument(): these amounts are already in base
+            // currency, so the bill must be booked in base currency to avoid double conversion.
+            'currency'                    => config('inventory.base_currency', 'BDT'),
+            'exchange_rate'               => 1.0,
             'status'                      => in_array((string) $status, $lockedStatuses, true) ? $status : 'draft',
             'notes'                       => $purchaseOrder->notes,
             'source_type'                 => PurchaseOrder::class,
@@ -769,9 +777,30 @@ class ErpIntegration
 
     private function resyncSaleOrderDueAmount(SaleOrder $saleOrder, object $invoice): void
     {
-        $rate = (float) ($saleOrder->exchange_rate ?? 1.0);
-        $due = round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4);
-        $paid = round(max(0.0, (float) $invoice->paid_amount * $rate), 4);
+        // $invoice->total/paid_amount are already in base currency (see syncSaleOrderDocument()),
+        // same as $saleOrder->due_amount/paid_amount — no rate conversion needed here.
+        $due = round(max(0.0, (float) $invoice->total - (float) $invoice->paid_amount), 4);
+        $paid = round(max(0.0, (float) $invoice->paid_amount), 4);
         $saleOrder->forceFill(['due_amount' => $due, 'paid_amount' => $paid])->saveQuietly();
+    }
+
+    /**
+     * Sum of what's already been debited to Inventory Asset via posted GRNs for this PO — the same
+     * formula postStockReceipt() uses for its own JE amount. When the vendor bill is later posted,
+     * Accounting::postBill() clears this amount against the GRNI liability instead of re-debiting
+     * Inventory, so the same goods aren't capitalized twice (once via the GRN, again via the bill).
+     */
+    private function grniClearingAmountFor(PurchaseOrder $purchaseOrder): float
+    {
+        $amount = StockReceipt::query()
+            ->where('purchase_order_id', $purchaseOrder->id)
+            ->where('status', StockReceiptStatus::POSTED)
+            ->with('items')
+            ->get()
+            ->sum(fn (StockReceipt $grn) => $grn->items->sum(
+                fn ($item) => (float) $item->qty_received * (float) $item->unit_cost_amount,
+            ));
+
+        return round((float) $amount, 2);
     }
 }

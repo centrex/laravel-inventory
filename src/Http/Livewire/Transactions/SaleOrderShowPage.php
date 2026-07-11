@@ -25,6 +25,8 @@ class SaleOrderShowPage extends Component
 
     public function mount(int $recordId, string $documentType = 'order'): void
     {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.view', 'inventory.sale-orders.view-all']);
+
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $query = SaleOrder::query()
             ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive'])
@@ -48,10 +50,11 @@ class SaleOrderShowPage extends Component
             'documentLabel'    => $this->documentType === 'quotation' ? 'Quotation' : 'Sale Order',
             'routeBase'        => $this->documentType === 'quotation' ? 'inventory.quotations' : 'inventory.sale-orders',
             'statusValue'      => $this->record->status?->value,
-            'canConfirm'       => in_array($this->record->status?->value, ['draft'], true),
-            'canReserve'       => $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
-            'canFulfill'       => $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
-            'canCancel'        => in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
+            'canConfirm'       => Gate::any(['sales.orders.manage', 'inventory.sale-orders.confirm']) && in_array($this->record->status?->value, ['draft'], true) && $this->canConfirmGivenValue(),
+            'canReserve'       => Gate::any(['sales.orders.manage', 'inventory.sale-orders.reserve']) && $this->documentType === 'order' && in_array($this->record->status?->value, ['confirmed'], true),
+            'canFulfill'       => Gate::any(['sales.orders.manage', 'inventory.sale-orders.fulfill']) && $this->documentType === 'order' && in_array($this->record->status?->value, ['processing', 'partial'], true),
+            'canCancel'        => Gate::any(['sales.orders.manage', 'inventory.sale-orders.cancel']) && in_array($this->record->status?->value, ['draft', 'confirmed', 'processing', 'partial'], true),
+            'canEdit'          => Gate::any(['sales.orders.manage', 'inventory.sale-orders.edit']),
             'canCreateInvoice' => $this->documentType === 'order'
                 && $this->financeDocument === null
                 && $this->record->status?->value !== 'cancelled'
@@ -65,14 +68,30 @@ class SaleOrderShowPage extends Component
 
     public function confirm(): void
     {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.confirm']);
+
         $this->runWorkflowAction(
             fn (Inventory $inventory) => $inventory->confirmSaleOrder((int) $this->record->getKey()),
             "{$this->record->so_number} confirmed.",
         );
     }
 
+    /** Mirrors Inventory::assertHighValueConfirmAuthorized() so the button hides for orders the user can't confirm. */
+    private function canConfirmGivenValue(): bool
+    {
+        $threshold = (float) config('inventory.sale_order_high_value_threshold', 0);
+
+        if ($threshold <= 0 || (float) $this->record->total_amount < $threshold) {
+            return true;
+        }
+
+        return Gate::allows('inventory.sale-orders.confirm-high-value');
+    }
+
     public function reserve(): void
     {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.reserve']);
+
         try {
             $so = app(Inventory::class)->reserveStock((int) $this->record->getKey());
             $this->refreshRecord();
@@ -90,6 +109,8 @@ class SaleOrderShowPage extends Component
 
     public function fulfill(): void
     {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.fulfill']);
+
         try {
             app(Inventory::class)->fulfillSaleOrder((int) $this->record->getKey());
             $this->refreshRecord();
@@ -114,6 +135,8 @@ class SaleOrderShowPage extends Component
 
     public function cancel(): void
     {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.cancel']);
+
         $this->runWorkflowAction(
             fn (Inventory $inventory) => $inventory->cancelSaleOrder((int) $this->record->getKey()),
             "{$this->record->so_number} cancelled.",
@@ -151,6 +174,8 @@ class SaleOrderShowPage extends Component
     public function createSaleOrder(): mixed
     {
         try {
+            CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.create']);
+
             $saleOrder = app(Inventory::class)->createSaleOrderFromQuotation((int) $this->record->getKey());
             $this->dispatch('notify', type: 'success', message: "Sale order {$saleOrder->so_number} created from {$this->record->so_number}.");
 

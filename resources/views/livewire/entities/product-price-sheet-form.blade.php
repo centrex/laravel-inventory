@@ -33,7 +33,7 @@
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
-                    <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                    <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th class="pl-4">Tier</th>
                         <th>Price</th>
                         <th>Cost Price</th>
@@ -44,7 +44,7 @@
                 </thead>
                 <tbody class="divide-y divide-base-200">
                     @foreach ($tierOptions as $tier)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-4 py-3 text-sm font-medium">{{ $tier->label() }}</td>
                             <td class="py-2">
                                 <x-tallui-input

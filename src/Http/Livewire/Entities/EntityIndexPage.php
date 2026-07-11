@@ -8,6 +8,7 @@ use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Models\{Customer, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, CustomerClvService, CustomerExporter, InventoryEntityRegistry, SupplierExporter, WarehouseStockExporter};
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Livewire\Attributes\{Layout, Url};
 use Livewire\{Component, WithPagination};
@@ -28,6 +29,8 @@ class EntityIndexPage extends Component
 
     public function mount(string $entity): void
     {
+        Gate::authorize('inventory.master-data.view');
+
         InventoryEntityRegistry::definition($entity);
 
         $this->entity = $entity;

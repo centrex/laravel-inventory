@@ -15,6 +15,20 @@ final class CommercialTeamAccess
     public const ROLE_ASSISTANT_MANAGER = 'assistant_manager';
     public const ROLE_EXECUTIVE = 'executive';
 
+    /**
+     * Authorize against any of the given abilities (OR semantics), mirroring how host apps
+     * such as the ERP workspace grant a single umbrella ability (e.g. `sales.orders.manage`)
+     * as an alternative to the granular `inventory.sale-orders.*` gates.
+     *
+     * @throws \Illuminate\Auth\Access\AuthorizationException
+     */
+    public static function authorizeAny(array $abilities): void
+    {
+        if (!Gate::any($abilities)) {
+            throw new \Illuminate\Auth\Access\AuthorizationException('This action is unauthorized.');
+        }
+    }
+
     public static function roleOptions(): array
     {
         return [

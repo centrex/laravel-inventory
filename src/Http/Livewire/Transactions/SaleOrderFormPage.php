@@ -63,6 +63,12 @@ class SaleOrderFormPage extends Component
     {
         $recordId = is_numeric($recordId) && (int) $recordId > 0 ? (int) $recordId : null;
 
+        CommercialTeamAccess::authorizeAny(
+            $recordId === null
+                ? ['sales.orders.manage', 'inventory.sale-orders.create']
+                : ['sales.orders.manage', 'inventory.sale-orders.edit'],
+        );
+
         $this->can_approve_credit = Gate::allows('inventory.sale-orders.approve-credit');
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;

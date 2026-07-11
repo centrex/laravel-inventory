@@ -30,7 +30,7 @@
     <div class="overflow-x-auto">
         <table class="table table-sm w-full">
             <thead>
-                <tr class="bg-base-50 text-xs text-base-content/50 uppercase">
+                <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                     <th class="pl-5">Number</th>
                     <th>From</th>
                     <th>To</th>
@@ -42,7 +42,7 @@
             </thead>
             <tbody class="divide-y divide-base-200">
                 @forelse ($transfers as $transfer)
-                    <tr>
+                    <tr class="even:bg-base-200/50 hover:bg-base-200">
                         <td class="pl-5 font-mono font-semibold">{{ $transfer->transfer_number }}</td>
                         <td>{{ $transfer->fromWarehouse?->name ?? '—' }}</td>
                         <td>{{ $transfer->toWarehouse?->name ?? '—' }}</td>

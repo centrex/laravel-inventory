@@ -23,10 +23,10 @@
         <x-slot:actions><x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" /></x-slot:actions>
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
-                <thead><tr class="bg-base-50 text-xs uppercase"><th class="pl-5">Product</th><th>Available</th><th>Qty</th><th>Unit Price</th><th>Unit Cost</th><th>Notes</th><th class="pr-5"></th></tr></thead>
+                <thead><tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300"><th class="pl-5">Product</th><th>Available</th><th>Qty</th><th>Unit Price</th><th>Unit Cost</th><th>Notes</th><th class="pr-5"></th></tr></thead>
                 <tbody>
                     @foreach($items as $index => $item)
-                        <tr>
+                        <tr class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5">
                                 @if($selectedOrder)
                                     <x-tallui-select wire:model.live="items.{{ $index }}.sale_order_item_id">

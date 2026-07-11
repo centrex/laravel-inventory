@@ -80,6 +80,18 @@
         </div>
     @endif
 
+    @if (session('dispatch_error'))
+        <div
+            x-data="{ show: true }"
+            x-show="show"
+            x-init="setTimeout(() => show = false, 6000)"
+            x-transition.duration.500ms
+            class="rounded-2xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-500/20 dark:bg-error-500/10 dark:text-error-300"
+        >
+            {{ session('dispatch_error') }}
+        </div>
+    @endif
+
     @unless ($modelDataReady)
         <div class="rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700 dark:border-warning-500/20 dark:bg-warning-500/10 dark:text-warning-300">
             Model data storage is not ready, so tracking metadata cannot be saved yet.
@@ -128,7 +140,7 @@
             <section class="erp-panel overflow-hidden rounded-tl-none">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                        <thead class="bg-gray-50 dark:bg-zinc-950/70">
+                        <thead class="bg-gray-100 dark:bg-zinc-800/60">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Order</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Customer</th>
@@ -144,8 +156,13 @@
                                     $currentParcel = $meta['parcel_status'] ?? '';
                                     $terminalStatuses = ['Delivery failed', 'Returned', 'Cancelled'];
                                     $isTerminal = in_array($currentParcel, $terminalStatuses);
+                                    // Stock must be reserved (order status Processing/Partial, or already
+                                    // shipped/fulfilled) before it can be dispatched — see
+                                    // DispatchTerminalPage::DISPATCHABLE_STATUSES.
+                                    $canDispatchOrder = in_array($order->status?->value, ['processing', 'partial', 'shipped', 'fulfilled'], true);
 
                                     $nextAction = match (true) {
+                                        !$canDispatchOrder => null,
                                         in_array($currentParcel, ['', 'Order confirmed', 'Reserved for picking', 'Packed', 'Ready for courier'])
                                             => ['action' => 'dispatched',       'label' => 'Mark Dispatched',  'icon' => 'o-paper-airplane', 'class' => 'bg-amber-500 hover:bg-amber-600'],
                                         $currentParcel === 'Dispatched'
@@ -155,7 +172,7 @@
                                         default => null,
                                     };
                                 @endphp
-                                <tr wire:key="dw-{{ $order->getKey() }}">
+                                <tr wire:key="dw-{{ $order->getKey() }}" class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
 
                                     {{-- Order --}}
                                     <td class="px-4 py-4 align-top">
@@ -245,6 +262,14 @@
                                                     </span>
                                                     {{ $nextAction['label'] }}
                                                 </button>
+                                            @elseif (!$canDispatchOrder)
+                                                <span
+                                                    class="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                                    title="Reserve stock (move it to Processing) before this order can be dispatched"
+                                                >
+                                                    <x-tallui-icon name="o-clock" class="h-4 w-4" />
+                                                    Awaiting reservation
+                                                </span>
                                             @else
                                                 <span class="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
                                                     <x-tallui-icon name="o-check-badge" class="h-4 w-4" />
@@ -278,7 +303,7 @@
             <section class="erp-panel overflow-hidden rounded-tl-none">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                        <thead class="bg-gray-50 dark:bg-zinc-950/70">
+                        <thead class="bg-gray-100 dark:bg-zinc-800/60">
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Order</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Customer</th>
@@ -292,7 +317,7 @@
                                 @php
                                     $meta = $metadata[$order->getKey()] ?? [];
                                 @endphp
-                                <tr wire:key="su-{{ $order->getKey() }}">
+                                <tr wire:key="su-{{ $order->getKey() }}" class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
 
                                     {{-- Order --}}
                                     <td class="px-4 py-4 align-top">
@@ -649,7 +674,7 @@
                         </div>
                         <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-800">
                             <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                                <thead class="bg-gray-50 dark:bg-zinc-950/70">
+                                <thead class="bg-gray-100 dark:bg-zinc-800/60">
                                     <tr>
                                         <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Product</th>
                                         <th class="px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-400">Qty</th>
@@ -661,7 +686,7 @@
                                 </thead>
                                 <tbody class="divide-y divide-gray-200 dark:divide-zinc-800">
                                     @foreach ($detailOrder->items as $item)
-                                        <tr>
+                                        <tr class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
                                             <td class="px-4 py-3 text-sm">
                                                 <div class="font-medium text-gray-900 dark:text-white">{{ $item->product?->name ?? '—' }}</div>
                                                 @if ($item->variant)
@@ -784,7 +809,7 @@
                                 @if ($detailPriceHistory[$priceHistoryProductId]->isNotEmpty())
                                     <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-800">
                                         <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                                            <thead class="bg-gray-50 dark:bg-zinc-950/70">
+                                            <thead class="bg-gray-100 dark:bg-zinc-800/60">
                                                 <tr>
                                                     <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Tier</th>
                                                     <th class="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">Variant / Warehouse</th>

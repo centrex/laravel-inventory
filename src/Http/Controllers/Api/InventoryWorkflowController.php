@@ -259,6 +259,8 @@ class InventoryWorkflowController extends Controller
             'items'                          => ['required', 'array', 'min:1'],
             'items.*.purchase_order_item_id' => ['required', 'integer'],
             'items.*.qty_received'           => ['required', 'numeric', 'gt:0'],
+            'items.*.qty_damaged'            => ['nullable', 'numeric', 'min:0'],
+            'items.*.qty_lost'               => ['nullable', 'numeric', 'min:0'],
             'items.*.unit_cost_local'        => ['nullable', 'numeric', 'min:0'],
         ]);
 
@@ -451,6 +453,7 @@ class InventoryWorkflowController extends Controller
             'created_by'         => ['nullable', 'integer'],
             'items'              => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer'],
+            'items.*.variant_id' => ['nullable', 'integer'],
             'items.*.qty_actual' => ['required', 'numeric'],
             'items.*.notes'      => ['nullable', 'string'],
         ]);

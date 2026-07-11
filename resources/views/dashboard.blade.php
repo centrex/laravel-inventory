@@ -336,7 +336,7 @@
                     <div class="overflow-x-auto">
                         <table class="table table-sm w-full">
                             <thead>
-                                <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                                <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                                     <th>Product</th>
                                     <th>Forecast Qty</th>
                                     <th>Available Soon</th>
@@ -347,7 +347,7 @@
                             </thead>
                             <tbody>
                                 @forelse (collect(data_get($forecast, 'products', []))->take(6) as $product)
-                                    <tr>
+                                    <tr class="even:bg-base-200/50 hover:bg-base-200">
                                         <td>
                                             <div class="font-medium">{{ $product['product_name'] }}</div>
                                             <div class="text-xs text-base-content/50">{{ $product['sku'] ?: '—' }}</div>

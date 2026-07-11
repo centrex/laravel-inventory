@@ -7,6 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Entities;
 use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithFileUploads};
 
@@ -28,6 +29,8 @@ class EntityFormPage extends Component
 
     public function mount(string $entity, ?int $recordId = null): void
     {
+        Gate::authorize('inventory.master-data.manage');
+
         $definition = InventoryEntityRegistry::definition($entity);
 
         $this->entity = $entity;

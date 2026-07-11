@@ -90,6 +90,30 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Live Exchange Rate Fetch
+    |--------------------------------------------------------------------------
+    | When getExchangeRate() finds no usable rate in oer_exchange_rates, fetch it live from the
+    | Open Exchange Rates API (requires OPEN_EXCHANGE_RATES_APP_ID) and persist it for future
+    | lookups. Disable if you'd rather rely solely on `inventory:sync-exchange-rates` and fail
+    | fast when a rate is missing.
+    */
+    'exchange_rate_live_fetch' => env('INVENTORY_EXCHANGE_RATE_LIVE_FETCH', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | High-Value Sale Order Confirmation
+    |--------------------------------------------------------------------------
+    | Sale orders whose total_amount (base currency) is at or above this threshold require the
+    | confirming user to hold inventory.sale-orders.confirm-high-value, in addition to the
+    | ordinary inventory.sale-orders.confirm ability. Set to 0 to disable (any order confirmable
+    | per the ordinary confirm ability alone). Role fallback is only used when the host app has
+    | no Jurager/team-permission grant for the ability — see InventoryServiceProvider::registerGates().
+    */
+    'sale_order_high_value_threshold' => env('INVENTORY_SALE_ORDER_HIGH_VALUE_THRESHOLD', 0),
+    'sale_order_high_value_confirm_roles' => env('INVENTORY_SALE_ORDER_HIGH_VALUE_CONFIRM_ROLES', 'general_manager,system_administrator'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Price Resolution
     |--------------------------------------------------------------------------
     */
@@ -165,7 +189,10 @@ return [
             'accounts' => [
                 'inventory_asset'      => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
                 'cost_of_goods_sold'   => env('INVENTORY_ACCOUNTING_COGS', '5000'),
-                'goods_received_clear' => env('INVENTORY_ACCOUNTING_GRNI', '2000'),
+                // Must match the accounting package's ACCOUNTING_ACCOUNT_GRNI — this GRN posting's
+                // credit and the matching bill's debit-clear (see Accounting::postBill()) both need
+                // to land on the same account so they net to zero once the bill is posted.
+                'goods_received_clear' => env('INVENTORY_ACCOUNTING_GRNI', '2050'),
                 'inventory_gain'       => env('INVENTORY_ACCOUNTING_GAIN', '4900'),
                 'inventory_loss'       => env('INVENTORY_ACCOUNTING_LOSS', '5000'),
                 'accounts_receivable'  => env('INVENTORY_ACCOUNTING_AR', '1200'),

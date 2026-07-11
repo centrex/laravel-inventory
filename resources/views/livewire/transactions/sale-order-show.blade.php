@@ -29,7 +29,9 @@
         @if ($canCancel)
             <x-tallui-button label="Cancel" icon="o-x-circle" class="btn-error btn-sm" wire:click="cancel" wire:confirm="Cancel this {{ strtolower($documentLabel) }}?" />
         @endif
-        <x-tallui-button label="Edit" icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
+        @if ($canEdit)
+            <x-tallui-button label="Edit" icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
+        @endif
         @if (Route::has('erp.documents.sales.print'))
             <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif
@@ -296,7 +298,7 @@
             <div class="hidden overflow-x-auto sm:block">
                 <table class="table table-sm w-full">
                     <thead>
-                        <tr class="bg-base-50 text-xs uppercase text-base-content/50">
+                        <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                             <th>Product</th>
                             <th>SKU</th>
                             <th class="text-right">Qty</th>
@@ -307,7 +309,7 @@
                     </thead>
                     <tbody>
                         @foreach ($record->items as $item)
-                            <tr>
+                            <tr class="even:bg-base-200/50 hover:bg-base-200">
                                 <td>{{ $item->variant ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name) : ($item->product?->name ?? 'Product') }}</td>
                                 <td class="text-base-content/60">{{ $item->variant?->sku ?? $item->product?->sku ?? '—' }}</td>
                                 <td class="text-right">{{ rtrim(rtrim(number_format((float) $item->qty_ordered, 4, '.', ''), '0'), '.') }}</td>

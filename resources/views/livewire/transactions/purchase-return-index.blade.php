@@ -11,10 +11,10 @@
 <x-tallui-card padding="none" :shadow="true">
     <div class="overflow-x-auto">
         <table class="table table-sm w-full">
-            <thead><tr class="bg-base-50 text-xs uppercase"><th class="pl-5">Number</th><th>Supplier</th><th>Warehouse</th><th>Status</th><th class="pr-5 text-right">Action</th></tr></thead>
+            <thead><tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300"><th class="pl-5">Number</th><th>Supplier</th><th>Warehouse</th><th>Status</th><th class="pr-5 text-right">Action</th></tr></thead>
             <tbody>
                 @foreach ($returns as $return)
-                    <tr>
+                    <tr class="even:bg-base-200/50 hover:bg-base-200">
                         <td class="pl-5 font-mono">{{ $return->return_number }}</td>
                         <td>{{ $return->supplier?->name ?? '—' }}</td>
                         <td>{{ $return->warehouse?->name ?? '—' }}</td>

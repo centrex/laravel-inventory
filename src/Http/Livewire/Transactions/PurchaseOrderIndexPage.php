@@ -8,6 +8,7 @@ use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Models\PurchaseOrder;
 use Centrex\Inventory\Support\CommercialTeamAccess;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
 
@@ -35,6 +36,8 @@ class PurchaseOrderIndexPage extends Component
 
     public function mount(string $documentType = 'order'): void
     {
+        Gate::authorize('inventory.purchase-orders.view');
+
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
     }
 

@@ -62,6 +62,8 @@ class SaleOrderIndexPage extends Component
 
     public function mount(string $documentType = 'order'): void
     {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.view', 'inventory.sale-orders.view-all']);
+
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
     }
 
