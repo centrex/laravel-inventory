@@ -55,11 +55,11 @@ class SalesReportPage extends Component
         $selectedCustomer = $this->customerId ? Customer::query()->find($this->customerId) : null;
 
         return view('inventory::livewire.transactions.sales-report', [
-            'saleOrders'              => $recentOrders,
-            'salesMetrics'            => $this->buildSalesMetrics(),
-            'productCount'            => $this->distinctProductCount(),
-            'soldProducts'            => $this->buildSoldProductsReport(),
-            'viewingOrder'            => $this->viewingOrderId
+            'saleOrders'   => $recentOrders,
+            'salesMetrics' => $this->buildSalesMetrics(),
+            'productCount' => $this->distinctProductCount(),
+            'soldProducts' => $this->buildSoldProductsReport(),
+            'viewingOrder' => $this->viewingOrderId
                 ? SaleOrder::query()->with(['customer', 'warehouse', 'items.product', 'items.variant'])->find($this->viewingOrderId)
                 : null,
             'customerLedgerUrl'       => $this->customerLedgerUrl($selectedCustomer),

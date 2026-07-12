@@ -55,11 +55,11 @@ class PurchaseReportPage extends Component
         $selectedSupplier = $this->supplierId ? Supplier::query()->find($this->supplierId) : null;
 
         return view('inventory::livewire.transactions.purchase-report', [
-            'purchaseOrders'          => $recentOrders,
-            'purchaseMetrics'         => $this->buildPurchaseMetrics(),
-            'productCount'            => $this->distinctProductCount(),
-            'purchasedProducts'       => $this->buildPurchasedProductsReport(),
-            'viewingOrder'            => $this->viewingOrderId
+            'purchaseOrders'    => $recentOrders,
+            'purchaseMetrics'   => $this->buildPurchaseMetrics(),
+            'productCount'      => $this->distinctProductCount(),
+            'purchasedProducts' => $this->buildPurchasedProductsReport(),
+            'viewingOrder'      => $this->viewingOrderId
                 ? PurchaseOrder::query()->with(['supplier', 'warehouse', 'items.product', 'items.variant'])->find($this->viewingOrderId)
                 : null,
             'supplierLedgerUrl'       => $this->supplierLedgerUrl($selectedSupplier),
