@@ -152,6 +152,23 @@ class EntityIndexPage extends Component
         $this->resetPage();
     }
 
+    /**
+     * Resolves the model class/label server-side from just the record id, rather than
+     * embedding the FQCN in the rendered wire:click expression.
+     */
+    public function openEntityAuditTrail(int $recordId): void
+    {
+        $model = InventoryEntityRegistry::makeModel($this->entity);
+        $query = $model->newQuery();
+        $this->applyEntityScope($query);
+
+        $record = $query->findOrFail($recordId);
+        $singular = InventoryEntityRegistry::definition($this->entity)['singular'];
+        $label = (string) ($record->name ?? $record->sku ?? $record->code ?? ($singular . ' #' . $record->getKey()));
+
+        $this->openAuditTrail($record::class, $record->getKey(), $label);
+    }
+
     public function render(): View
     {
         $definition = InventoryEntityRegistry::definition($this->entity);

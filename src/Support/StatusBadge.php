@@ -42,4 +42,15 @@ class StatusBadge
 
         return self::TYPE_MAP[strtolower($value)] ?? 'neutral';
     }
+
+    /**
+     * The full status => tallui badge color map, for tallui\DataTable's
+     * Column::badge(default, colors) which needs the whole map up front.
+     *
+     * @return array<string, string>
+     */
+    public static function colors(): array
+    {
+        return self::TYPE_MAP;
+    }
 }

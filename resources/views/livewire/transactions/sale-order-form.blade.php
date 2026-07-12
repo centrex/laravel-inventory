@@ -112,8 +112,8 @@
                 </div>
             </x-tallui-form-group>
 
-            <x-tallui-form-group label="Default Price Tier">
-                <x-tallui-select name="price_tier_code" wire:model.live="price_tier_code">
+            <x-tallui-form-group label="Default Price Tier" :helper="!$canManagePricingTier ? 'Requires pricing permission' : null">
+                <x-tallui-select name="price_tier_code" wire:model.live="price_tier_code" :disabled="!$canManagePricingTier">
                     @foreach ($priceTiers as $tier)
                         <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>
                     @endforeach
@@ -280,7 +280,7 @@
                                 {{ number_format((float) ($availableStock->get(($item['product_id'] ?? 0) . ':' . (int) ($item['variant_id'] ?? 0))?->qtyAvailable() ?? 0), 4) }}
                             </td>
                             <td class="py-2">
-                                <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model.live="items.{{ $index }}.price_tier_code" class="select-sm w-full">
+                                <x-tallui-select name="items.{{ $index }}.price_tier_code" wire:model.live="items.{{ $index }}.price_tier_code" class="select-sm w-full" :disabled="!$canManagePricingTier">
                                     <option value="">Default</option>
                                     @foreach ($priceTiers as $tier)
                                         <option value="{{ $tier['code'] }}">{{ $tier['name'] }}</option>

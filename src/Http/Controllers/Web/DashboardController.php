@@ -16,6 +16,7 @@ class DashboardController
 {
     public function __invoke(Request $request): View
     {
+        Gate::authorize('inventory.master-data.view');
         $inventory = app(Inventory::class);
         $canViewForecast = Gate::allows('inventory.reports.view');
         $forecast = $canViewForecast ? $inventory->salesForecast() : null;

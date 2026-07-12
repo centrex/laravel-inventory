@@ -453,6 +453,36 @@ class InventoryEntityRegistry
         return self::definition($entity)['index_columns'];
     }
 
+    /**
+     * Resolves an index column's Eloquent relation name, if the column is a `*_id`
+     * foreign key with a configured related model — e.g. 'category_id' -> 'category'.
+     * Returns null for plain scalar columns.
+     */
+    public static function relationNameForColumn(string $entity, string $column): ?string
+    {
+        $fieldDefinitions = collect(self::definition($entity)['form_fields'])->keyBy('name')->all();
+        $field = $fieldDefinitions[$column] ?? null;
+
+        if (!is_array($field) || empty($field['related_model']) || !str_ends_with($column, '_id')) {
+            return null;
+        }
+
+        $relation = Str::camel((string) Str::beforeLast($column, '_id'));
+
+        return method_exists(self::makeModel($entity), $relation) ? $relation : null;
+    }
+
+    /**
+     * The related model's display label field for a relation column, e.g.
+     * 'category_id' -> 'name'. Falls back to 'name' when unspecified.
+     */
+    public static function relatedLabelForColumn(string $entity, string $column): string
+    {
+        $fieldDefinitions = collect(self::definition($entity)['form_fields'])->keyBy('name')->all();
+
+        return $fieldDefinitions[$column]['related_label'] ?? 'name';
+    }
+
     public static function searchableColumns(string $entity): array
     {
         return self::definition($entity)['search'];

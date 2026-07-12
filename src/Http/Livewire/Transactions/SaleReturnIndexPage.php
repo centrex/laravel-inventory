@@ -7,39 +7,23 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Concerns\ShowsAuditTrail;
 use Centrex\Inventory\Models\SaleReturn;
 use Illuminate\Contracts\View\View;
-use Livewire\Attributes\Layout;
-use Livewire\{Component, WithPagination};
+use Livewire\Attributes\{Layout, On};
+use Livewire\Component;
 
 #[Layout('layouts.app')]
 class SaleReturnIndexPage extends Component
 {
     use ShowsAuditTrail;
-    use WithPagination;
 
-    public string $search = '';
-
-    public function updatingSearch(): void
+    #[On('sale-return-table:audit')]
+    public function openSaleReturnAuditTrail(int $id): void
     {
-        $this->resetPage();
+        $return = SaleReturn::findOrFail($id);
+        $this->openAuditTrail($return::class, $return->getKey(), $return->return_number);
     }
 
     public function render(): View
     {
-        $query = SaleReturn::query()
-            ->with(['customer', 'warehouse', 'saleOrder'])
-            ->latest('returned_at')
-            ->latest('id');
-
-        if ($this->search !== '') {
-            $search = $this->search;
-            $query->where(function ($builder) use ($search): void {
-                $builder->where('return_number', 'like', '%' . $search . '%')
-                    ->orWhere('notes', 'like', '%' . $search . '%');
-            });
-        }
-
-        return view('inventory::livewire.transactions.sale-return-index', [
-            'returns' => $query->paginate(15),
-        ]);
+        return view('inventory::livewire.transactions.sale-return-index');
     }
 }

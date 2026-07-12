@@ -14,6 +14,7 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
+        @can('inventory.sale-orders.manage')
         @if ($canConfirm)
             <x-tallui-button label="{{ $documentLabel === 'Quotation' ? 'Confirm Quote' : 'Confirm Order' }}" icon="o-check-circle" class="btn-primary btn-sm" wire:click="confirm" wire:confirm="Confirm this {{ strtolower($documentLabel) }}?" />
         @endif
@@ -32,6 +33,7 @@
         @if ($canEdit)
             <x-tallui-button label="Edit" icon="o-pencil-square" :link="route($routeBase . '.edit', ['recordId' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif
+        @endcan
         @if (Route::has('erp.documents.sales.print'))
             <x-tallui-button label="Print" icon="o-printer" :link="route('erp.documents.sales.print', ['saleOrder' => $record->getKey()])" class="btn-ghost btn-sm" />
         @endif

@@ -126,7 +126,7 @@
                                 @if ($this->supportsAuditTrail($record::class))
                                     <x-tallui-button
                                         icon="o-clock"
-                                        wire:click="openAuditTrail(@js($record::class), {{ $record->getKey() }}, @js((string) ($record->name ?? $record->sku ?? $record->code ?? ($definition['singular'] . ' #' . $record->getKey()))))"
+                                        wire:click="openEntityAuditTrail({{ $record->getKey() }})"
                                         class="btn-ghost btn-xs"
                                         :responsive="true"
                                         label="Audit"

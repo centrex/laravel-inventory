@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\{DB, Schema};
+use Illuminate\Support\Facades\Schema;
 
 return new class() extends Migration
 {
@@ -70,13 +70,7 @@ return new class() extends Migration
      */
     private function hasForeignKey(?string $connectionName, string $table, string $column): bool
     {
-        $connection = DB::connection($connectionName);
-
-        return $connection->table('information_schema.KEY_COLUMN_USAGE')
-            ->where('TABLE_SCHEMA', $connection->getDatabaseName())
-            ->where('TABLE_NAME', $table)
-            ->where('COLUMN_NAME', $column)
-            ->whereNotNull('REFERENCED_TABLE_NAME')
-            ->exists();
+        return collect(Schema::connection($connectionName)->getForeignKeys($table))
+            ->contains(fn (array $fk): bool => in_array($column, $fk['columns'], true));
     }
 };

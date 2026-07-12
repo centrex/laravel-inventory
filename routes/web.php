@@ -3,8 +3,8 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
-use Centrex\Inventory\Http\Livewire\Entities\{CustomerShowPage, EntityFormPage, EntityIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage};
-use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, CustomerHeatMapPage, DispatchTerminalPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, TransferFormPage, TransferIndexPage, TransferShowPage};
+use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseStockIndexPage};
+use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, CustomerHeatMapPage, DispatchTerminalPage, ForecastReportPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -17,18 +17,32 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/dispatch', DispatchTerminalPage::class)->name('dispatch.index');
         Route::get('/async-select/{resource}', AsyncSelectController::class)->name('async-select');
 
-        Route::get('/customers/{recordId}', CustomerShowPage::class)->name('entities.customers.show');
+        // whereNumber: registered before /customers/create (added later, inside the loop below) —
+        // without the constraint, {recordId} greedily matches the literal "create" segment first.
+        Route::get('/customers/{recordId}', CustomerShowPage::class)->name('entities.customers.show')->whereNumber('recordId');
 
         // Product prices are edited per (product, warehouse) — all tiers at once — rather than as raw rows.
         Route::get('/product-prices', ProductPriceSheetIndexPage::class)->name('entities.product-prices.index');
         Route::get('/product-prices/{recordId}/{warehouseId}/edit', ProductPriceSheetFormPage::class)->name('entities.product-prices.edit');
+
+        // Warehouse stock, products, customers, and suppliers have dedicated DataTable-backed
+        // listings; create/edit stay on the generic entity form for all four.
+        Route::get('/warehouse-products', WarehouseStockIndexPage::class)->name('entities.warehouse-products.index');
+        Route::get('/products', ProductIndexPage::class)->name('entities.products.index');
+        Route::get('/customers', CustomerIndexPage::class)->name('entities.customers.index');
+        Route::get('/suppliers', SupplierIndexPage::class)->name('entities.suppliers.index');
+
+        $dedicatedIndexEntities = ['warehouse-products', 'products', 'customers', 'suppliers'];
 
         foreach (InventoryEntityRegistry::masterDataEntities() as $entity) {
             if ($entity === 'product-prices') {
                 continue;
             }
 
-            Route::get("/{$entity}", EntityIndexPage::class)->name("entities.{$entity}.index")->defaults('entity', $entity);
+            if (!in_array($entity, $dedicatedIndexEntities, true)) {
+                Route::get("/{$entity}", EntityIndexPage::class)->name("entities.{$entity}.index")->defaults('entity', $entity);
+            }
+
             Route::get("/{$entity}/create", EntityFormPage::class)->name("entities.{$entity}.create")->defaults('entity', $entity);
             Route::get("/{$entity}/{recordId}/edit", EntityFormPage::class)->name("entities.{$entity}.edit")->defaults('entity', $entity);
         }
@@ -64,5 +78,9 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/shipments/{recordId}', ShipmentShowPage::class)->name('shipments.show');
         Route::get('/adjustments/create', AdjustmentFormPage::class)->name('adjustments.create');
         Route::get('/reports', InventoryReportsPage::class)->name('reports.index');
+        Route::get('/reports/sales', SalesReportPage::class)->name('reports.sales');
+        Route::get('/reports/purchases', PurchaseReportPage::class)->name('reports.purchases');
+        Route::get('/reports/stock', StockReportPage::class)->name('reports.stock');
+        Route::get('/reports/forecast', ForecastReportPage::class)->name('reports.forecast');
         Route::get('/reports/customer-heatmap', CustomerHeatMapPage::class)->name('reports.customer-heatmap');
     });

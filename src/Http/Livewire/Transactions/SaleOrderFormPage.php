@@ -160,6 +160,16 @@ class SaleOrderFormPage extends Component
             $this->discount_local = 0;
         }
 
+        if (!$this->canManagePricingTier()) {
+            $this->price_tier_code = $this->recordId
+                ? (SaleOrder::query()->find($this->recordId)?->price_tier_code ?: PriceTierCode::B2B_RETAIL->value)
+                : PriceTierCode::B2B_RETAIL->value;
+
+            foreach (array_keys($this->items) as $index) {
+                $this->items[$index]['price_tier_code'] = null; // falls back to $price_tier_code above
+            }
+        }
+
         $this->prepareDerivedPricingFields();
 
         $validated = $this->validate($this->rules());
@@ -230,6 +240,7 @@ class SaleOrderFormPage extends Component
             'editable'               => $this->canEdit(),
             'canOverridePrice'       => $this->canOverridePrice(),
             'canApplyDiscount'       => $this->canApplyDiscount(),
+            'canManagePricingTier'   => $this->canManagePricingTier(),
             'canApproveCredit'       => $this->can_approve_credit,
             'record'                 => $this->recordId ? SaleOrder::query()->with(['customer', 'warehouse'])->find($this->recordId) : null,
             'documentLabel'          => $this->documentLabel(),
@@ -386,6 +397,11 @@ class SaleOrderFormPage extends Component
     private function canApplyDiscount(): bool
     {
         return Gate::allows('inventory.sale-orders.apply-discount');
+    }
+
+    private function canManagePricingTier(): bool
+    {
+        return Gate::allows('inventory.pricing.manage');
     }
 
     private function updateOrder(array $validated): SaleOrder
