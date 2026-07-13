@@ -34,6 +34,25 @@
                     </a>
                 @endif
             </div>
+            <div class="w-56">
+                <div class="flex items-start gap-1">
+                    <div class="flex-1" wire:key="purchase-product-select-{{ $productId ?? 'none' }}">
+                        <x-tallui-select
+                            name="productId"
+                            wire:model.live="productId"
+                            :value="$productId"
+                            searchable
+                            placeholder="All products"
+                            :options="$selectedProductOptions"
+                            :search-url="parse_url(route('inventory.async-select', ['resource' => 'products']), PHP_URL_PATH)"
+                            class="select-sm"
+                        />
+                    </div>
+                    @if ($productId)
+                        <x-tallui-button type="button" icon="o-x-mark" class="btn-ghost btn-sm mt-0.5" wire:click="$set('productId', null)" :tooltip="'Clear product'" />
+                    @endif
+                </div>
+            </div>
             <x-tallui-input type="date" wire:model.live="startDate" class="input-sm" />
             <x-tallui-input type="date" wire:model.live="endDate" class="input-sm" />
         </div>

@@ -22,6 +22,9 @@ class PurchaseReportPage extends Component
     #[Url(as: 'supplier', except: null)]
     public ?int $supplierId = null;
 
+    #[Url(as: 'product', except: null)]
+    public ?int $productId = null;
+
     public ?int $viewingOrderId = null;
 
     public function mount(): void
@@ -53,6 +56,7 @@ class PurchaseReportPage extends Component
             ->get();
 
         $selectedSupplier = $this->supplierId ? Supplier::query()->find($this->supplierId) : null;
+        $selectedProduct = $this->productId ? Product::query()->find($this->productId) : null;
 
         return view('inventory::livewire.transactions.purchase-report', [
             'purchaseOrders'    => $recentOrders,
@@ -65,6 +69,14 @@ class PurchaseReportPage extends Component
             'supplierLedgerUrl'       => $this->supplierLedgerUrl($selectedSupplier),
             'selectedSupplierOptions' => $selectedSupplier
                 ? [$selectedSupplier->id => ['label' => (string) $selectedSupplier->name]]
+                : [],
+            'selectedProductOptions' => $selectedProduct
+                ? [
+                    $selectedProduct->id => [
+                        'label'    => (string) $selectedProduct->name,
+                        'sublabel' => filled($selectedProduct->sku) ? (string) $selectedProduct->sku : null,
+                    ],
+                ]
                 : [],
         ]);
     }
@@ -91,7 +103,8 @@ class PurchaseReportPage extends Component
             ->where('document_type', 'order')
             ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
             ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
-            ->when($this->supplierId, fn ($query) => $query->where('supplier_id', $this->supplierId));
+            ->when($this->supplierId, fn ($query) => $query->where('supplier_id', $this->supplierId))
+            ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)));
 
         CommercialTeamAccess::applyPurchaseScope($query);
 
@@ -131,6 +144,7 @@ class PurchaseReportPage extends Component
 
         $rows = PurchaseOrderItem::query()
             ->whereIn('purchase_order_id', $orderIds)
+            ->when($this->productId, fn ($query) => $query->where('product_id', $this->productId))
             ->selectRaw('product_id, variant_id, SUM(qty_ordered) as qty_purchased, SUM(line_total_local) as cost_local, COUNT(DISTINCT purchase_order_id) as orders_count')
             ->groupBy('product_id', 'variant_id')
             ->orderByDesc('qty_purchased')

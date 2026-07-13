@@ -22,6 +22,9 @@ class SalesReportPage extends Component
     #[Url(as: 'customer', except: null)]
     public ?int $customerId = null;
 
+    #[Url(as: 'product', except: null)]
+    public ?int $productId = null;
+
     public ?int $viewingOrderId = null;
 
     public function mount(): void
@@ -53,6 +56,7 @@ class SalesReportPage extends Component
             ->get();
 
         $selectedCustomer = $this->customerId ? Customer::query()->find($this->customerId) : null;
+        $selectedProduct = $this->productId ? Product::query()->find($this->productId) : null;
 
         return view('inventory::livewire.transactions.sales-report', [
             'saleOrders'   => $recentOrders,
@@ -68,6 +72,14 @@ class SalesReportPage extends Component
                     $selectedCustomer->id => [
                         'label'    => (string) ($selectedCustomer->organization_name ?: $selectedCustomer->name),
                         'sublabel' => filled($selectedCustomer->phone) ? (string) $selectedCustomer->phone : null,
+                    ],
+                ]
+                : [],
+            'selectedProductOptions' => $selectedProduct
+                ? [
+                    $selectedProduct->id => [
+                        'label'    => (string) $selectedProduct->name,
+                        'sublabel' => filled($selectedProduct->sku) ? (string) $selectedProduct->sku : null,
                     ],
                 ]
                 : [],
@@ -96,7 +108,8 @@ class SalesReportPage extends Component
             ->where('document_type', 'order')
             ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
             ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
-            ->when($this->customerId, fn ($query) => $query->where('customer_id', $this->customerId));
+            ->when($this->customerId, fn ($query) => $query->where('customer_id', $this->customerId))
+            ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)));
 
         CommercialTeamAccess::applySalesScope($query);
 
@@ -136,6 +149,7 @@ class SalesReportPage extends Component
 
         $rows = SaleOrderItem::query()
             ->whereIn('sale_order_id', $orderIds)
+            ->when($this->productId, fn ($query) => $query->where('product_id', $this->productId))
             ->selectRaw('product_id, variant_id, SUM(qty_ordered) as qty_sold, SUM(line_total_local) as revenue_local, COUNT(DISTINCT sale_order_id) as orders_count')
             ->groupBy('product_id', 'variant_id')
             ->orderByDesc('qty_sold')

@@ -29,8 +29,36 @@ class AsyncSelectController extends Controller
             'suppliers'         => $this->searchSuppliers($term, $page, $perPage),
             'purchase-products' => $this->searchPurchaseProducts($term, $page, $perPage),
             'sale-products'     => $this->searchSaleProducts($term, $warehouseId, $page, $perPage),
+            'products'          => $this->searchProducts($term, $page, $perPage),
             default             => ['data' => [], 'has_more' => false],
         });
+    }
+
+    /**
+     * @return array{data:array<int, array{value:int,label:string,sublabel:?string}>,has_more:bool}
+     */
+    private function searchProducts(string $term, int $page, int $perPage): array
+    {
+        $products = Product::query()
+            ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $builder) use ($term): void {
+                $builder->where('name', 'like', '%' . $term . '%')
+                    ->orWhere('sku', 'like', '%' . $term . '%')
+                    ->orWhere('barcode', 'like', '%' . $term . '%');
+            }))
+            ->orderBy('name')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage + 1)
+            ->get(['id', 'name', 'sku'])
+            ->map(fn (Product $product): array => [
+                'value'    => (int) $product->id,
+                'label'    => (string) $product->name,
+                'sublabel' => filled($product->sku) ? (string) $product->sku : null,
+            ]);
+
+        return [
+            'data'     => $products->take($perPage)->values()->all(),
+            'has_more' => $products->count() > $perPage,
+        ];
     }
 
     /**

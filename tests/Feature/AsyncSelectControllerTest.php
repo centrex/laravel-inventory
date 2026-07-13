@@ -68,6 +68,32 @@ it('returns active products for purchase async select', function (): void {
         ]);
 });
 
+it('returns matching products for the report filter async select', function (): void {
+    Product::create([
+        'sku'          => 'SKU-1',
+        'name'         => 'Active Product',
+        'barcode'      => 'BAR-001',
+        'unit'         => 'pcs',
+        'is_active'    => true,
+        'is_stockable' => true,
+    ]);
+    Product::create([
+        'sku'          => 'SKU-2',
+        'name'         => 'Other Item',
+        'unit'         => 'pcs',
+        'is_active'    => true,
+        'is_stockable' => true,
+    ]);
+
+    $this->getJson(route('inventory.async-select', ['resource' => 'products', 'q' => 'active']))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonFragment([
+            'label'    => 'Active Product',
+            'sublabel' => 'SKU-1',
+        ]);
+});
+
 it('filters sale products by warehouse availability', function (): void {
     $warehouse = Warehouse::create([
         'code'         => 'W1',
