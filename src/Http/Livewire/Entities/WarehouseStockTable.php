@@ -60,7 +60,7 @@ class WarehouseStockTable extends DataTable
 
     protected function applySearchConstraint(Builder $query, string $column, string $search): void
     {
-        if ($column === 'product.name') {
+        if (in_array($column, ['product.name', 'sku'], true)) {
             $query->orWhereHas('product', function (Builder $q) use ($search): void {
                 $q->where('sku', 'like', '%' . $search . '%')
                     ->orWhere('name', 'like', '%' . $search . '%');
