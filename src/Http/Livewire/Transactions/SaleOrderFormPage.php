@@ -281,6 +281,12 @@ class SaleOrderFormPage extends Component
             return;
         }
 
+        if ($property === 'customer_id') {
+            $this->applyCustomerPriceTier();
+
+            return;
+        }
+
         if ($property === 'price_tier_code') {
             foreach (array_keys($this->items) as $index) {
                 $this->syncItemPrice($index);
@@ -752,6 +758,26 @@ class SaleOrderFormPage extends Component
         $this->form_refresh_key++;
         $this->resetErrorBag();
         $this->resetValidation();
+    }
+
+    /** Defaults the price tier to the selected customer's tier and re-syncs line prices against it. */
+    private function applyCustomerPriceTier(): void
+    {
+        if (!$this->canManagePricingTier() || !$this->customer_id) {
+            return;
+        }
+
+        $tierCode = Customer::query()->whereKey($this->customer_id)->value('price_tier_code');
+
+        if (!$tierCode) {
+            return;
+        }
+
+        $this->price_tier_code = $tierCode;
+
+        foreach (array_keys($this->items) as $index) {
+            $this->syncItemPrice($index);
+        }
     }
 
     private function syncWarehouseCurrency(): void

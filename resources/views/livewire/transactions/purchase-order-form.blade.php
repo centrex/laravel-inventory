@@ -42,7 +42,7 @@
                 <div wire:key="purchase-supplier-select-{{ $supplier_id ?? 'none' }}-{{ $form_refresh_key }}">
                     <x-tallui-select
                         name="supplier_id"
-                        wire:model="supplier_id"
+                        wire:model.live="supplier_id"
                         :value="$supplier_id"
                         searchable
                         placeholder="Search supplier…"
@@ -158,7 +158,7 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="po-item-{{ $index }}" class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5 py-2">
-                                <div wire:key="purchase-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
+                                <div wire:key="purchase-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $supplier_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
                                         name="items.{{ $index }}.product_key"
                                         wire:model.live="items.{{ $index }}.product_key"
@@ -167,8 +167,12 @@
                                         placeholder="Search product or variant…"
                                         :options="isset($selectedProductOptions[$item['product_key'] ?? '']) ? [($item['product_key'] ?? '') => $selectedProductOptions[$item['product_key'] ?? '']] : []"
                                         :search-url="parse_url(route('inventory.async-select', ['resource' => 'purchase-products']), PHP_URL_PATH)"
+                                        :disabled="!$warehouse_id || !$supplier_id"
                                         class="select-sm w-full"
                                     />
+                                    @if (!$item['product_key'] && (!$warehouse_id || !$supplier_id))
+                                        <p class="mt-1 text-xs text-warning">Select a warehouse and supplier first.</p>
+                                    @endif
                                     <input type="hidden" wire:model="items.{{ $index }}.product_id" />
                                     <input type="hidden" wire:model="items.{{ $index }}.variant_id" />
                                 </div>

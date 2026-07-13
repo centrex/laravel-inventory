@@ -87,7 +87,7 @@
                 </x-tallui-select>
             </x-tallui-form-group>
 
-            <x-tallui-form-group label="Customer">
+            <x-tallui-form-group label="Customer *" helper="Required before adding line items.">
                 <div class="flex items-start gap-2">
                     <div class="flex-1" wire:key="sale-customer-select-{{ $customer_id ?? 'none' }}-{{ $form_refresh_key }}">
                         <x-tallui-select
@@ -95,7 +95,7 @@
                             wire:model.live="customer_id"
                             :value="$customer_id"
                             searchable
-                            placeholder="Search customer or leave empty for walk-in"
+                            placeholder="Search customer…"
                             :options="$selectedCustomerOptions"
                             :search-url="parse_url(route('inventory.async-select', ['resource' => 'customers']), PHP_URL_PATH)"
                         />
@@ -257,7 +257,7 @@
                     @forelse ($items as $index => $item)
                         <tr wire:key="so-item-{{ $index }}" class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5 py-2">
-                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
+                                <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $customer_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
                                         name="items.{{ $index }}.product_key"
                                         wire:model.live="items.{{ $index }}.product_key"
@@ -266,9 +266,12 @@
                                         placeholder="Search product or variant…"
                                         :options="isset($selectedProductOptions[$item['product_key'] ?? '']) ? [($item['product_key'] ?? '') => $selectedProductOptions[$item['product_key'] ?? '']] : []"
                                         :search-url="parse_url(route('inventory.async-select', ['resource' => 'sale-products']), PHP_URL_PATH) . ($warehouse_id ? '?warehouse_id=' . $warehouse_id : '')"
-                                        :disabled="filled($item['product_key'] ?? null)"
+                                        :disabled="filled($item['product_key'] ?? null) || !$warehouse_id || !$customer_id"
                                         class="select-sm w-full"
                                     />
+                                    @if (!$item['product_key'] && (!$warehouse_id || !$customer_id))
+                                        <p class="mt-1 text-xs text-warning">Select a warehouse and customer first.</p>
+                                    @endif
                                     <input type="hidden" wire:model="items.{{ $index }}.product_id" />
                                     <input type="hidden" wire:model="items.{{ $index }}.variant_id" />
                                 </div>
