@@ -316,6 +316,7 @@
                             @forelse ($orders as $order)
                                 @php
                                     $meta = $metadata[$order->getKey()] ?? [];
+                                    $flow = $saleFlow[$order->getKey()] ?? null;
                                 @endphp
                                 <tr wire:key="su-{{ $order->getKey() }}" class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
 
@@ -327,6 +328,11 @@
                                             {{ $order->status?->label() ?? 'Unknown' }}
                                         </div>
                                         <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $order->items->count() }} items · {{ number_format((float) $order->total_local, 2) }} {{ $order->currency }}</div>
+                                        @if ($flow && !$flow['halted'])
+                                            <div class="mt-3">
+                                                <x-tallui-steps :steps="$flow['steps']" :current="$flow['current']" />
+                                            </div>
+                                        @endif
                                     </td>
 
                                     {{-- Customer --}}
@@ -367,27 +373,86 @@
 
                                     {{-- Actions --}}
                                     <td class="px-4 py-4 text-right align-top">
-                                        <div class="flex items-center justify-end gap-2">
-                                            <button
-                                                type="button"
-                                                wire:click="openDetailModal({{ $order->getKey() }})"
-                                                wire:loading.attr="disabled"
-                                                wire:target="openDetailModal({{ $order->getKey() }})"
-                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200"
-                                            >
-                                                <x-tallui-icon name="o-eye" class="h-4 w-4" />
-                                                View
-                                            </button>
-                                            <button
-                                                type="button"
-                                                wire:click="openModal({{ $order->getKey() }})"
-                                                wire:loading.attr="disabled"
-                                                wire:target="openModal({{ $order->getKey() }})"
-                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                            >
-                                                <x-tallui-icon name="o-pencil-square" class="h-4 w-4" />
-                                                Edit
-                                            </button>
+                                        <div class="flex flex-col items-end gap-2">
+                                            <div class="flex items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    wire:click="openDetailModal({{ $order->getKey() }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openDetailModal({{ $order->getKey() }})"
+                                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200"
+                                                >
+                                                    <x-tallui-icon name="o-eye" class="h-4 w-4" />
+                                                    View
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    wire:click="openModal({{ $order->getKey() }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="openModal({{ $order->getKey() }})"
+                                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    <x-tallui-icon name="o-pencil-square" class="h-4 w-4" />
+                                                    Edit
+                                                </button>
+                                            </div>
+
+                                            @if ($flow)
+                                                <div class="flex flex-wrap justify-end gap-1.5">
+                                                    @if ($flow['canConfirm'])
+                                                        <button
+                                                            type="button"
+                                                            wire:click="confirmSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="confirmSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:confirm="Confirm {{ $order->so_number }}?"
+                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            <x-tallui-icon name="o-check-circle" class="h-4 w-4" />
+                                                            Confirm
+                                                        </button>
+                                                    @endif
+                                                    @if ($flow['canReserve'])
+                                                        <button
+                                                            type="button"
+                                                            wire:click="reserveSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="reserveSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:confirm="Reserve stock for {{ $order->so_number }}?"
+                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            <x-tallui-icon name="o-archive-box-arrow-down" class="h-4 w-4" />
+                                                            Reserve
+                                                        </button>
+                                                    @endif
+                                                    @if ($flow['canFulfill'])
+                                                        <button
+                                                            type="button"
+                                                            wire:click="fulfillSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="fulfillSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:confirm="Fulfill remaining quantities for {{ $order->so_number }}?"
+                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            <x-tallui-icon name="o-truck" class="h-4 w-4" />
+                                                            Fulfill
+                                                        </button>
+                                                    @endif
+                                                    @if ($flow['canCancel'])
+                                                        <button
+                                                            type="button"
+                                                            wire:click="cancelSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:loading.attr="disabled"
+                                                            wire:target="cancelSaleOrderFlow({{ $order->getKey() }})"
+                                                            wire:confirm="Cancel {{ $order->so_number }}?"
+                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-error-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            <x-tallui-icon name="o-x-circle" class="h-4 w-4" />
+                                                            Cancel
+                                                        </button>
+                                                    @endif
+                                                </div>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>

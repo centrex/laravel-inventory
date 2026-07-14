@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\SaleOrder;
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
@@ -63,7 +64,35 @@ class SaleOrderShowPage extends Component
                 && $this->record->status?->value === 'confirmed'
                 && $this->linkedSaleOrder === null,
             'linkedSaleOrder' => $this->linkedSaleOrder,
+            'saleFlowSteps'   => $this->saleFlowSteps(),
+            'saleFlowCurrent' => $this->saleFlowCurrentStep(),
+            'saleFlowHalted'  => in_array($this->record->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
         ]);
+    }
+
+    /** Draft -> Confirmed -> Reserved -> Fulfilled pipeline shown to sale updaters progressing an order. */
+    private function saleFlowSteps(): array
+    {
+        if ($this->documentType !== 'order') {
+            return [];
+        }
+
+        return [
+            ['label' => 'Draft'],
+            ['label' => 'Confirmed'],
+            ['label' => 'Reserved'],
+            ['label' => 'Fulfilled'],
+        ];
+    }
+
+    private function saleFlowCurrentStep(): int
+    {
+        return match ($this->record->status) {
+            SaleOrderStatus::CONFIRMED => 2,
+            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
+            SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
+            default => 1,
+        };
     }
 
     public function confirm(): void

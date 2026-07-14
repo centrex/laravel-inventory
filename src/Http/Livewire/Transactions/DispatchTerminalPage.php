@@ -5,12 +5,14 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\SaleOrderStatus;
+use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{ProductPrice, SaleOrder};
+use Centrex\Inventory\Support\CommercialTeamAccess;
 use Centrex\ModelData\Models\Data;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\{Collection as EloquentCollection, Model};
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\{Schema, Validator};
+use Illuminate\Support\Facades\{Gate, Schema, Validator};
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithPagination};
@@ -246,6 +248,81 @@ class DispatchTerminalPage extends Component
         session()->flash('status', "{$saleOrder->so_number} marked as {$parcelStatus}.");
     }
 
+    /** Sale Updater tab: progress an order through Draft → Confirmed → Reserved → Fulfilled via the real workflow. */
+    public function confirmSaleOrderFlow(int $saleOrderId): void
+    {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.confirm']);
+
+        try {
+            $saleOrder = app(Inventory::class)->confirmSaleOrder($saleOrderId);
+            session()->flash('status', "{$saleOrder->so_number} confirmed.");
+        } catch (\Throwable $exception) {
+            session()->flash('dispatch_error', $exception->getMessage());
+        }
+    }
+
+    public function reserveSaleOrderFlow(int $saleOrderId): void
+    {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.reserve']);
+
+        try {
+            $saleOrder = app(Inventory::class)->reserveStock($saleOrderId);
+
+            if (!empty($saleOrder->shortageWarnings)) {
+                session()->flash('dispatch_error', "Reserved {$saleOrder->so_number} with stock shortage — " . implode('; ', $saleOrder->shortageWarnings) . '. Post a GRN to cover before fulfillment.');
+            } else {
+                session()->flash('status', "Stock reserved for {$saleOrder->so_number}.");
+            }
+        } catch (\Throwable $exception) {
+            session()->flash('dispatch_error', $exception->getMessage());
+        }
+    }
+
+    public function fulfillSaleOrderFlow(int $saleOrderId): void
+    {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.fulfill']);
+
+        try {
+            $saleOrder = app(Inventory::class)->fulfillSaleOrder($saleOrderId);
+            session()->flash('status', "{$saleOrder->so_number} fulfilled.");
+        } catch (\Throwable $exception) {
+            session()->flash('dispatch_error', $exception->getMessage());
+        }
+    }
+
+    public function cancelSaleOrderFlow(int $saleOrderId): void
+    {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.cancel']);
+
+        try {
+            $saleOrder = app(Inventory::class)->cancelSaleOrder($saleOrderId);
+            session()->flash('status', "{$saleOrder->so_number} cancelled.");
+        } catch (\Throwable $exception) {
+            session()->flash('dispatch_error', $exception->getMessage());
+        }
+    }
+
+    /** Draft -> Confirmed -> Reserved -> Fulfilled step data + per-action authority for the Sale Updater tab. */
+    private function saleFlowFor(SaleOrder $order): array
+    {
+        $status = $order->status;
+
+        return [
+            'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Fulfilled']],
+            'current' => match ($status) {
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
+                SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
+                default => 1,
+            },
+            'halted'     => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
+            'canConfirm' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.confirm']) && $status === SaleOrderStatus::DRAFT,
+            'canReserve' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.reserve']) && $status === SaleOrderStatus::CONFIRMED,
+            'canFulfill' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.fulfill']) && in_array($status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true),
+            'canCancel'  => Gate::any(['sales.orders.manage', 'inventory.sale-orders.cancel']) && in_array($status, [SaleOrderStatus::DRAFT, SaleOrderStatus::CONFIRMED, SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true),
+        ];
+    }
+
     public function render(): View
     {
         $query = SaleOrder::query()
@@ -256,8 +333,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                              => null,
-            default                                                                                            => $query->whereIn('status', ['confirmed', 'processing', 'partial', 'shipped']),
+            'all'   => null,
+            default => $query->whereIn('status', ['confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);
@@ -280,6 +357,10 @@ class DispatchTerminalPage extends Component
         $metadata = $this->metadataForOrders($orders->getCollection());
 
         $this->seedOrderForms($orders->getCollection(), $metadata);
+
+        $saleFlow = $orders->getCollection()
+            ->mapWithKeys(fn (SaleOrder $order): array => [$order->getKey() => $this->saleFlowFor($order)])
+            ->all();
 
         $modalOrder = null;
         $modalMeta = [];
@@ -401,6 +482,7 @@ class DispatchTerminalPage extends Component
         return view('inventory::livewire.transactions.dispatch-terminal', [
             'orders'               => $orders,
             'metadata'             => $metadata,
+            'saleFlow'             => $saleFlow,
             'statusOptions'        => $this->statusOptions(),
             'orderStatusOptions'   => $this->orderStatusOptions(),
             'parcelStatuses'       => self::PARCEL_STATUSES,

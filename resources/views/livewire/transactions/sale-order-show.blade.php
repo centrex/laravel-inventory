@@ -43,6 +43,20 @@
     </x-slot:actions>
 </x-tallui-page-header>
 
+@if ($routeBase === 'inventory.sale-orders')
+    <div class="mb-4">
+        @if ($saleFlowHalted)
+            <x-tallui-alert type="error" title="{{ $record->status?->label() }}">
+                This sale order will not continue through the standard confirm &rarr; reserve &rarr; fulfill flow.
+            </x-tallui-alert>
+        @else
+            <x-tallui-card :shadow="true" padding="normal">
+                <x-tallui-steps :steps="$saleFlowSteps" :current="$saleFlowCurrent" />
+            </x-tallui-card>
+        @endif
+    </div>
+@endif
+
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
     <div class="space-y-4 xl:col-span-1">
         <x-tallui-card title="Summary" subtitle="Customer and order context." icon="o-document-text" :shadow="true">
