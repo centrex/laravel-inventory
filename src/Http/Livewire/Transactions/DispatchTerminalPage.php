@@ -310,10 +310,10 @@ class DispatchTerminalPage extends Component
         return [
             'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Fulfilled']],
             'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
+                SaleOrderStatus::CONFIRMED                                                       => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
                 SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default => 1,
+                default                                                                          => 1,
             },
             'halted'     => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'canConfirm' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.confirm']) && $status === SaleOrderStatus::DRAFT,
@@ -333,8 +333,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'   => null,
-            default => $query->whereIn('status', ['confirmed', 'processing', 'partial', 'shipped']),
+            'all'                                                                                              => null,
+            default                                                                                            => $query->whereIn('status', ['confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);
