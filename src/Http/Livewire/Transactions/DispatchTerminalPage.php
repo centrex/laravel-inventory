@@ -7,7 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{ProductPrice, SaleOrder};
-use Centrex\Inventory\Support\CommercialTeamAccess;
+use Centrex\Inventory\Support\{CommercialTeamAccess, CourierIntegration};
 use Centrex\ModelData\Models\Data;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\{Collection as EloquentCollection, Model};
@@ -69,6 +69,22 @@ class DispatchTerminalPage extends Component
 
     public ?int $printOrderId = null;
 
+    public bool $parcelModalOpen = false;
+
+    public ?int $parcelOrderId = null;
+
+    /** Create-parcel modal fields: provider (pathao|redx|hand_carry), environment + reviewed parcel details. */
+    public array $parcelForm = [];
+
+    /** Redx delivery areas for the selected environment, lazy-loaded when Redx is picked. */
+    public array $redxAreas = [];
+
+    /** Redx merchant pickup stores (each carries its area) — the pickup-area choices. */
+    public array $redxPickupStores = [];
+
+    /** Filters the (large) delivery-area list in the parcel modal. */
+    public string $redxAreaSearch = '';
+
     protected $queryString = [
         'search' => ['except' => ''],
         'status' => ['except' => 'open'],
@@ -112,18 +128,12 @@ class DispatchTerminalPage extends Component
         $this->modalOrderId = null;
     }
 
+    /** Prices are only shown to users with sale-updater access, regardless of who opened the modal. */
     public function openDetailModal(int $saleOrderId): void
     {
         $this->detailModalOrderId = $saleOrderId;
         $this->detailModalOpen = true;
-        $this->detailShowPrices = true;
-    }
-
-    public function openDetailModalView(int $saleOrderId): void
-    {
-        $this->detailModalOrderId = $saleOrderId;
-        $this->detailModalOpen = true;
-        $this->detailShowPrices = false;
+        $this->detailShowPrices = $this->canViewUpdaterTab();
     }
 
     public function closeDetailModal(): void
@@ -248,7 +258,7 @@ class DispatchTerminalPage extends Component
         session()->flash('status', "{$saleOrder->so_number} marked as {$parcelStatus}.");
     }
 
-    /** Sale Updater tab: progress an order through Draft → Confirmed → Reserved → Fulfilled via the real workflow. */
+    /** Sale Updater tab: progress an order through Draft → Confirmed → Reserved → Shipped via the real workflow. */
     public function confirmSaleOrderFlow(int $saleOrderId): void
     {
         CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.confirm']);
@@ -278,16 +288,259 @@ class DispatchTerminalPage extends Component
         }
     }
 
+    /**
+     * "Ship" — the plain Inventory::fulfillSaleOrder() call (decrements stock, posts
+     * COGS). The parcel is booked in a separate, earlier step (see openParcelModal/
+     * createParcelForOrder): the primary action offers Create Parcel first and only
+     * switches to Ship once a tracking number exists (or the viewer can't book parcels).
+     */
     public function fulfillSaleOrderFlow(int $saleOrderId): void
     {
         CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.fulfill']);
 
         try {
             $saleOrder = app(Inventory::class)->fulfillSaleOrder($saleOrderId);
-            session()->flash('status', "{$saleOrder->so_number} fulfilled.");
+            session()->flash('status', "{$saleOrder->so_number} shipped.");
         } catch (\Throwable $exception) {
             session()->flash('dispatch_error', $exception->getMessage());
         }
+    }
+
+    public function openParcelModal(int $saleOrderId): void
+    {
+        Gate::authorize('inventory.courier.create-parcel');
+
+        $saleOrder = SaleOrder::query()
+            ->with(['customer', 'warehouse', 'items'])
+            ->where('document_type', 'order')
+            ->findOrFail($saleOrderId);
+
+        $meta = $this->metadataFor($saleOrder);
+
+        $weight = app(Inventory::class)->estimateShipping(
+            $saleOrder->items->map(fn ($item): array => ['product_id' => $item->product_id, 'qty' => $item->qty_ordered])->all(),
+        )['total_weight_kg'] ?? 0.0;
+
+        $courierApiEnabled = app(CourierIntegration::class)->enabled();
+        $saved = $this->savedShippingAddressFor($saleOrder);
+
+        $this->parcelForm = [
+            'provider'          => $courierApiEnabled ? (string) config('inventory.courier.default_provider', 'redx') : 'hand_carry',
+            'environment'       => (string) config('inventory.courier.default_environment', 'sandbox'),
+            'recipient_name'    => $saleOrder->customer?->organization_name ?? $saleOrder->customer?->name ?? 'Walk-in customer',
+            'recipient_phone'   => $saleOrder->customer?->phone ?? $saved['phone'] ?? data_get($meta, 'shipping_address.phone', ''),
+            'recipient_address' => $saved['address'] ?? data_get($meta, 'shipping_address.formatted', ''),
+            'weight_kg'         => $weight > 0 ? (string) $weight : '0.5',
+            'cod_amount'        => (string) round((float) $saleOrder->total_local, 2),
+            'item_description'  => $saleOrder->so_number,
+            'delivery_area_id'  => (string) (data_get($meta, 'shipping_address.delivery_area_id') ?? ''),
+            'pickup_area_id'    => (string) config('inventory.courier.redx.pickup_area_id', ''),
+            'carried_by'        => '',
+        ];
+
+        $this->redxAreaSearch = '';
+        $this->parcelOrderId = $saleOrderId;
+        $this->parcelModalOpen = true;
+
+        $this->loadRedxOptions();
+    }
+
+    public function closeParcelModal(): void
+    {
+        $this->parcelModalOpen = false;
+        $this->parcelOrderId = null;
+    }
+
+    public function updatedParcelFormProvider(): void
+    {
+        $this->loadRedxOptions();
+    }
+
+    public function updatedParcelFormEnvironment(): void
+    {
+        // Sandbox and live have separate area/pickup-store data sets.
+        $this->redxAreas = [];
+        $this->redxPickupStores = [];
+        $this->loadRedxOptions();
+    }
+
+    /**
+     * Lazy-load the Redx area + pickup-store lists once Redx is the selected provider.
+     * A lookup failure degrades gracefully: the modal falls back to plain numeric id
+     * inputs, so booking is still possible with ids from Redx's own panel.
+     */
+    private function loadRedxOptions(): void
+    {
+        if (($this->parcelForm['provider'] ?? '') !== 'redx' || $this->redxAreas !== []) {
+            return;
+        }
+
+        $environment = (string) ($this->parcelForm['environment'] ?? 'sandbox');
+
+        try {
+            $courier = app(CourierIntegration::class);
+            $this->redxAreas = $courier->redxAreas($environment);
+            $this->redxPickupStores = $courier->redxPickupStores($environment);
+        } catch (\Throwable $exception) {
+            $this->redxAreas = [];
+            $this->redxPickupStores = [];
+            session()->flash('dispatch_error', "Could not load Redx areas: {$exception->getMessage()}");
+        }
+    }
+
+    /** Delivery-area options narrowed by the search box — capped so the select stays usable. */
+    private function filteredRedxAreas(): array
+    {
+        $search = mb_strtolower(trim($this->redxAreaSearch));
+        $selectedId = (string) ($this->parcelForm['delivery_area_id'] ?? '');
+
+        $areas = collect($this->redxAreas)
+            ->filter(function (array $area) use ($search, $selectedId): bool {
+                if ((string) ($area['id'] ?? '') === $selectedId) {
+                    return true; // never filter away the current selection
+                }
+
+                if ($search === '') {
+                    return true;
+                }
+
+                return str_contains(mb_strtolower((string) ($area['name'] ?? '')), $search)
+                    || str_contains(mb_strtolower((string) ($area['district_name'] ?? '')), $search)
+                    || str_contains((string) ($area['post_code'] ?? ''), $search);
+            });
+
+        return $areas->take(50)->values()->all();
+    }
+
+    /**
+     * Create the parcel as its own step before shipping: books with the courier API
+     * (Pathao/Redx) or records a hand-carry with an internally generated tracking
+     * number. Stock is untouched — fulfilment stays a separate Ship click afterwards.
+     */
+    public function createParcelForOrder(): void
+    {
+        Gate::authorize('inventory.courier.create-parcel');
+
+        if (!$this->parcelOrderId) {
+            return;
+        }
+
+        $provider = (string) ($this->parcelForm['provider'] ?? '');
+        $isHandCarry = $provider === 'hand_carry';
+
+        Validator::make($this->parcelForm, [
+            'provider'          => ['required', Rule::in(['pathao', 'redx', 'hand_carry'])],
+            'environment'       => [Rule::excludeIf($isHandCarry), 'required', Rule::in(['sandbox', 'live'])],
+            'recipient_name'    => ['required', 'string', 'max:160'],
+            'recipient_phone'   => ['required', 'string', 'max:32'],
+            'recipient_address' => [Rule::excludeIf($isHandCarry), 'required', 'string', 'max:500'],
+            'weight_kg'         => [Rule::excludeIf($isHandCarry), 'required', 'numeric', 'min:0.01'],
+            'cod_amount'        => [Rule::excludeIf($isHandCarry), 'required', 'numeric', 'min:0'],
+            'item_description'  => ['nullable', 'string', 'max:160'],
+            'delivery_area_id'  => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
+            'pickup_area_id'    => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
+            'carried_by'        => ['required_if:provider,hand_carry', 'nullable', 'string', 'max:160'],
+        ], [
+            'delivery_area_id.required_if' => 'Redx needs a delivery area.',
+            'pickup_area_id.required_if'   => 'Redx needs a pickup area.',
+            'carried_by.required_if'       => 'Who is hand-carrying this parcel?',
+        ])->validate();
+
+        $saleOrder = SaleOrder::query()
+            ->with(['customer', 'warehouse', 'items'])
+            ->where('document_type', 'order')
+            ->findOrFail($this->parcelOrderId);
+
+        $meta = $this->metadataFor($saleOrder);
+
+        if (filled($meta['tracking_number'] ?? null)) {
+            session()->flash('dispatch_error', "{$saleOrder->so_number} already has parcel {$meta['tracking_number']}.");
+            $this->closeParcelModal();
+
+            return;
+        }
+
+        if ($isHandCarry) {
+            $trackingNumber = $this->trackingNumberFor($saleOrder);
+            $carrierLabel = 'Hand Carry';
+        } else {
+            try {
+                $result = app(CourierIntegration::class)->createParcel($saleOrder, $provider, (string) $this->parcelForm['environment'], [
+                    'recipient_name'    => (string) $this->parcelForm['recipient_name'],
+                    'recipient_phone'   => (string) $this->parcelForm['recipient_phone'],
+                    'recipient_address' => (string) $this->parcelForm['recipient_address'],
+                    'weight_kg'         => (float) $this->parcelForm['weight_kg'],
+                    'cod_amount'        => (float) $this->parcelForm['cod_amount'],
+                    'item_description'  => filled($this->parcelForm['item_description'] ?? null) ? $this->parcelForm['item_description'] : $saleOrder->so_number,
+                    'delivery_area_id'  => filled($this->parcelForm['delivery_area_id'] ?? null) ? (int) $this->parcelForm['delivery_area_id'] : null,
+                    'pickup_area_id'    => filled($this->parcelForm['pickup_area_id'] ?? null) ? (int) $this->parcelForm['pickup_area_id'] : null,
+                ]);
+            } catch (\Throwable $exception) {
+                session()->flash('dispatch_error', "Courier parcel creation failed for {$saleOrder->so_number}: {$exception->getMessage()}");
+
+                return;
+            }
+
+            $trackingNumber = $result['tracking_number'];
+            $carrierLabel = ucfirst($provider);
+        }
+
+        $this->putMetadata($saleOrder, array_merge($meta, [
+            'carrier'             => $carrierLabel,
+            'courier_provider'    => $provider,
+            'courier_environment' => $isHandCarry ? null : $this->parcelForm['environment'],
+            'delivery_area_id'    => $provider === 'redx' ? (int) $this->parcelForm['delivery_area_id'] : null,
+            'pickup_area_id'      => $provider === 'redx' ? (int) $this->parcelForm['pickup_area_id'] : null,
+            'carried_by'          => $isHandCarry ? $this->parcelForm['carried_by'] : null,
+            'tracking_number'     => $trackingNumber,
+            'parcel_status'       => 'Ready for courier',
+            'location'            => $meta['location'] ?? $saleOrder->warehouse?->name,
+            'dispatched_by'       => auth()->user()?->name,
+            'dispatched_by_id'    => auth()->user()?->getKey(),
+            'dispatch_updated_at' => now()->toDateTimeString(),
+        ]));
+
+        $this->orderForms[$saleOrder->getKey()] = $this->formStateFor($saleOrder, $this->metadataFor($saleOrder));
+        $this->closeParcelModal();
+
+        session()->flash('status', "{$carrierLabel} parcel {$trackingNumber} created for {$saleOrder->so_number}.");
+    }
+
+    private function canCreateParcel(): bool
+    {
+        return Gate::allows('inventory.courier.create-parcel');
+    }
+
+    /**
+     * The customer's saved address (centrex/laravel-addresses, optional peer package):
+     * shipping-flagged first, then primary, then the newest one. Takes priority over any
+     * ad-hoc shipping_address stored in dispatch metadata when prefilling the parcel form.
+     *
+     * @return array{address: ?string, phone: ?string}
+     */
+    private function savedShippingAddressFor(SaleOrder $saleOrder): array
+    {
+        $customer = $saleOrder->customer;
+        $addressModel = (string) config('laravel-addresses.addresses.model', 'Centrex\\Addresses\\Models\\Address');
+
+        if (!$customer || !class_exists($addressModel)) {
+            return ['address' => null, 'phone' => null];
+        }
+
+        $addresses = $customer->addresses()->get();
+
+        $address = $addresses->firstWhere('is_shipping', true)
+            ?? $addresses->firstWhere('is_primary', true)
+            ?? $addresses->sortByDesc('id')->first();
+
+        if (!$address) {
+            return ['address' => null, 'phone' => null];
+        }
+
+        return [
+            'address' => method_exists($address, 'getLine') ? ($address->getLine() ?: null) : null,
+            'phone'   => $address->contact_phone ?? null,
+        ];
     }
 
     public function cancelSaleOrderFlow(int $saleOrderId): void
@@ -302,25 +555,143 @@ class DispatchTerminalPage extends Component
         }
     }
 
-    /** Draft -> Confirmed -> Reserved -> Fulfilled step data + per-action authority for the Sale Updater tab. */
+    /**
+     * Draft -> Confirmed -> Reserved -> Shipped step data, plus status-readiness and
+     * permission checked separately so the view can tell "not your turn yet" apart from
+     * "you don't have permission" (see primaryActionFor()).
+     */
     private function saleFlowFor(SaleOrder $order): array
     {
         $status = $order->status;
 
-        return [
-            'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Fulfilled']],
-            'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED                                                       => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
-                SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default                                                                          => 1,
-            },
-            'halted'     => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
-            'canConfirm' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.confirm']) && $status === SaleOrderStatus::DRAFT,
-            'canReserve' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.reserve']) && $status === SaleOrderStatus::CONFIRMED,
-            'canFulfill' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.fulfill']) && in_array($status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true),
-            'canCancel'  => Gate::any(['sales.orders.manage', 'inventory.sale-orders.cancel']) && in_array($status, [SaleOrderStatus::DRAFT, SaleOrderStatus::CONFIRMED, SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true),
+        $statusReady = [
+            'confirm' => $status === SaleOrderStatus::DRAFT,
+            'reserve' => $status === SaleOrderStatus::CONFIRMED,
+            'fulfill' => in_array($status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true),
+            'cancel'  => in_array($status, [SaleOrderStatus::DRAFT, SaleOrderStatus::CONFIRMED, SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true),
         ];
+
+        $permitted = [
+            'confirm' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.confirm']),
+            'reserve' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.reserve']),
+            'fulfill' => Gate::any(['sales.orders.manage', 'inventory.sale-orders.fulfill']),
+            'cancel'  => Gate::any(['sales.orders.manage', 'inventory.sale-orders.cancel']),
+        ];
+
+        return [
+            'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Shipped']],
+            'current' => match ($status) {
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
+                SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
+                default => 1,
+            },
+            'halted'      => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
+            'statusReady' => $statusReady,
+            'permitted'   => $permitted,
+            'canConfirm'  => $statusReady['confirm'] && $permitted['confirm'],
+            'canReserve'  => $statusReady['reserve'] && $permitted['reserve'],
+            'canFulfill'  => $statusReady['fulfill'] && $permitted['fulfill'],
+            'canCancel'   => $statusReady['cancel'] && $permitted['cancel'],
+        ];
+    }
+
+    /**
+     * The single next action for a row, combining the Sale Updater lifecycle (confirm →
+     * reserve → ship) with post-ship courier tracking (dispatched → out for delivery →
+     * delivered) into one priority order, so a row never offers two competing buttons
+     * (e.g. "Ship" and "Mark Dispatched") at once. Shipping always comes first: courier
+     * tracking only becomes available once the order has actually been shipped.
+     * 'ready' means the step is next given the order's status; 'allowed' means the
+     * current viewer is permitted to perform it — the view shows a button when both are
+     * true, and a "you don't have permission" message when ready but not allowed.
+     */
+    private function primaryActionFor(SaleOrder $order, array $flow, array $meta): array
+    {
+        // Parcel creation is its own step before shipping: once the order is reservation-
+        // complete, a viewer who may book parcels first gets "Create Parcel" (Pathao/Redx/
+        // hand-carry — the modal's submit is the confirmation, so no wire:confirm), and only
+        // after a tracking number exists does the action become the actual Ship (fulfil).
+        // Viewers without the create-parcel gate skip straight to Ship.
+        $hasParcel = filled($meta['tracking_number'] ?? null);
+        $shipStep = !$hasParcel && $this->canCreateParcel()
+            ? ['label' => 'Create Parcel', 'icon' => 'o-cube', 'class' => 'bg-violet-500 hover:bg-violet-600', 'method' => 'openParcelModal', 'confirm' => '', 'need' => 'create a parcel']
+            : ['label' => 'Ship', 'icon' => 'o-truck', 'class' => 'bg-emerald-500 hover:bg-emerald-600', 'method' => 'fulfillSaleOrderFlow', 'confirm' => "Ship remaining quantities for {$order->so_number}?", 'need' => 'ship this order'];
+
+        $steps = [
+            'confirm' => ['label' => 'Confirm',   'icon' => 'o-check-circle',           'class' => 'bg-blue-500 hover:bg-blue-600',    'method' => 'confirmSaleOrderFlow',  'confirm' => "Confirm {$order->so_number}?", 'need' => 'confirm this order'],
+            'reserve' => ['label' => 'Reserve',   'icon' => 'o-archive-box-arrow-down', 'class' => 'bg-amber-500 hover:bg-amber-600',  'method' => 'reserveSaleOrderFlow',  'confirm' => "Reserve stock for {$order->so_number}?", 'need' => 'reserve stock'],
+            'fulfill' => $shipStep,
+        ];
+
+        foreach ($steps as $type => $step) {
+            if ($flow['statusReady'][$type]) {
+                return [
+                    'type'    => $type,
+                    'ready'   => true,
+                    'allowed' => $flow['permitted'][$type],
+                    'need'    => $step['need'],
+                    'label'   => $step['label'],
+                    'icon'    => $step['icon'],
+                    'class'   => $step['class'],
+                    'method'  => $step['method'],
+                    'args'    => [$order->getKey()],
+                    'call'    => "{$step['method']}(" . (string) $order->getKey() . ')',
+                    'confirm' => $step['confirm'],
+                ];
+            }
+        }
+
+        $currentParcel = $meta['parcel_status'] ?? '';
+        $isTerminalParcel = in_array($currentParcel, ['Delivery failed', 'Returned', 'Cancelled'], true);
+        $canDispatchOrder = in_array($order->status?->value, self::DISPATCHABLE_STATUSES, true);
+
+        if ($canDispatchOrder && !$isTerminalParcel) {
+            $dispatchStep = match (true) {
+                in_array($currentParcel, ['', 'Order confirmed', 'Reserved for picking', 'Packed', 'Ready for courier'], true) => ['action' => 'dispatched', 'label' => 'Mark Dispatched', 'icon' => 'o-paper-airplane', 'class' => 'bg-amber-500 hover:bg-amber-600'],
+                $currentParcel === 'Dispatched'                                                                                => ['action' => 'out_for_delivery', 'label' => 'Out for Delivery', 'icon' => 'o-map-pin', 'class' => 'bg-blue-500 hover:bg-blue-600'],
+                $currentParcel === 'Out for delivery'                                                                          => ['action' => 'delivered', 'label' => 'Mark Delivered', 'icon' => 'o-check-circle', 'class' => 'bg-emerald-500 hover:bg-emerald-600'],
+                default                                                                                                        => null,
+            };
+
+            if ($dispatchStep !== null) {
+                return [
+                    'type'    => 'dispatch',
+                    'ready'   => true,
+                    'allowed' => $this->canViewDispatcherTab(),
+                    'need'    => 'update dispatch tracking',
+                    'label'   => $dispatchStep['label'],
+                    'icon'    => $dispatchStep['icon'],
+                    'class'   => $dispatchStep['class'],
+                    'method'  => 'quickDispatch',
+                    'args'    => [$order->getKey(), $dispatchStep['action']],
+                    'call'    => 'quickDispatch(' . (string) $order->getKey() . ", '{$dispatchStep['action']}')",
+                    'confirm' => "{$dispatchStep['label']} for {$order->so_number}?",
+                ];
+            }
+        }
+
+        return [
+            'type'    => null,
+            'ready'   => false,
+            'allowed' => true,
+            'message' => match (true) {
+                $isTerminalParcel                                                                       => $currentParcel,
+                in_array($order->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true) => $order->status->label(),
+                $canDispatchOrder                                                                       => 'Delivered',
+                default                                                                                 => 'Awaiting reservation',
+            },
+        ];
+    }
+
+    private function canViewDispatcherTab(): bool
+    {
+        return auth()->user()?->can('inventory.dispatch.dispatcher-tab') ?? false;
+    }
+
+    private function canViewUpdaterTab(): bool
+    {
+        return auth()->user()?->can('inventory.dispatch.updater-tab') ?? false;
     }
 
     public function render(): View
@@ -332,9 +703,9 @@ class DispatchTerminalPage extends Component
             ->latest('id');
 
         match ($this->status) {
-            'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                              => null,
-            default                                                                                            => $query->whereIn('status', ['confirmed', 'processing', 'partial', 'shipped']),
+            'draft', 'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
+            'all'   => null,
+            default => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);
@@ -361,6 +732,19 @@ class DispatchTerminalPage extends Component
         $saleFlow = $orders->getCollection()
             ->mapWithKeys(fn (SaleOrder $order): array => [$order->getKey() => $this->saleFlowFor($order)])
             ->all();
+
+        $primaryActions = $orders->getCollection()
+            ->mapWithKeys(fn (SaleOrder $order): array => [
+                $order->getKey() => $this->primaryActionFor($order, $saleFlow[$order->getKey()], $metadata[$order->getKey()] ?? []),
+            ])
+            ->all();
+
+        $parcelOrder = null;
+
+        if ($this->parcelModalOpen && $this->parcelOrderId) {
+            $parcelOrder = $orders->getCollection()->find($this->parcelOrderId)
+                ?? SaleOrder::query()->with(['customer', 'warehouse', 'items.product'])->find($this->parcelOrderId);
+        }
 
         $modalOrder = null;
         $modalMeta = [];
@@ -483,6 +867,7 @@ class DispatchTerminalPage extends Component
             'orders'               => $orders,
             'metadata'             => $metadata,
             'saleFlow'             => $saleFlow,
+            'primaryActions'       => $primaryActions,
             'statusOptions'        => $this->statusOptions(),
             'orderStatusOptions'   => $this->orderStatusOptions(),
             'parcelStatuses'       => self::PARCEL_STATUSES,
@@ -490,6 +875,9 @@ class DispatchTerminalPage extends Component
             'modelDataReady'       => $this->modelDataReady(),
             'modalOrder'           => $modalOrder,
             'modalMeta'            => $modalMeta,
+            'parcelOrder'          => $parcelOrder,
+            'courierApiEnabled'    => app(CourierIntegration::class)->enabled(),
+            'redxAreaOptions'      => $this->parcelModalOpen ? $this->filteredRedxAreas() : [],
             'detailOrder'          => $detailOrder,
             'detailMeta'           => $detailMeta,
             'detailPriceHistory'   => $detailPriceHistory,
@@ -497,8 +885,8 @@ class DispatchTerminalPage extends Component
             'detailChartData'      => $detailChartData,
             'printOrder'           => $printOrder,
             'printMeta'            => $printMeta,
-            'canViewDispatcherTab' => auth()->user()?->can('inventory.dispatch.dispatcher-tab') ?? false,
-            'canViewUpdaterTab'    => auth()->user()?->can('inventory.dispatch.updater-tab') ?? false,
+            'canViewDispatcherTab' => $this->canViewDispatcherTab(),
+            'canViewUpdaterTab'    => $this->canViewUpdaterTab(),
         ]);
     }
 

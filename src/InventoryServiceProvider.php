@@ -221,6 +221,24 @@ class InventoryServiceProvider extends ServiceProvider
             }
         }
 
+        // Courier parcel booking from the Dispatch Terminal — fall back to admin super-gate.
+        // Configure allowed roles via INVENTORY_COURIER_CREATE_PARCEL_ROLES.
+        if (!Gate::has('inventory.courier.create-parcel')) {
+            Gate::define('inventory.courier.create-parcel', function ($user): bool {
+                if (Gate::has('inventory-admin') && Gate::forUser($user)->check('inventory-admin')) {
+                    return true;
+                }
+
+                if (method_exists($user, 'hasRole')) {
+                    $roles = $this->normalizeAdminRoles(config('inventory.courier.create_parcel_roles', []));
+
+                    return !empty($roles) && $user->hasRole($roles);
+                }
+
+                return false;
+            });
+        }
+
         // Sale-order "view all" bypass for CommercialTeamAccess scoping. Unlike the generic
         // abilities below (which only auto-grant via inventory.admin_roles or a Jetstream Team
         // permission), this also checks inventory.sale_orders_view_all_roles — so a role like

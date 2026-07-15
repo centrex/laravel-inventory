@@ -745,7 +745,8 @@ it('syncs purchase receipts into accounting when the erp bridge is available', f
 
     $accountClass::create(['code' => '1300', 'name' => 'Inventory', 'type' => 'asset', 'is_active' => true]);
     $accountClass::create(['code' => '2000', 'name' => 'Accounts Payable', 'type' => 'liability', 'is_active' => true]);
-    $accountClass::create(['code' => '4900', 'name' => 'Inventory Gain', 'type' => 'income', 'is_active' => true]);
+    $accountClass::create(['code' => '2050', 'name' => 'GRN Clearing', 'type' => 'liability', 'is_active' => true]);
+    $accountClass::create(['code' => '4900', 'name' => 'Inventory Gain', 'type' => 'revenue', 'is_active' => true]);
     $accountClass::create(['code' => '5000', 'name' => 'Cost of Goods Sold', 'type' => 'expense', 'is_active' => true]);
 
     $inventory = app(Inventory::class);
@@ -808,7 +809,7 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
 
     $accountClass::create(['code' => '1300', 'name' => 'Inventory', 'type' => 'asset', 'is_active' => true]);
     $accountClass::create(['code' => '2000', 'name' => 'Accounts Payable', 'type' => 'liability', 'is_active' => true]);
-    $accountClass::create(['code' => '4900', 'name' => 'Inventory Gain', 'type' => 'income', 'is_active' => true]);
+    $accountClass::create(['code' => '4900', 'name' => 'Inventory Gain', 'type' => 'revenue', 'is_active' => true]);
     $accountClass::create(['code' => '5000', 'name' => 'Cost of Goods Sold', 'type' => 'expense', 'is_active' => true]);
 
     $inventory = app(Inventory::class);
@@ -866,6 +867,110 @@ it('syncs sales into accounting and posts cogs journals when the erp bridge is a
             ->where('source_action', 'sale_fulfillment')
             ->exists(),
     )->toBeTrue();
+});
+
+it('issues an accounting credit memo when a sale return is posted against an invoiced order', function (): void {
+    if (!class_exists('Centrex\\Accounting\\Models\\CreditMemo')) {
+        $this->markTestSkipped('Accounting package (with credit memo support) is not available in this test environment.');
+    }
+
+    $accountClass = 'Centrex\\Accounting\\Models\\Account';
+    $invoiceClass = 'Centrex\\Accounting\\Models\\Invoice';
+    $creditMemoClass = 'Centrex\\Accounting\\Models\\CreditMemo';
+    $entryClass = 'Centrex\\Accounting\\Models\\JournalEntry';
+
+    $accountClass::create(['code' => '1000', 'name' => 'Cash', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '1300', 'name' => 'Inventory', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '2300', 'name' => 'Sales Tax Payable', 'type' => 'liability', 'is_active' => true]);
+    $accountClass::create(['code' => '4000', 'name' => 'Sales Revenue', 'type' => 'revenue', 'is_active' => true]);
+    $accountClass::create(['code' => '5000', 'name' => 'Cost of Goods Sold', 'type' => 'expense', 'is_active' => true]);
+    $accountClass::create(['code' => '6134', 'name' => 'Sales Returns & Allowances', 'type' => 'expense', 'is_active' => true]);
+
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-CM',
+        'name'         => 'Credit Memo Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'            => 'CUS-CM-1',
+        'name'            => 'Credit Memo Customer',
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'is_active'       => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-CM-1',
+        'name'         => 'Returnable Widget',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    WarehouseProduct::create([
+        'warehouse_id'   => $warehouse->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 10,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 120,
+    ]);
+
+    $saleOrder = $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 200,
+        ]],
+    ]);
+
+    $inventory->confirmSaleOrder($saleOrder->id);
+    $inventory->reserveStock($saleOrder->id);
+    $inventory->fulfillSaleOrder($saleOrder->id);
+
+    // The synced invoice starts as a draft — post it so AR exists to credit
+    $invoice = $invoiceClass::findOrFail($saleOrder->fresh()->accounting_invoice_id);
+    app('accounting')->postInvoice($invoice);
+
+    $saleReturn = $inventory->createSaleReturn([
+        'sale_order_id' => $saleOrder->id,
+        'warehouse_id'  => $warehouse->id,
+        'customer_id'   => $customer->id,
+        'returned_at'   => now(),
+        'items'         => [[
+            'product_id'        => $product->id,
+            'qty_returned'      => 1,
+            'unit_price_amount' => 200,
+            'unit_cost_amount'  => 120,
+        ]],
+    ]);
+    $saleReturn = $inventory->postSaleReturn($saleReturn->id);
+
+    // COGS reversal JE still comes from the inventory bridge
+    expect($saleReturn->accounting_journal_entry_id)->not->toBeNull();
+
+    // The revenue side is now a numbered, issued credit memo owned by accounting
+    $memo = $creditMemoClass::where('source_type', Centrex\Inventory\Models\SaleReturn::class)
+        ->where('source_id', $saleReturn->id)
+        ->first();
+
+    expect($memo)->not->toBeNull()
+        ->and($memo->status->value)->toBe('issued')
+        ->and((float) $memo->total)->toBe(200.0)
+        ->and($memo->invoice_id)->toBe($invoice->id)
+        ->and($memo->journal_entry_id)->not->toBeNull();
+
+    expect(
+        $entryClass::where('id', $memo->journal_entry_id)->where('status', 'posted')->exists(),
+    )->toBeTrue();
+
+    // The invoice's effective balance reflects the credit (400 invoiced − 200 credited)
+    expect((float) $invoice->fresh()->balance)->toBe(200.0);
 });
 
 it('creates ecommerce sale orders from cart instances', function (): void {

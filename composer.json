@@ -31,9 +31,12 @@
         "spatie/laravel-medialibrary": "^11.0"
     },
     "require-dev": {
+        "centrex/laravel-accounting": "^3.7",
+        "centrex/laravel-addresses": "^1.4",
+        "centrex/laravel-courier": "^0.3",
+        "larastan/larastan": "^2.0",
         "laravel/pint": "^1.0",
         "nunomaduro/collision": "^8.5",
-        "larastan/larastan": "^2.0",
         "orchestra/testbench": "^9.5",
         "pestphp/pest": "^3.4",
         "pestphp/pest-plugin-arch": "^3.0",
@@ -91,6 +94,29 @@
             "phpstan/extension-installer": true
         }
     },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../laravel-courier",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../laravel-accounting",
+            "options": {
+                "symlink": true
+            }
+        },
+        {
+            "type": "path",
+            "url": "../laravel-addresses",
+            "options": {
+                "symlink": true
+            }
+        }
+    ],
     "extra": {
         "laravel": {
             "providers": [

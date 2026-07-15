@@ -98,383 +98,204 @@
         </div>
     @endunless
 
-    {{-- Tabs --}}
-    @php
-        $initialTab = $canViewDispatcherTab ? 'dispatcher' : 'sale-updater';
-    @endphp
-    <div x-data="{ tab: '{{ $initialTab }}' }">
+    {{-- ───── Unified dispatch queue: content per row is scoped to what the current user is allowed to do ───── --}}
+    @if ($canViewDispatcherTab || $canViewUpdaterTab)
+    <section class="erp-panel overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
+                <thead class="bg-gray-100 dark:bg-zinc-800/60">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Order</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Customer</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Parcel</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Last updated</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-zinc-800">
+                    @forelse ($orders as $order)
+                        @php
+                            $meta = $metadata[$order->getKey()] ?? [];
+                            $flow = $saleFlow[$order->getKey()] ?? null;
+                            $primary = $primaryActions[$order->getKey()] ?? ['type' => null, 'ready' => false, 'allowed' => true, 'message' => ''];
+                        @endphp
+                        <tr wire:key="do-{{ $order->getKey() }}" class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
 
-        {{-- Tab bar --}}
-        <div class="flex gap-1 rounded-2xl rounded-b-none border border-b-0 border-gray-200 bg-gray-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/70">
-            @if ($canViewDispatcherTab)
-            <button
-                type="button"
-                @click="tab = 'dispatcher'"
-                :class="tab === 'dispatcher'
-                    ? 'bg-brand-500 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800'"
-                class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition"
-            >
-                <x-tallui-icon name="o-truck" class="h-4 w-4" />
-                Dispatcher
-            </button>
-            @endif
-            @if ($canViewUpdaterTab)
-            <button
-                type="button"
-                @click="tab = 'sale-updater'"
-                :class="tab === 'sale-updater'
-                    ? 'bg-brand-500 text-white shadow-sm'
-                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800'"
-                class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition"
-            >
-                <x-tallui-icon name="o-pencil-square" class="h-4 w-4" />
-                Sale Updater
-            </button>
-            @endif
-        </div>
+                            {{-- Order --}}
+                            <td class="px-4 py-4 align-top">
+                                <div class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $order->so_number }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->ordered_at?->format('d M Y h:i A') ?? $order->created_at?->format('d M Y h:i A') }}</div>
+                                <div class="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-zinc-800 dark:text-gray-200">
+                                    {{ $order->status?->label() ?? 'Unknown' }}
+                                </div>
+                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $order->items->count() }} items · {{ number_format((float) $order->total_local, 2) }} {{ $order->currency }}</div>
+                                @if ($canViewUpdaterTab && $flow && !$flow['halted'])
+                                    <div class="mt-3">
+                                        <x-tallui-steps :steps="$flow['steps']" :current="$flow['current']" />
+                                    </div>
+                                @endif
+                            </td>
 
-        {{-- ───── Dispatcher tab ───── --}}
-        @if ($canViewDispatcherTab)
-        <div x-show="tab === 'dispatcher'" x-cloak>
-            <section class="erp-panel overflow-hidden rounded-tl-none">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                        <thead class="bg-gray-100 dark:bg-zinc-800/60">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Order</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Customer</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Parcel</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Last updated</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-zinc-800">
-                            @forelse ($orders as $order)
-                                @php
-                                    $meta = $metadata[$order->getKey()] ?? [];
-                                    $currentParcel = $meta['parcel_status'] ?? '';
-                                    $terminalStatuses = ['Delivery failed', 'Returned', 'Cancelled'];
-                                    $isTerminal = in_array($currentParcel, $terminalStatuses);
-                                    // Stock must be reserved (order status Processing/Partial, or already
-                                    // shipped/fulfilled) before it can be dispatched — see
-                                    // DispatchTerminalPage::DISPATCHABLE_STATUSES.
-                                    $canDispatchOrder = in_array($order->status?->value, ['processing', 'partial', 'shipped', 'fulfilled'], true);
+                            {{-- Customer --}}
+                            <td class="px-4 py-4 align-top">
+                                <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $order->customer?->organization_name ?? 'Walk-in customer' }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->customer?->name }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->customer?->phone ?? data_get($meta, 'shipping_address.phone', 'No phone') }}</div>
+                                <div class="mt-2 max-w-72 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ data_get($meta, 'shipping_address.formatted', $order->warehouse?->name ?? 'No shipping address') }}</div>
+                            </td>
 
-                                    $nextAction = match (true) {
-                                        !$canDispatchOrder => null,
-                                        in_array($currentParcel, ['', 'Order confirmed', 'Reserved for picking', 'Packed', 'Ready for courier'])
-                                            => ['action' => 'dispatched',       'label' => 'Mark Dispatched',  'icon' => 'o-paper-airplane', 'class' => 'bg-amber-500 hover:bg-amber-600'],
-                                        $currentParcel === 'Dispatched'
-                                            => ['action' => 'out_for_delivery', 'label' => 'Out for Delivery', 'icon' => 'o-map-pin',         'class' => 'bg-blue-500 hover:bg-blue-600'],
-                                        $currentParcel === 'Out for delivery'
-                                            => ['action' => 'delivered',        'label' => 'Mark Delivered',   'icon' => 'o-check-circle',    'class' => 'bg-emerald-500 hover:bg-emerald-600'],
-                                        default => null,
-                                    };
-                                @endphp
-                                <tr wire:key="dw-{{ $order->getKey() }}" class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
+                            {{-- Parcel --}}
+                            <td class="px-4 py-4 align-top">
+                                <div class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $meta['tracking_number'] ?? 'No tracking assigned' }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $meta['carrier'] ?? 'Connect Courier' }}</div>
+                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $meta['parcel_status'] ?? 'Tracking update pending' }}</div>
+                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $meta['location'] ?? $order->warehouse?->name ?? 'Fulfillment warehouse' }}</div>
+                            </td>
 
-                                    {{-- Order --}}
-                                    <td class="px-4 py-4 align-top">
-                                        <div class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $order->so_number }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->ordered_at?->format('d M Y h:i A') ?? $order->created_at?->format('d M Y h:i A') }}</div>
-                                        <div class="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-zinc-800 dark:text-gray-200">
-                                            {{ $order->status?->label() ?? 'Unknown' }}
-                                        </div>
-                                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $order->items->count() }} items · {{ number_format((float) $order->total_local, 2) }} {{ $order->currency }}</div>
-                                    </td>
+                            {{-- Last updated --}}
+                            <td class="px-4 py-4 align-top">
+                                @if (!empty($meta['dispatch_updated_at']))
+                                    <div class="text-sm text-gray-700 dark:text-gray-300">
+                                        {{ \Carbon\Carbon::parse($meta['dispatch_updated_at'])->format('d M Y') }}
+                                    </div>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        {{ \Carbon\Carbon::parse($meta['dispatch_updated_at'])->format('h:i A') }}
+                                    </div>
+                                    @if (!empty($meta['dispatched_by']))
+                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">by {{ $meta['dispatched_by'] }}</div>
+                                    @endif
+                                    @if (!empty($meta['eta']))
+                                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">ETA: {{ $meta['eta'] }}</div>
+                                    @endif
+                                @else
+                                    <span class="text-xs text-gray-400 dark:text-gray-500">Not updated yet</span>
+                                @endif
+                            </td>
 
-                                    {{-- Customer --}}
-                                    <td class="px-4 py-4 align-top">
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $order->customer?->organization_name ?? 'Walk-in customer' }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->customer?->name }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->customer?->phone ?? data_get($meta, 'shipping_address.phone', 'No phone') }}</div>
-                                        <div class="mt-2 max-w-72 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ data_get($meta, 'shipping_address.formatted', $order->warehouse?->name ?? 'No shipping address') }}</div>
-                                    </td>
-
-                                    {{-- Parcel --}}
-                                    <td class="px-4 py-4 align-top">
-                                        <div class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $meta['tracking_number'] ?? 'No tracking assigned' }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $meta['carrier'] ?? 'Connect Courier' }}</div>
-                                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $meta['parcel_status'] ?? 'Tracking update pending' }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $meta['location'] ?? $order->warehouse?->name ?? 'Fulfillment warehouse' }}</div>
-                                    </td>
-
-                                    {{-- Last updated --}}
-                                    <td class="px-4 py-4 align-top">
-                                        @if (!empty($meta['dispatch_updated_at']))
-                                            <div class="text-sm text-gray-700 dark:text-gray-300">
-                                                {{ \Carbon\Carbon::parse($meta['dispatch_updated_at'])->format('d M Y') }}
-                                            </div>
-                                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                {{ \Carbon\Carbon::parse($meta['dispatch_updated_at'])->format('h:i A') }}
-                                            </div>
-                                            @if (!empty($meta['dispatched_by']))
-                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">by {{ $meta['dispatched_by'] }}</div>
-                                            @endif
-                                            @if (!empty($meta['eta']))
-                                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">ETA: {{ $meta['eta'] }}</div>
-                                            @endif
-                                        @else
-                                            <span class="text-xs text-gray-400 dark:text-gray-500">Not updated yet</span>
+                            {{-- Actions --}}
+                            <td class="px-4 py-4 text-right align-top">
+                                <div class="flex flex-col items-end gap-2">
+                                    <div class="flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            wire:click="openDetailModal({{ $order->getKey() }})"
+                                            wire:loading.attr="disabled"
+                                            wire:target="openDetailModal({{ $order->getKey() }})"
+                                            class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200"
+                                        >
+                                            <x-tallui-icon name="o-eye" class="h-4 w-4" />
+                                            View
+                                        </button>
+                                        @if ($canViewDispatcherTab)
+                                            <button
+                                                type="button"
+                                                wire:click="openPrintNote({{ $order->getKey() }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="openPrintNote({{ $order->getKey() }})"
+                                                title="Print dispatch note"
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300"
+                                            >
+                                                <x-tallui-icon name="o-printer" class="h-4 w-4" />
+                                            </button>
                                         @endif
-                                    </td>
+                                        @if ($canViewUpdaterTab)
+                                            <button
+                                                type="button"
+                                                wire:click="openModal({{ $order->getKey() }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="openModal({{ $order->getKey() }})"
+                                                class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <x-tallui-icon name="o-pencil-square" class="h-4 w-4" />
+                                                Edit
+                                            </button>
+                                        @endif
+                                    </div>
 
-                                    {{-- Actions --}}
-                                    <td class="px-4 py-4 text-right align-top">
-                                        <div class="flex flex-col items-end gap-2">
-                                            <div class="flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    wire:click="openDetailModalView({{ $order->getKey() }})"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="openDetailModalView({{ $order->getKey() }})"
-                                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200"
-                                                >
-                                                    <x-tallui-icon name="o-eye" class="h-4 w-4" />
-                                                    View
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    wire:click="openPrintNote({{ $order->getKey() }})"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="openPrintNote({{ $order->getKey() }})"
-                                                    title="Print dispatch note"
-                                                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300"
-                                                >
-                                                    <x-tallui-icon name="o-printer" class="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                            @if ($nextAction)
-                                                <button
-                                                    type="button"
-                                                    wire:click="quickDispatch({{ $order->getKey() }}, '{{ $nextAction['action'] }}')"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="quickDispatch({{ $order->getKey() }}, '{{ $nextAction['action'] }}')"
-                                                    wire:confirm="{{ $nextAction['label'] }} for {{ $order->so_number }}?"
-                                                    class="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60 {{ $nextAction['class'] }}"
-                                                >
-                                                    <span wire:loading.remove wire:target="quickDispatch({{ $order->getKey() }}, '{{ $nextAction['action'] }}')">
-                                                        <x-tallui-icon :name="$nextAction['icon']" class="h-4 w-4" />
-                                                    </span>
-                                                    <span wire:loading wire:target="quickDispatch({{ $order->getKey() }}, '{{ $nextAction['action'] }}')">
-                                                        <x-tallui-icon name="o-arrow-path" class="h-4 w-4 animate-spin" />
-                                                    </span>
-                                                    {{ $nextAction['label'] }}
-                                                </button>
-                                            @elseif (!$canDispatchOrder)
-                                                <span
-                                                    class="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
-                                                    title="Reserve stock (move it to Processing) before this order can be dispatched"
-                                                >
-                                                    <x-tallui-icon name="o-clock" class="h-4 w-4" />
-                                                    Awaiting reservation
+                                    {{-- Single next action: shipping (confirm/reserve/ship) always takes
+                                         priority over dispatch tracking, so a row never offers two competing
+                                         buttons. If the step is ready but the viewer lacks permission for it,
+                                         show why instead of a button or nothing. --}}
+                                    <div>
+                                        @if ($primary['type'] && $primary['allowed'])
+                                            <button
+                                                type="button"
+                                                wire:click="{{ $primary['call'] }}"
+                                                wire:loading.attr="disabled"
+                                                wire:target="{{ $primary['call'] }}"
+                                                @if (filled($primary['confirm'] ?? null)) wire:confirm="{{ $primary['confirm'] }}" @endif
+                                                class="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-60 {{ $primary['class'] }}"
+                                            >
+                                                <span wire:loading.remove wire:target="{{ $primary['call'] }}">
+                                                    <x-tallui-icon :name="$primary['icon']" class="h-4 w-4" />
                                                 </span>
-                                            @else
-                                                <span class="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
-                                                    <x-tallui-icon name="o-check-badge" class="h-4 w-4" />
-                                                    {{ $isTerminal ? $currentParcel : 'Delivered' }}
+                                                <span wire:loading wire:target="{{ $primary['call'] }}">
+                                                    <x-tallui-icon name="o-arrow-path" class="h-4 w-4 animate-spin" />
                                                 </span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        No sale orders found for this dispatch queue.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="border-t border-gray-200 px-4 py-4 dark:border-zinc-800">
-                    {{ $orders->links() }}
-                </div>
-            </section>
-        </div>
-        @endif
-
-        {{-- ───── Sale Updater tab ───── --}}
-        @if ($canViewUpdaterTab)
-        <div x-show="tab === 'sale-updater'" x-cloak>
-            <section class="erp-panel overflow-hidden rounded-tl-none">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                        <thead class="bg-gray-100 dark:bg-zinc-800/60">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Order</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Customer</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Parcel</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Last updated</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.14em] text-gray-400">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200 dark:divide-zinc-800">
-                            @forelse ($orders as $order)
-                                @php
-                                    $meta = $metadata[$order->getKey()] ?? [];
-                                    $flow = $saleFlow[$order->getKey()] ?? null;
-                                @endphp
-                                <tr wire:key="su-{{ $order->getKey() }}" class="even:bg-gray-50/60 dark:even:bg-zinc-900/30 hover:bg-gray-100 dark:hover:bg-zinc-800/60">
-
-                                    {{-- Order --}}
-                                    <td class="px-4 py-4 align-top">
-                                        <div class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $order->so_number }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->ordered_at?->format('d M Y h:i A') ?? $order->created_at?->format('d M Y h:i A') }}</div>
-                                        <div class="mt-2 inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 dark:bg-zinc-800 dark:text-gray-200">
-                                            {{ $order->status?->label() ?? 'Unknown' }}
-                                        </div>
-                                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $order->items->count() }} items · {{ number_format((float) $order->total_local, 2) }} {{ $order->currency }}</div>
-                                        @if ($flow && !$flow['halted'])
-                                            <div class="mt-3">
-                                                <x-tallui-steps :steps="$flow['steps']" :current="$flow['current']" />
-                                            </div>
-                                        @endif
-                                    </td>
-
-                                    {{-- Customer --}}
-                                    <td class="px-4 py-4 align-top">
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $order->customer?->organization_name ?? 'Walk-in customer' }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->customer?->name }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $order->customer?->phone ?? data_get($meta, 'shipping_address.phone', 'No phone') }}</div>
-                                        <div class="mt-2 max-w-72 text-xs leading-5 text-gray-500 dark:text-gray-400">{{ data_get($meta, 'shipping_address.formatted', $order->warehouse?->name ?? 'No shipping address') }}</div>
-                                    </td>
-
-                                    {{-- Parcel --}}
-                                    <td class="px-4 py-4 align-top">
-                                        <div class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $meta['tracking_number'] ?? 'No tracking assigned' }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $meta['carrier'] ?? 'Connect Courier' }}</div>
-                                        <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $meta['parcel_status'] ?? 'Tracking update pending' }}</div>
-                                        <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ $meta['location'] ?? $order->warehouse?->name ?? 'Fulfillment warehouse' }}</div>
-                                    </td>
-
-                                    {{-- Last updated --}}
-                                    <td class="px-4 py-4 align-top">
-                                        @if (!empty($meta['dispatch_updated_at']))
-                                            <div class="text-sm text-gray-700 dark:text-gray-300">
-                                                {{ \Carbon\Carbon::parse($meta['dispatch_updated_at'])->format('d M Y') }}
-                                            </div>
-                                            <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                                {{ \Carbon\Carbon::parse($meta['dispatch_updated_at'])->format('h:i A') }}
-                                            </div>
-                                            @if (!empty($meta['dispatched_by']))
-                                                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">by {{ $meta['dispatched_by'] }}</div>
-                                            @endif
-                                            @if (!empty($meta['eta']))
-                                                <div class="mt-2 text-xs text-gray-500 dark:text-gray-400">ETA: {{ $meta['eta'] }}</div>
-                                            @endif
+                                                {{ $primary['label'] }}
+                                            </button>
+                                        @elseif ($primary['type'])
+                                            <span
+                                                class="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-500 dark:bg-zinc-800 dark:text-gray-400"
+                                                title="You don't have permission to {{ $primary['need'] }}"
+                                            >
+                                                <x-tallui-icon name="o-lock-closed" class="h-4 w-4" />
+                                                No permission to {{ $primary['label'] }}
+                                            </span>
+                                        @elseif ($primary['message'] === 'Awaiting reservation')
+                                            <span
+                                                class="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
+                                                title="Confirm and reserve stock before this order can be shipped"
+                                            >
+                                                <x-tallui-icon name="o-clock" class="h-4 w-4" />
+                                                Awaiting reservation
+                                            </span>
                                         @else
-                                            <span class="text-xs text-gray-400 dark:text-gray-500">Not updated yet</span>
+                                            <span class="inline-flex items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-sm font-medium text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
+                                                <x-tallui-icon name="o-check-badge" class="h-4 w-4" />
+                                                {{ $primary['message'] }}
+                                            </span>
                                         @endif
-                                    </td>
+                                    </div>
 
-                                    {{-- Actions --}}
-                                    <td class="px-4 py-4 text-right align-top">
-                                        <div class="flex flex-col items-end gap-2">
-                                            <div class="flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    wire:click="openDetailModal({{ $order->getKey() }})"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="openDetailModal({{ $order->getKey() }})"
-                                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200"
-                                                >
-                                                    <x-tallui-icon name="o-eye" class="h-4 w-4" />
-                                                    View
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    wire:click="openModal({{ $order->getKey() }})"
-                                                    wire:loading.attr="disabled"
-                                                    wire:target="openModal({{ $order->getKey() }})"
-                                                    class="inline-flex items-center justify-center gap-1.5 rounded-xl bg-brand-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                >
-                                                    <x-tallui-icon name="o-pencil-square" class="h-4 w-4" />
-                                                    Edit
-                                                </button>
-                                            </div>
-
-                                            @if ($flow)
-                                                <div class="flex flex-wrap justify-end gap-1.5">
-                                                    @if ($flow['canConfirm'])
-                                                        <button
-                                                            type="button"
-                                                            wire:click="confirmSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:loading.attr="disabled"
-                                                            wire:target="confirmSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:confirm="Confirm {{ $order->so_number }}?"
-                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-blue-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            <x-tallui-icon name="o-check-circle" class="h-4 w-4" />
-                                                            Confirm
-                                                        </button>
-                                                    @endif
-                                                    @if ($flow['canReserve'])
-                                                        <button
-                                                            type="button"
-                                                            wire:click="reserveSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:loading.attr="disabled"
-                                                            wire:target="reserveSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:confirm="Reserve stock for {{ $order->so_number }}?"
-                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            <x-tallui-icon name="o-archive-box-arrow-down" class="h-4 w-4" />
-                                                            Reserve
-                                                        </button>
-                                                    @endif
-                                                    @if ($flow['canFulfill'])
-                                                        <button
-                                                            type="button"
-                                                            wire:click="fulfillSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:loading.attr="disabled"
-                                                            wire:target="fulfillSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:confirm="Fulfill remaining quantities for {{ $order->so_number }}?"
-                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            <x-tallui-icon name="o-truck" class="h-4 w-4" />
-                                                            Fulfill
-                                                        </button>
-                                                    @endif
-                                                    @if ($flow['canCancel'])
-                                                        <button
-                                                            type="button"
-                                                            wire:click="cancelSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:loading.attr="disabled"
-                                                            wire:target="cancelSaleOrderFlow({{ $order->getKey() }})"
-                                                            wire:confirm="Cancel {{ $order->so_number }}?"
-                                                            class="inline-flex items-center gap-1.5 rounded-xl bg-error-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:opacity-60"
-                                                        >
-                                                            <x-tallui-icon name="o-x-circle" class="h-4 w-4" />
-                                                            Cancel
-                                                        </button>
-                                                    @endif
-                                                </div>
-                                            @endif
+                                    @if ($canViewUpdaterTab && $flow && $flow['canCancel'])
+                                        <div class="flex flex-wrap justify-end gap-1.5">
+                                            <button
+                                                type="button"
+                                                wire:click="cancelSaleOrderFlow({{ $order->getKey() }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="cancelSaleOrderFlow({{ $order->getKey() }})"
+                                                wire:confirm="Cancel {{ $order->so_number }}?"
+                                                class="inline-flex items-center gap-1.5 rounded-xl bg-error-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <x-tallui-icon name="o-x-circle" class="h-4 w-4" />
+                                                Cancel
+                                            </button>
                                         </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
-                                        No sale orders found for this dispatch queue.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="border-t border-gray-200 px-4 py-4 dark:border-zinc-800">
-                    {{ $orders->links() }}
-                </div>
-            </section>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                                No sale orders found for this dispatch queue.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
-        @endif
 
-    </div>{{-- /tabs --}}
+        <div class="border-t border-gray-200 px-4 py-4 dark:border-zinc-800">
+            {{ $orders->links() }}
+        </div>
+    </section>
+    @else
+    <div class="rounded-2xl border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-gray-400">
+        You don't have permission to view the dispatch queue.
+    </div>
+    @endif
 
     {{-- ───── Update modal ───── --}}
     @if ($modalOpen && $modalOrder && $modalOrderId)
@@ -621,6 +442,182 @@
             </div>
         </div>
     @endif
+
+    {{-- ───── Create parcel modal (step before Ship) ───── --}}
+    @if ($parcelModalOpen && $parcelOrder)
+        <div
+            class="fixed inset-0 z-[9990] flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="parcel-modal-title"
+        >
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeParcelModal"></div>
+
+            <div class="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900">
+
+                {{-- Modal header --}}
+                <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-zinc-800">
+                    <div>
+                        <h2 id="parcel-modal-title" class="font-mono text-base font-semibold text-gray-900 dark:text-white">
+                            Create parcel — {{ $parcelOrder->so_number }}
+                        </h2>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {{ $parcelOrder->items->count() }} items · {{ number_format((float) $parcelOrder->total_local, 2) }} {{ $parcelOrder->currency }}
+                            · stock is not deducted until you Ship
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        wire:click="closeParcelModal"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800 dark:hover:text-gray-200"
+                    >
+                        <x-tallui-icon name="o-x-mark" class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <form wire:submit="createParcelForOrder" class="p-6">
+
+                    <div class="grid gap-4 sm:grid-cols-2">
+
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Courier</label>
+                            <select wire:model.live="parcelForm.provider" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                <option value="hand_carry">Hand Carry</option>
+                                @if ($courierApiEnabled)                                    
+                                    <option value="pathao">Pathao</option>
+                                    <option value="redx">Redx</option>                                    
+                                @endif                                
+                            </select>
+                            @error('provider') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        @if (($parcelForm['provider'] ?? '') == 'hand_carry')                            
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Carried by</label>
+                                <input wire:model="parcelForm.carried_by" placeholder="Name of the carrier person" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                @error('carried_by') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                            </div>
+                        @endif
+
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Recipient name</label>
+                            <input wire:model="parcelForm.recipient_name" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                            @error('recipient_name') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Recipient phone</label>
+                            <input wire:model="parcelForm.recipient_phone" placeholder="01XXXXXXXXX" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                            @error('recipient_phone') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        @if (($parcelForm['provider'] ?? '') !== 'hand_carry')
+                            <div class="sm:col-span-2">
+                                <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Delivery address</label>
+                                <textarea wire:model="parcelForm.recipient_address" rows="2" placeholder="House, road, area, city" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"></textarea>
+                                @error('recipient_address') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Weight (kg)</label>
+                                <input wire:model="parcelForm.weight_kg" type="number" step="0.01" min="0.01" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                @error('weight_kg') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            <div>
+                                <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Cash to collect (COD)</label>
+                                <input wire:model="parcelForm.cod_amount" type="number" step="0.01" min="0" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                @error('cod_amount') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                            </div>
+
+                            @if (($parcelForm['provider'] ?? '') === 'redx')
+                                <div class="sm:col-span-2 grid gap-4 sm:grid-cols-2 rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
+                                    <div class="sm:col-span-2 -mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Redx areas</div>
+
+                                    {{-- Delivery area: searchable select from the Redx area lookup;
+                                         falls back to a manual id input when the list can't load --}}
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Delivery area</label>
+                                        @if ($redxAreaOptions !== [] || trim($redxAreaSearch) !== '')
+                                            <input
+                                                wire:model.live.debounce.400ms="redxAreaSearch"
+                                                placeholder="Search area, district or postcode…"
+                                                class="mb-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                            />
+                                            <select wire:model="parcelForm.delivery_area_id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                                <option value="">— Select delivery area —</option>
+                                                @foreach ($redxAreaOptions as $area)
+                                                    <option value="{{ $area['id'] }}">
+                                                        {{ $area['name'] ?? ('Area #' . $area['id']) }}{{ !empty($area['district_name']) ? ' — ' . $area['district_name'] : '' }}{{ !empty($area['post_code']) ? ' (' . $area['post_code'] . ')' : '' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <input wire:model="parcelForm.delivery_area_id" type="number" min="1" placeholder="Area id from the Redx panel" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                            <p class="mt-1 text-xs text-gray-400">Area list unavailable — enter the id manually.</p>
+                                        @endif
+                                        @error('delivery_area_id') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                                    </div>
+
+                                    {{-- Pickup area: from the merchant's registered Redx pickup stores --}}
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Pickup area</label>
+                                        @if ($redxPickupStores !== [])
+                                            <select wire:model="parcelForm.pickup_area_id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                                <option value="">— Select pickup store —</option>
+                                                @foreach ($redxPickupStores as $store)
+                                                    <option value="{{ $store['area_id'] ?? '' }}">
+                                                        {{ $store['name'] ?? ('Store #' . ($store['id'] ?? '?')) }}{{ !empty($store['area_name']) ? ' — ' . $store['area_name'] : '' }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <input wire:model="parcelForm.pickup_area_id" type="number" min="1" placeholder="Pickup area id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                            <p class="mt-1 text-xs text-gray-400">No pickup stores found — enter the area id manually.</p>
+                                        @endif
+                                        @error('pickup_area_id') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
+
+                        <div class="sm:col-span-2">
+                            <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Item description</label>
+                            <input wire:model="parcelForm.item_description" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                        </div>
+
+                    </div>
+
+                    {{-- Modal footer --}}
+                    <div class="mt-6 flex items-center justify-end gap-3 border-t border-gray-200 pt-4 dark:border-zinc-800">
+                        <button
+                            type="button"
+                            wire:click="closeParcelModal"
+                            class="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-200"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            wire:loading.attr="disabled"
+                            wire:target="createParcelForOrder"
+                            class="inline-flex items-center gap-2 rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <span wire:loading.remove wire:target="createParcelForOrder">
+                                <x-tallui-icon name="o-cube" class="h-4 w-4" />
+                            </span>
+                            <span wire:loading wire:target="createParcelForOrder">
+                                <x-tallui-icon name="o-arrow-path" class="h-4 w-4 animate-spin" />
+                            </span>
+                            Create Parcel
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    @endif
+
 
     {{-- ───── Sale detail modal ───── --}}
     @if ($detailModalOpen && $detailOrder)
@@ -816,7 +813,8 @@
                     @endif
 
                     {{-- ── Price history overlay ── --}}
-                    @if ($priceHistoryProductId && isset($detailPriceHistory[$priceHistoryProductId]))
+                    @if ($priceHistoryProductId)
+                    @php $priceHistoryRows = $detailPriceHistory[$priceHistoryProductId] ?? collect(); @endphp
                     <div
                         class="fixed inset-0 z-[9995] flex items-start justify-center overflow-y-auto p-4 pt-20"
                         role="dialog"
@@ -871,7 +869,7 @@
                                     />
                                 @endif
 
-                                @if ($detailPriceHistory[$priceHistoryProductId]->isNotEmpty())
+                                @if ($priceHistoryRows->isNotEmpty())
                                     <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-zinc-800">
                                         <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
                                             <thead class="bg-gray-100 dark:bg-zinc-800/60">
@@ -886,7 +884,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody class="divide-y divide-gray-200 dark:divide-zinc-800">
-                                                @foreach ($detailPriceHistory[$priceHistoryProductId] as $price)
+                                                @foreach ($priceHistoryRows as $price)
                                                     <tr @class(['opacity-50' => !$price->is_active])>
                                                         <td class="px-4 py-3">
                                                             <div class="text-xs font-medium text-gray-900 dark:text-white">{{ $price->price_tier_name ?? $price->price_tier_code }}</div>

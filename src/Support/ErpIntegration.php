@@ -506,8 +506,10 @@ class ErpIntegration
     /**
      * Post the accounting effect of a customer return: always reverses the inventory/COGS
      * pairing that fulfillment recognized, and — only when the originating sale order has a
-     * posted accounting invoice — additionally credits AR (debiting Sales Returns & Allowances)
-     * for the returned revenue, mirroring how a discount is netted off AR.
+     * posted accounting invoice — raises and issues a CreditMemo for the returned revenue.
+     * The memo (not this integration) owns the DR Sales Returns / CR AR journal entry, gives
+     * the return a numbered document, and tracks any later cash refund
+     * (see Accounting::issueCreditMemo() / recordCreditMemoRefund()).
      */
     public function postSaleReturn(SaleReturn $saleReturn): ?int
     {
@@ -520,81 +522,58 @@ class ErpIntegration
         $totalCost = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_cost_amount), 2);
         $totalRevenue = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_price_amount), 2);
 
-        $lines = [];
+        $entryId = null;
 
         if ($totalCost > 0) {
-            $lines[] = [
-                'account_id'  => $this->accountId('inventory_asset'),
-                'type'        => 'debit',
-                'amount'      => $totalCost,
-                'description' => 'Inventory restocked from customer return',
-            ];
-            $lines[] = [
-                'account_id'  => $this->accountId('cost_of_goods_sold'),
-                'type'        => 'credit',
-                'amount'      => $totalCost,
-                'description' => 'COGS reversal for customer return',
-            ];
+            $entry = $this->createPostedJournalEntry([
+                'date'          => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
+                'reference'     => $saleReturn->return_number,
+                'type'          => 'inventory',
+                'description'   => "Customer return {$saleReturn->return_number}",
+                'currency'      => config('inventory.base_currency', 'BDT'),
+                'exchange_rate' => 1,
+                'created_by'    => $saleReturn->created_by,
+                'source_type'   => SaleReturn::class,
+                'source_id'     => $saleReturn->id,
+                'source_action' => 'sale_return',
+                'lines'         => [
+                    [
+                        'account_id'  => $this->accountId('inventory_asset'),
+                        'type'        => 'debit',
+                        'amount'      => $totalCost,
+                        'description' => 'Inventory restocked from customer return',
+                    ],
+                    [
+                        'account_id'  => $this->accountId('cost_of_goods_sold'),
+                        'type'        => 'credit',
+                        'amount'      => $totalCost,
+                        'description' => 'COGS reversal for customer return',
+                    ],
+                ],
+            ]);
+
+            $saleReturn->forceFill(['accounting_journal_entry_id' => $entry->id])->saveQuietly();
+            $entryId = (int) $entry->id;
         }
 
         $invoice = $this->postedInvoiceFor($saleReturn->saleOrder);
 
         if ($invoice && $totalRevenue > 0) {
-            $lines[] = [
-                'account_id'  => $this->accountId('sales_returns'),
-                'type'        => 'debit',
-                'amount'      => $totalRevenue,
-                'description' => 'Sales returns & allowances',
-            ];
-            $lines[] = [
-                'account_id'  => $this->accountId('accounts_receivable'),
-                'type'        => 'credit',
-                'amount'      => $totalRevenue,
-                'description' => 'AR reduced for customer return',
-            ];
-        }
-
-        if ($lines === []) {
-            return null;
-        }
-
-        $entry = $this->createPostedJournalEntry([
-            'date'          => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
-            'reference'     => $saleReturn->return_number,
-            'type'          => 'inventory',
-            'description'   => "Customer return {$saleReturn->return_number}",
-            'currency'      => config('inventory.base_currency', 'BDT'),
-            'exchange_rate' => 1,
-            'created_by'    => $saleReturn->created_by,
-            'source_type'   => SaleReturn::class,
-            'source_id'     => $saleReturn->id,
-            'source_action' => 'sale_return',
-            'lines'         => $lines,
-        ]);
-
-        $saleReturn->forceFill(['accounting_journal_entry_id' => $entry->id])->saveQuietly();
-
-        // Audit/ledger record — not linked to $entry above (already booked as a line in it);
-        // this is what CustomerLedger reads to show the credit against the invoice's balance.
-        if ($invoice && $totalRevenue > 0) {
-            \Centrex\Accounting\Models\Expense::create([
-                'chargeable_type' => \Centrex\Accounting\Models\Invoice::class,
-                'chargeable_id'   => $invoice->id,
-                'account_id'      => $this->accountId('sales_returns'),
-                'expense_date'    => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
-                'subtotal'        => $totalRevenue,
-                'tax_amount'      => 0,
-                'total'           => $totalRevenue,
-                'paid_amount'     => $totalRevenue,
-                'currency'        => config('inventory.base_currency', 'BDT'),
-                'status'          => 'paid',
-                'payment_method'  => 'sale_return',
-                'reference'       => $saleReturn->return_number,
-                'notes'           => "Customer return {$saleReturn->return_number}",
+            $accounting = app('accounting');
+            $creditMemo = $accounting->createCreditMemo($invoice, [
+                'date'             => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
+                'reason'           => "Customer return {$saleReturn->return_number}",
+                'subtotal'         => $totalRevenue,
+                'tax_amount'       => 0,
+                'source_type'      => SaleReturn::class,
+                'source_id'        => $saleReturn->id,
+                'source_reference' => $saleReturn->return_number,
+                'created_by'       => $saleReturn->created_by,
             ]);
+            $accounting->issueCreditMemo($creditMemo);
         }
 
-        return (int) $entry->id;
+        return $entryId;
     }
 
     /**

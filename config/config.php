@@ -109,7 +109,7 @@ return [
     | per the ordinary confirm ability alone). Role fallback is only used when the host app has
     | no Jurager/team-permission grant for the ability — see InventoryServiceProvider::registerGates().
     */
-    'sale_order_high_value_threshold' => env('INVENTORY_SALE_ORDER_HIGH_VALUE_THRESHOLD', 0),
+    'sale_order_high_value_threshold'     => env('INVENTORY_SALE_ORDER_HIGH_VALUE_THRESHOLD', 0),
     'sale_order_high_value_confirm_roles' => env('INVENTORY_SALE_ORDER_HIGH_VALUE_CONFIRM_ROLES', 'general_manager,system_administrator'),
 
     /*
@@ -187,8 +187,8 @@ return [
         'accounting' => [
             'enabled'  => env('INVENTORY_ACCOUNTING_ENABLED', true),
             'accounts' => [
-                'inventory_asset'      => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
-                'cost_of_goods_sold'   => env('INVENTORY_ACCOUNTING_COGS', '5000'),
+                'inventory_asset'    => env('INVENTORY_ACCOUNTING_INVENTORY_ASSET', '1300'),
+                'cost_of_goods_sold' => env('INVENTORY_ACCOUNTING_COGS', '5000'),
                 // Must match the accounting package's ACCOUNTING_ACCOUNT_GRNI — this GRN posting's
                 // credit and the matching bill's debit-clear (see Accounting::postBill()) both need
                 // to land on the same account so they net to zero once the bill is posted.
@@ -199,6 +199,56 @@ return [
                 'accounts_payable'     => env('INVENTORY_ACCOUNTING_AP', '2000'),
                 'sales_returns'        => env('INVENTORY_ACCOUNTING_SALES_RETURNS', '6134'),
                 'purchase_returns'     => env('INVENTORY_ACCOUNTING_PURCHASE_RETURNS', '5504'),
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Courier Integration (centrex/laravel-courier — optional peer package)
+    |--------------------------------------------------------------------------
+    | Parcel creation from the Dispatch Terminal. Sandbox and live credentials are
+    | kept separate per provider so a user can pick the environment per request —
+    | see CourierIntegration::createParcel(), which builds a per-call config array
+    | for Centrex\Courier\Services\{PathaoService,RedxService} rather than relying
+    | on that package's own (single-environment) global config.
+    */
+    'courier' => [
+        'enabled'             => env('INVENTORY_COURIER_ENABLED', false),
+        'default_provider'    => env('INVENTORY_COURIER_DEFAULT_PROVIDER', 'redx'), // pathao|redx
+        'default_environment' => env('INVENTORY_COURIER_DEFAULT_ENVIRONMENT', 'sandbox'), // sandbox|live
+        'create_parcel_roles' => env('INVENTORY_COURIER_CREATE_PARCEL_ROLES', 'dispatcher'),
+        'pathao'              => [
+            // Merchant store created via PathaoService::createStore() — single default pickup point.
+            'store_id' => env('INVENTORY_COURIER_PATHAO_STORE_ID', ''),
+            'sandbox'  => [
+                'base_url'      => env('INVENTORY_COURIER_PATHAO_SANDBOX_BASE_URL', 'https://courier-api-sandbox.pathao.com/'),
+                'client_id'     => env('INVENTORY_COURIER_PATHAO_SANDBOX_CLIENT_ID', ''),
+                'client_secret' => env('INVENTORY_COURIER_PATHAO_SANDBOX_CLIENT_SECRET', ''),
+                'username'      => env('INVENTORY_COURIER_PATHAO_SANDBOX_USERNAME', ''),
+                'password'      => env('INVENTORY_COURIER_PATHAO_SANDBOX_PASSWORD', ''),
+            ],
+            'live' => [
+                'base_url'      => env('INVENTORY_COURIER_PATHAO_LIVE_BASE_URL', 'https://courier-api.pathao.com/'),
+                'client_id'     => env('INVENTORY_COURIER_PATHAO_LIVE_CLIENT_ID', ''),
+                'client_secret' => env('INVENTORY_COURIER_PATHAO_LIVE_CLIENT_SECRET', ''),
+                'username'      => env('INVENTORY_COURIER_PATHAO_LIVE_USERNAME', ''),
+                'password'      => env('INVENTORY_COURIER_PATHAO_LIVE_PASSWORD', ''),
+            ],
+        ],
+        'redx' => [
+            // Redx merchant pickup store name/id — single default pickup point.
+            'pickup_store' => env('INVENTORY_COURIER_REDX_PICKUP_STORE', ''),
+            // Default pickup area id preselected in the Dispatch Terminal parcel modal
+            // (the area of your usual pickup store, from Redx's area lookup).
+            'pickup_area_id' => env('INVENTORY_COURIER_REDX_PICKUP_AREA_ID', ''),
+            'sandbox'        => [
+                'base_url'         => env('INVENTORY_COURIER_REDX_SANDBOX_BASE_URL', 'https://sandbox.redx.com.bd/v1.0.0-beta'),
+                'api_access_token' => env('INVENTORY_COURIER_REDX_SANDBOX_TOKEN', ''),
+            ],
+            'live' => [
+                'base_url'         => env('INVENTORY_COURIER_REDX_LIVE_BASE_URL', 'https://openapi.redx.com.bd/v1.0.0-beta'),
+                'api_access_token' => env('INVENTORY_COURIER_REDX_LIVE_TOKEN', ''),
             ],
         ],
     ],
