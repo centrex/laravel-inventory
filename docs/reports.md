@@ -68,6 +68,95 @@ foreach ($movements as $m) {
 
 ---
 
+## Stock aging
+
+Buckets current on-hand stock value by the age of the receipt it's actually traced back
+to. This is reconstructed by replaying the full stock-movement ledger — purchases (plus
+transfer-in / adjustment-in / opening stock / customer returns) as inbound, sales (plus
+transfer-out / adjustment-out / return-to-supplier) as outbound — as a FIFO queue: every
+inbound movement pushes a dated batch, every outbound movement consumes the oldest
+batches first. What's left once the ledger is exhausted is the current on-hand stock,
+split by the date each surviving unit actually arrived.
+
+This matters whenever a product has more than one receipt on hand at once: 100 units
+received 90 days ago plus 50 more received 5 days ago, with nothing sold in between, is
+150 units on hand split across two ages — aging all 150 units from the 5-day-old receipt
+(as an earlier, last-receipt-only version of this report did) would hide that two-thirds
+of it is actually 90 days old. Replaying purchases *and* sales together is what correctly
+attributes remaining qty back to its batch.
+
+Warehouse×product×variant combinations where qty_on_hand exceeds what the replayed ledger
+accounts for (stock that predates movement tracking, or an untracked manual adjustment)
+have that shortfall bucketed as `'unknown'` rather than guessed at.
+
+**The ledger itself comes from two sources, merged.** The `inv_stock_movements` audit trail
+is used wherever it exists — it's precise and covers every movement type (transfers,
+adjustments, returns, opening stock). Wherever it *doesn't* cover a warehouse×product×variant
+— most commonly after migrating from a previous system that carried over full purchase-order
+and sale-order records but not the derived movement history — it's backfilled straight from
+the underlying documents instead of falling back to `'unknown'`: posted GRN items
+(`qty_received − qty_damaged − qty_lost`, dated by the GRN's `received_at`) as inbound, and
+fulfilled sale-order items (`qty_fulfilled`, dated by the order's `ordered_at`) as outbound.
+A document only contributes a backfilled entry when no real movement row already references
+it (matched by `reference_type`/`reference_id`), so a receipt or sale that already has its
+own movement rows is never double-counted — this is what lets a warehouse with some
+pre-migration (document-only) and some post-migration (movement-tracked) history for the
+same product still age correctly as one combined ledger. Transfers, adjustments, and returns
+are not backfilled this way — only movement history covers those — so a gap in *that* history
+still lands in `'unknown'`.
+
+```php
+$rows = Inventory::stockAgingReport(warehouseId: null);
+// Collection, one row per warehouse×product×variant with qty_on_hand > 0:
+// [
+//   'warehouse'            => 'Main Warehouse',
+//   'sku'                  => 'PHONE-X1',
+//   'product'              => 'Smartphone X1',
+//   'qty_on_hand'          => 150.0,
+//   'wac_amount'           => 3105.25,
+//   'total_value_amount'   => 465787.50,
+//   'oldest_days_in_stock' => 90,                 // age of the oldest surviving batch; null if untraceable
+//   'buckets' => [
+//       '0-30'    => ['qty' => 50.0,  'value' => 155262.50],
+//       '31-60'   => ['qty' => 0.0,   'value' => 0.0],
+//       '61-90'   => ['qty' => 100.0, 'value' => 310525.00],
+//       '90+'     => ['qty' => 0.0,   'value' => 0.0],
+//       'unknown' => ['qty' => 0.0,   'value' => 0.0],
+//   ],
+// ]
+
+$summary = Inventory::stockAgingSummary(warehouseId: null);
+// ['0-30' => x, '31-60' => x, '61-90' => x, '90+' => x, 'unknown' => x] — total stock value per bucket
+```
+
+---
+
+## Due aging (customer receivables)
+
+Buckets each customer's outstanding sale-order `due_amount` by days since the order date.
+Uses the same "what counts as outstanding" rule as the customer credit snapshot: open
+orders (confirmed/processing/partial) always count; fulfilled orders only count when they
+carry a linked accounting invoice (sold on credit, not cash/COD).
+
+```php
+$rows = Inventory::dueAgingReport(customerId: null);
+// Collection, one row per outstanding sale order:
+// [
+//   'customer_id'  => 7,
+//   'customer'     => 'Acme Corp',
+//   'so_number'    => 'SO-000123',
+//   'ordered_at'   => Carbon('2026-05-01 ...'),
+//   'due_amount'   => 11500.0,
+//   'days_overdue' => 79,
+//   'age_bucket'   => '61-90',                   // 0-30 | 31-60 | 61-90 | 90+ | unknown
+// ]
+
+$summary = Inventory::dueAgingSummary(customerId: null);
+// ['0-30' => x, '31-60' => x, '61-90' => x, '90+' => x, 'unknown' => x] — total due per bucket
+```
+
+---
+
 ## Customer credit snapshot
 
 ```php

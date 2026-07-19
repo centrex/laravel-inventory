@@ -29,7 +29,8 @@ class CourierIntegration
 
     /**
      * @param  array<string, mixed>  $fields  recipient_name, recipient_phone, recipient_address,
-     *                                        weight_kg, cod_amount, item_description, and
+     *                                        weight_kg, cod_amount, item_description,
+     *                                        (pathao only) recipient_city, recipient_zone, recipient_area,
      *                                        (redx only) delivery_area_id, delivery_area,
      *                                        pickup_store_id
      * @return array{tracking_number: string, raw: array<string, mixed>}
@@ -53,11 +54,16 @@ class CourierIntegration
         $config = $this->pathaoConfigFor($environment);
         $service = new PathaoService(app(HttpFactory::class), ['pathao' => $config]);
 
-        $response = $service->createOrder([
+        $payload = [
             'store_id'          => $config['store_id'],
             'recipient_name'    => (string) $fields['recipient_name'],
             'recipient_phone'   => (string) $fields['recipient_phone'],
             'recipient_address' => (string) $fields['recipient_address'],
+            // Required by Pathao's own API validation alongside the address — omitting these
+            // is what causes a 422 from aladdin/api/v1/orders even though every other field
+            // this package used to send was present and well-formed.
+            'recipient_city'    => (int) $fields['recipient_city'],
+            'recipient_zone'    => (int) $fields['recipient_zone'],
             'delivery_type'     => 48, // Normal delivery
             'item_type'         => 2,  // Parcel
             'item_quantity'     => 1,
@@ -65,7 +71,13 @@ class CourierIntegration
             'item_description'  => (string) ($fields['item_description'] ?? $saleOrder->so_number),
             'amount_to_collect' => (float) $fields['cod_amount'],
             'merchant_order_id' => $saleOrder->so_number,
-        ]);
+        ];
+
+        if (filled($fields['recipient_area'] ?? null)) {
+            $payload['recipient_area'] = (int) $fields['recipient_area'];
+        }
+
+        $response = $service->createOrder($payload);
 
         return [
             'tracking_number' => (string) ($response['data']['consignment_id'] ?? ''),
@@ -207,6 +219,47 @@ class CourierIntegration
         $service = new RedxService(app(HttpFactory::class), ['redx' => $this->redxConfigFor($environment)]);
 
         return array_values((array) ($service->getPickupStores()['pickup_stores'] ?? []));
+    }
+
+    /**
+     * Pathao cities for the given environment — the first step of the
+     * city → zone → area cascade required by recipient_city on order creation.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function pathaoCities(string $environment): array
+    {
+        if (!$this->enabled()) {
+            return [];
+        }
+
+        $service = new PathaoService(app(HttpFactory::class), ['pathao' => $this->pathaoConfigFor($environment)]);
+
+        return array_values($service->cities());
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function pathaoZones(string $environment, int $cityId): array
+    {
+        if (!$this->enabled()) {
+            return [];
+        }
+
+        $service = new PathaoService(app(HttpFactory::class), ['pathao' => $this->pathaoConfigFor($environment)]);
+
+        return array_values($service->zones($cityId));
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function pathaoAreas(string $environment, int $zoneId): array
+    {
+        if (!$this->enabled()) {
+            return [];
+        }
+
+        $service = new PathaoService(app(HttpFactory::class), ['pathao' => $this->pathaoConfigFor($environment)]);
+
+        return array_values($service->areas($zoneId));
     }
 
     /** @return array<string, mixed> */

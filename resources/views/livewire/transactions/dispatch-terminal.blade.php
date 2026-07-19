@@ -596,6 +596,63 @@
                                     </div>
                                 </div>
                             @endif
+
+                            @if (($parcelForm['provider'] ?? '') === 'pathao')
+                                <div class="sm:col-span-2 grid gap-4 sm:grid-cols-3 rounded-xl border border-gray-200 p-4 dark:border-zinc-700">
+                                    <div class="sm:col-span-3 -mb-1 text-xs font-semibold uppercase tracking-wider text-gray-400">Pathao recipient location</div>
+
+                                    {{-- City → zone → area cascade: each select is populated once its parent
+                                         is chosen (see updatedParcelFormRecipientCity/Zone in the component).
+                                         Falls back to a manual id input when the lookup can't load. --}}
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">City</label>
+                                        @if ($pathaoCities !== [])
+                                            <select wire:model.live="parcelForm.recipient_city" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                                <option value="">— Select city —</option>
+                                                @foreach ($pathaoCities as $city)
+                                                    <option value="{{ $city['city_id'] ?? '' }}">{{ $city['city_name'] ?? ('City #' . ($city['city_id'] ?? '?')) }}</option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <input wire:model.live="parcelForm.recipient_city" type="number" min="1" placeholder="City id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                            <p class="mt-1 text-xs text-gray-400">City list unavailable — enter the id manually.</p>
+                                        @endif
+                                        @error('recipient_city') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Zone</label>
+                                        @if ($pathaoZones !== [])
+                                            <select wire:model.live="parcelForm.recipient_zone" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                                <option value="">— Select zone —</option>
+                                                @foreach ($pathaoZones as $zone)
+                                                    <option value="{{ $zone['zone_id'] ?? '' }}">{{ $zone['zone_name'] ?? ('Zone #' . ($zone['zone_id'] ?? '?')) }}</option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <input wire:model.live="parcelForm.recipient_zone" type="number" min="1" placeholder="Zone id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                            <p class="mt-1 text-xs text-gray-400">Pick a city first, or enter the id manually.</p>
+                                        @endif
+                                        @error('recipient_zone') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Area <span class="font-normal normal-case text-gray-400">(optional)</span></label>
+                                        @if ($pathaoAreas !== [])
+                                            <select wire:model="parcelForm.recipient_area" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                                <option value="">— Select area —</option>
+                                                @foreach ($pathaoAreas as $area)
+                                                    <option value="{{ $area['area_id'] ?? '' }}">{{ $area['area_name'] ?? ('Area #' . ($area['area_id'] ?? '?')) }}</option>
+                                                @endforeach
+                                            </select>
+                                        @else
+                                            <input wire:model="parcelForm.recipient_area" type="number" min="1" placeholder="Area id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                            <p class="mt-1 text-xs text-gray-400">Pick a zone first, or enter the id manually.</p>
+                                        @endif
+                                        @error('recipient_area') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                                    </div>
+                                </div>
+                            @endif
                         @endif
 
                         <div class="sm:col-span-2">

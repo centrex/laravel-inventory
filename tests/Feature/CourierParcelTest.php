@@ -115,6 +115,8 @@ it('creates a pathao parcel including the token handshake', function (): void {
         'recipient_name'    => 'Courier Org',
         'recipient_phone'   => '01700000000',
         'recipient_address' => 'House 1, Road 2, Dhaka',
+        'recipient_city'    => 1,
+        'recipient_zone'    => 25,
         'weight_kg'         => 1.5,
         'cod_amount'        => 400.0,
         'item_description'  => $saleOrder->so_number,
@@ -125,8 +127,36 @@ it('creates a pathao parcel including the token handshake', function (): void {
     Http::assertSent(fn ($request): bool => str_contains($request->url(), 'aladdin/api/v1/orders')
         && $request['merchant_order_id'] === $saleOrder->so_number
         && $request['store_id'] === 'STORE-1'
+        && $request['recipient_city'] === 1
+        && $request['recipient_zone'] === 25
+        && !isset($request['recipient_area'])
         && (float) $request['amount_to_collect'] === 400.0
         && $request->hasHeader('Authorization', 'Bearer tok-123'));
+});
+
+it('includes the recipient area on a pathao parcel when one is supplied', function (): void {
+    enableCourier();
+
+    Http::fake([
+        'courier-api-sandbox.pathao.com/aladdin/api/v1/issue-token' => Http::response(['access_token' => 'tok-123']),
+        'courier-api-sandbox.pathao.com/aladdin/api/v1/orders'      => Http::response(['data' => ['consignment_id' => 'DX-778900']]),
+    ]);
+
+    $saleOrder = makeCourierSaleOrder();
+
+    app(CourierIntegration::class)->createParcel($saleOrder, 'pathao', 'sandbox', [
+        'recipient_name'    => 'Courier Org',
+        'recipient_phone'   => '01700000000',
+        'recipient_address' => 'House 1, Road 2, Dhaka',
+        'recipient_city'    => 1,
+        'recipient_zone'    => 25,
+        'recipient_area'    => 141,
+        'weight_kg'         => 1.5,
+        'cod_amount'        => 400.0,
+    ]);
+
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), 'aladdin/api/v1/orders')
+        && $request['recipient_area'] === 141);
 });
 
 it('creates a redx parcel with weight converted to grams', function (): void {
@@ -204,6 +234,9 @@ function parcelFormFor(string $provider): array
         'item_description'  => '',
         'delivery_area_id'  => '',
         'pickup_store_id'   => '',
+        'recipient_city'    => '',
+        'recipient_zone'    => '',
+        'recipient_area'    => '',
         'carried_by'        => '',
     ];
 }
@@ -225,7 +258,10 @@ it('creates the parcel as a separate step without touching stock', function (): 
     $component = new DispatchTerminalPage();
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
-    $component->parcelForm = parcelFormFor('pathao');
+    $component->parcelForm = array_merge(parcelFormFor('pathao'), [
+        'recipient_city' => '1',
+        'recipient_zone' => '25',
+    ]);
 
     $component->createParcelForOrder();
 
@@ -294,6 +330,31 @@ it('requires a redx delivery area id before booking', function (): void {
         $this->fail('Expected a validation exception for the missing Redx delivery area id.');
     } catch (Illuminate\Validation\ValidationException $exception) {
         expect($exception->errors())->toHaveKey('delivery_area_id');
+    }
+
+    expect($saleOrder->fresh()->status->value)->toBe('processing');
+    Http::assertNothingSent();
+});
+
+it('requires a pathao recipient city and zone before booking', function (): void {
+    enableCourier();
+
+    Gate::define('inventory.courier.create-parcel', fn ($user = null): bool => true);
+
+    Http::fake();
+
+    $saleOrder = makeCourierSaleOrder();
+
+    $component = new DispatchTerminalPage();
+    $component->parcelOrderId = $saleOrder->id;
+    $component->parcelModalOpen = true;
+    $component->parcelForm = parcelFormFor('pathao');
+
+    try {
+        $component->createParcelForOrder();
+        $this->fail('Expected a validation exception for the missing Pathao city/zone.');
+    } catch (Illuminate\Validation\ValidationException $exception) {
+        expect($exception->errors())->toHaveKeys(['recipient_city', 'recipient_zone']);
     }
 
     expect($saleOrder->fresh()->status->value)->toBe('processing');
@@ -380,6 +441,44 @@ it('loads redx areas and pickup stores when redx is selected in the modal', func
 
     expect($filtered)->toHaveCount(1)
         ->and($filtered[0]['name'])->toBe('Agrabad');
+});
+
+it('cascades pathao city to zone to area selection in the modal', function (): void {
+    enableCourier();
+    config()->set('inventory.courier.default_provider', 'pathao');
+    Gate::define('inventory.courier.create-parcel', fn ($user = null): bool => true);
+
+    Http::fake([
+        'courier-api-sandbox.pathao.com/aladdin/api/v1/issue-token' => Http::response(['access_token' => 'tok-123']),
+        'courier-api-sandbox.pathao.com/aladdin/api/v1/city-list'   => Http::response(['data' => ['data' => [
+            ['city_id' => 1, 'city_name' => 'Dhaka'],
+        ]]]),
+        'courier-api-sandbox.pathao.com/aladdin/api/v1/cities/1/zone-list' => Http::response(['data' => ['data' => [
+            ['zone_id' => 25, 'zone_name' => 'Banani'],
+        ]]]),
+        'courier-api-sandbox.pathao.com/aladdin/api/v1/zones/25/area-list' => Http::response(['data' => ['data' => [
+            ['area_id' => 141, 'area_name' => 'Road 11'],
+        ]]]),
+    ]);
+
+    $saleOrder = makeCourierSaleOrder();
+
+    $component = new DispatchTerminalPage();
+    $component->openParcelModal($saleOrder->id);
+
+    expect($component->parcelForm['provider'])->toBe('pathao')
+        ->and($component->pathaoCities)->toHaveCount(1);
+
+    $component->parcelForm['recipient_city'] = '1';
+    $component->updatedParcelFormRecipientCity();
+
+    expect($component->pathaoZones)->toHaveCount(1);
+
+    $component->parcelForm['recipient_zone'] = '25';
+    $component->updatedParcelFormRecipientZone();
+
+    expect($component->pathaoAreas)->toHaveCount(1)
+        ->and($component->pathaoAreas[0]['area_name'])->toBe('Road 11');
 });
 
 it('requires both redx areas before booking', function (): void {

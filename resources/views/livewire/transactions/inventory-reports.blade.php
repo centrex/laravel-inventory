@@ -21,6 +21,9 @@
     <a href="{{ route('inventory.reports.stock') }}" wire:navigate>
         <x-tallui-card title="Stock Report" subtitle="Valuation and low-stock positions across warehouses." icon="o-archive-box" :shadow="true" />
     </a>
+    <a href="{{ route('inventory.reports.aging') }}" wire:navigate>
+        <x-tallui-card title="Aging Report" subtitle="Stock and customer due aging in 0-30/31-60/61-90/90+ day buckets." icon="o-clock" :shadow="true" />
+    </a>
     <a href="{{ route('inventory.reports.forecast') }}" wire:navigate>
         <x-tallui-card title="Sales Forecast" subtitle="Demand projection, cashflow outlook, and procurement requirement." icon="o-arrow-trending-up" :shadow="true" />
     </a>

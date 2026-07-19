@@ -85,6 +85,13 @@ class DispatchTerminalPage extends Component
     /** Filters the (large) delivery-area list in the parcel modal. */
     public string $redxAreaSearch = '';
 
+    /** Pathao city → zone → area cascade, lazy-loaded when Pathao is picked / as each level is chosen. */
+    public array $pathaoCities = [];
+
+    public array $pathaoZones = [];
+
+    public array $pathaoAreas = [];
+
     public bool $trackingModalOpen = false;
 
     public ?int $trackingOrderId = null;
@@ -347,14 +354,31 @@ class DispatchTerminalPage extends Component
             'item_description'  => $saleOrder->so_number,
             'delivery_area_id'  => (string) (data_get($meta, 'shipping_address.delivery_area_id') ?? ''),
             'pickup_store_id'   => (string) config('inventory.courier.redx.pickup_store_id', ''),
+            'recipient_city'    => (string) (data_get($meta, 'shipping_address.recipient_city') ?? ''),
+            'recipient_zone'    => (string) (data_get($meta, 'shipping_address.recipient_zone') ?? ''),
+            'recipient_area'    => (string) (data_get($meta, 'shipping_address.recipient_area') ?? ''),
             'carried_by'        => '',
         ];
 
         $this->redxAreaSearch = '';
+        $this->pathaoCities = [];
+        $this->pathaoZones = [];
+        $this->pathaoAreas = [];
         $this->parcelOrderId = $saleOrderId;
         $this->parcelModalOpen = true;
 
         $this->loadRedxOptions();
+        $this->loadPathaoCities();
+
+        // Editing an order that already has a city/zone picked (e.g. re-opening after a
+        // failed submit): reload the next cascade levels too, so the selects aren't empty.
+        if (filled($this->parcelForm['recipient_city'])) {
+            $this->loadPathaoZones();
+        }
+
+        if (filled($this->parcelForm['recipient_zone'])) {
+            $this->loadPathaoAreas();
+        }
     }
 
     public function closeParcelModal(): void
@@ -424,14 +448,37 @@ class DispatchTerminalPage extends Component
     public function updatedParcelFormProvider(): void
     {
         $this->loadRedxOptions();
+        $this->loadPathaoCities();
     }
 
     public function updatedParcelFormEnvironment(): void
     {
-        // Sandbox and live have separate area/pickup-store data sets.
+        // Sandbox and live have separate area/pickup-store/city-zone-area data sets.
         $this->redxAreas = [];
         $this->redxPickupStores = [];
+        $this->pathaoCities = [];
+        $this->pathaoZones = [];
+        $this->pathaoAreas = [];
         $this->loadRedxOptions();
+        $this->loadPathaoCities();
+    }
+
+    /** Picking a city invalidates the zone/area picked under the previous one. */
+    public function updatedParcelFormRecipientCity(): void
+    {
+        $this->parcelForm['recipient_zone'] = '';
+        $this->parcelForm['recipient_area'] = '';
+        $this->pathaoZones = [];
+        $this->pathaoAreas = [];
+        $this->loadPathaoZones();
+    }
+
+    /** Picking a zone invalidates the area picked under the previous one. */
+    public function updatedParcelFormRecipientZone(): void
+    {
+        $this->parcelForm['recipient_area'] = '';
+        $this->pathaoAreas = [];
+        $this->loadPathaoAreas();
     }
 
     /**
@@ -455,6 +502,67 @@ class DispatchTerminalPage extends Component
             $this->redxAreas = [];
             $this->redxPickupStores = [];
             session()->flash('dispatch_error', "Could not load Redx areas: {$exception->getMessage()}");
+        }
+    }
+
+    /**
+     * Lazy-load Pathao's city list once Pathao is the selected provider. A lookup
+     * failure degrades gracefully: the modal falls back to a plain numeric id input,
+     * so booking is still possible with an id from Pathao's own merchant panel.
+     */
+    private function loadPathaoCities(): void
+    {
+        if (($this->parcelForm['provider'] ?? '') !== 'pathao' || $this->pathaoCities !== []) {
+            return;
+        }
+
+        $environment = (string) ($this->parcelForm['environment'] ?? 'sandbox');
+
+        try {
+            $this->pathaoCities = app(CourierIntegration::class)->pathaoCities($environment);
+        } catch (\Throwable $exception) {
+            $this->pathaoCities = [];
+            session()->flash('dispatch_error', "Could not load Pathao cities: {$exception->getMessage()}");
+        }
+    }
+
+    /** Zones for the currently selected recipient city. */
+    private function loadPathaoZones(): void
+    {
+        $cityId = (int) ($this->parcelForm['recipient_city'] ?? 0);
+
+        if ($cityId <= 0) {
+            return;
+        }
+
+        try {
+            $this->pathaoZones = app(CourierIntegration::class)->pathaoZones(
+                (string) ($this->parcelForm['environment'] ?? 'sandbox'),
+                $cityId,
+            );
+        } catch (\Throwable $exception) {
+            $this->pathaoZones = [];
+            session()->flash('dispatch_error', "Could not load Pathao zones: {$exception->getMessage()}");
+        }
+    }
+
+    /** Areas for the currently selected recipient zone (optional — Pathao only requires city + zone). */
+    private function loadPathaoAreas(): void
+    {
+        $zoneId = (int) ($this->parcelForm['recipient_zone'] ?? 0);
+
+        if ($zoneId <= 0) {
+            return;
+        }
+
+        try {
+            $this->pathaoAreas = app(CourierIntegration::class)->pathaoAreas(
+                (string) ($this->parcelForm['environment'] ?? 'sandbox'),
+                $zoneId,
+            );
+        } catch (\Throwable $exception) {
+            $this->pathaoAreas = [];
+            session()->flash('dispatch_error', "Could not load Pathao areas: {$exception->getMessage()}");
         }
     }
 
@@ -526,10 +634,15 @@ class DispatchTerminalPage extends Component
             'item_description'  => ['nullable', 'string', 'max:160'],
             'delivery_area_id'  => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
             'pickup_store_id'   => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
+            'recipient_city'    => ['required_if:provider,pathao', 'nullable', 'integer', 'min:1'],
+            'recipient_zone'    => ['required_if:provider,pathao', 'nullable', 'integer', 'min:1'],
+            'recipient_area'    => ['nullable', 'integer', 'min:1'],
             'carried_by'        => ['required_if:provider,hand_carry', 'nullable', 'string', 'max:160'],
         ], [
             'delivery_area_id.required_if' => 'Redx needs a delivery area.',
             'pickup_store_id.required_if'  => 'Redx needs a pickup store.',
+            'recipient_city.required_if'   => 'Pathao needs a recipient city.',
+            'recipient_zone.required_if'   => 'Pathao needs a recipient zone.',
             'carried_by.required_if'       => 'Who is hand-carrying this parcel?',
         ])->validate();
 
@@ -562,6 +675,9 @@ class DispatchTerminalPage extends Component
                     'delivery_area_id'  => filled($this->parcelForm['delivery_area_id'] ?? null) ? (int) $this->parcelForm['delivery_area_id'] : null,
                     'delivery_area'     => $this->redxAreaName((string) ($this->parcelForm['delivery_area_id'] ?? '')),
                     'pickup_store_id'   => filled($this->parcelForm['pickup_store_id'] ?? null) ? (int) $this->parcelForm['pickup_store_id'] : null,
+                    'recipient_city'    => filled($this->parcelForm['recipient_city'] ?? null) ? (int) $this->parcelForm['recipient_city'] : null,
+                    'recipient_zone'    => filled($this->parcelForm['recipient_zone'] ?? null) ? (int) $this->parcelForm['recipient_zone'] : null,
+                    'recipient_area'    => filled($this->parcelForm['recipient_area'] ?? null) ? (int) $this->parcelForm['recipient_area'] : null,
                 ]);
             } catch (\Throwable $exception) {
                 session()->flash('dispatch_error', "Courier parcel creation failed for {$saleOrder->so_number}: {$exception->getMessage()}");
@@ -579,6 +695,9 @@ class DispatchTerminalPage extends Component
             'courier_environment' => $isHandCarry ? null : $this->parcelForm['environment'],
             'delivery_area_id'    => $provider === 'redx' ? (int) $this->parcelForm['delivery_area_id'] : null,
             'pickup_store_id'     => $provider === 'redx' ? (int) $this->parcelForm['pickup_store_id'] : null,
+            'recipient_city'      => $provider === 'pathao' ? (int) $this->parcelForm['recipient_city'] : null,
+            'recipient_zone'      => $provider === 'pathao' ? (int) $this->parcelForm['recipient_zone'] : null,
+            'recipient_area'      => $provider === 'pathao' && filled($this->parcelForm['recipient_area'] ?? null) ? (int) $this->parcelForm['recipient_area'] : null,
             'carried_by'          => $isHandCarry ? $this->parcelForm['carried_by'] : null,
             'tracking_number'     => $trackingNumber,
             'parcel_status'       => 'Ready for courier',

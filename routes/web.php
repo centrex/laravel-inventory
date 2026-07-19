@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
 use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseStockIndexPage};
-use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, CustomerHeatMapPage, DispatchTerminalPage, ForecastReportPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
+use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ForecastReportPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -81,6 +81,7 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/reports/sales', SalesReportPage::class)->name('reports.sales');
         Route::get('/reports/purchases', PurchaseReportPage::class)->name('reports.purchases');
         Route::get('/reports/stock', StockReportPage::class)->name('reports.stock');
+        Route::get('/reports/aging', AgingReportPage::class)->name('reports.aging');
         Route::get('/reports/forecast', ForecastReportPage::class)->name('reports.forecast');
         Route::get('/reports/customer-heatmap', CustomerHeatMapPage::class)->name('reports.customer-heatmap');
     });

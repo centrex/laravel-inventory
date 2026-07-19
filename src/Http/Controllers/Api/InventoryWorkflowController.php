@@ -202,6 +202,38 @@ class InventoryWorkflowController extends Controller
         );
     }
 
+    public function stockAging(Request $request): JsonResponse
+    {
+        Gate::authorize('inventory.reports.view');
+
+        $validated = $request->validate([
+            'warehouse_id' => ['nullable', 'integer'],
+        ]);
+
+        $warehouseId = $validated['warehouse_id'] ?? null;
+
+        return response()->json([
+            'summary' => $this->inventory->stockAgingSummary($warehouseId),
+            'items'   => $this->inventory->stockAgingReport($warehouseId),
+        ]);
+    }
+
+    public function dueAging(Request $request): JsonResponse
+    {
+        Gate::authorize('inventory.reports.view');
+
+        $validated = $request->validate([
+            'customer_id' => ['nullable', 'integer'],
+        ]);
+
+        $customerId = $validated['customer_id'] ?? null;
+
+        return response()->json([
+            'summary' => $this->inventory->dueAgingSummary($customerId),
+            'items'   => $this->inventory->dueAgingReport($customerId),
+        ]);
+    }
+
     public function createPurchaseOrder(Request $request): JsonResponse
     {
         Gate::authorize('inventory.purchase-orders.create');

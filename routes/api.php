@@ -30,6 +30,8 @@ Route::middleware(config('inventory.api_middleware', ['api', 'auth:sanctum']))
         Route::get('/reports/stock-levels', [InventoryWorkflowController::class, 'stockLevels'])->name('reports.stock-levels');
         Route::get('/reports/stock-valuation', [InventoryWorkflowController::class, 'stockValuation'])->name('reports.stock-valuation');
         Route::get('/reports/movement-history', [InventoryWorkflowController::class, 'movementHistory'])->name('reports.movement-history');
+        Route::get('/reports/stock-aging', [InventoryWorkflowController::class, 'stockAging'])->name('reports.stock-aging');
+        Route::get('/reports/due-aging', [InventoryWorkflowController::class, 'dueAging'])->name('reports.due-aging');
 
         Route::post('/purchase-orders', [InventoryWorkflowController::class, 'createPurchaseOrder'])->name('purchase-orders.store');
         Route::post('/purchase-orders/{purchaseOrderId}/submit', [InventoryWorkflowController::class, 'submitPurchaseOrder'])->name('purchase-orders.submit');
