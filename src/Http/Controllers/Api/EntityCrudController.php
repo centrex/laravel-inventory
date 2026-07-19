@@ -4,12 +4,12 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Api;
 
-use Centrex\Inventory\Support\InventoryEntityRegistry;
+use Centrex\Inventory\Support\{EntityUserProvisioner, InventoryEntityRegistry};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
+use Illuminate\Support\{Arr, Str};
 use Illuminate\Support\Facades\{Gate, Validator};
-use Illuminate\Support\Str;
 
 class EntityCrudController extends Controller
 {
@@ -50,12 +50,13 @@ class EntityCrudController extends Controller
         Gate::authorize('inventory.master-data.manage');
 
         $model = InventoryEntityRegistry::makeModel($entity);
-        $payload = InventoryEntityRegistry::fillablePayload($entity, $request->all());
+        $payload = InventoryEntityRegistry::fillablePayload($entity, $request->all(), forCreate: true);
         $validator = Validator::make($payload, InventoryEntityRegistry::validationRules($entity, null, $payload));
         $validator->validate();
 
         /** @var Model $record */
-        $record = $model->newQuery()->create($payload);
+        $record = $model->newQuery()->create(Arr::except($payload, InventoryEntityRegistry::virtualFieldNames($entity)));
+        EntityUserProvisioner::provision($entity, $record, $payload);
 
         return response()->json($record->fresh(), 201);
     }
@@ -69,7 +70,7 @@ class EntityCrudController extends Controller
         $validator = Validator::make($payload, InventoryEntityRegistry::validationRules($entity, $record, $payload));
         $validator->validate();
 
-        $record->fill($payload)->save();
+        $record->fill(Arr::except($payload, InventoryEntityRegistry::virtualFieldNames($entity)))->save();
 
         return response()->json($record->fresh());
     }

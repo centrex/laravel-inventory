@@ -85,6 +85,18 @@ class DispatchTerminalPage extends Component
     /** Filters the (large) delivery-area list in the parcel modal. */
     public string $redxAreaSearch = '';
 
+    public bool $trackingModalOpen = false;
+
+    public ?int $trackingOrderId = null;
+
+    /** Live parcel details from the courier API, keyed field => value. */
+    public array $parcelInfo = [];
+
+    /** Live tracking history entries from the courier API. */
+    public array $parcelTracking = [];
+
+    public string $trackingError = '';
+
     protected $queryString = [
         'search' => ['except' => ''],
         'status' => ['except' => 'open'],
@@ -317,9 +329,9 @@ class DispatchTerminalPage extends Component
 
         $meta = $this->metadataFor($saleOrder);
 
-        $weight = app(Inventory::class)->estimateShipping(
+        $weight = round(app(Inventory::class)->estimateShipping(
             $saleOrder->items->map(fn ($item): array => ['product_id' => $item->product_id, 'qty' => $item->qty_ordered])->all(),
-        )['total_weight_kg'] ?? 0.0;
+        )['total_weight_kg'],2 )?? 0.0;
 
         $courierApiEnabled = app(CourierIntegration::class)->enabled();
         $saved = $this->savedShippingAddressFor($saleOrder);
@@ -334,7 +346,7 @@ class DispatchTerminalPage extends Component
             'cod_amount'        => (string) round((float) $saleOrder->total_local, 2),
             'item_description'  => $saleOrder->so_number,
             'delivery_area_id'  => (string) (data_get($meta, 'shipping_address.delivery_area_id') ?? ''),
-            'pickup_area_id'    => (string) config('inventory.courier.redx.pickup_area_id', ''),
+            'pickup_store_id'   => (string) config('inventory.courier.redx.pickup_store_id', ''),
             'carried_by'        => '',
         ];
 
@@ -349,6 +361,64 @@ class DispatchTerminalPage extends Component
     {
         $this->parcelModalOpen = false;
         $this->parcelOrderId = null;
+    }
+
+    /**
+     * Opens the parcel-tracking modal and pulls the parcel's live details and
+     * tracking history from the courier API (Redx / Pathao) for the order's
+     * booked tracking number.
+     */
+    public function openTrackingModal(int $saleOrderId): void
+    {
+        $saleOrder = SaleOrder::query()
+            ->with('customer')
+            ->where('document_type', 'order')
+            ->findOrFail($saleOrderId);
+
+        $meta = $this->metadataFor($saleOrder);
+
+        $this->trackingOrderId = $saleOrderId;
+        $this->trackingModalOpen = true;
+        $this->parcelInfo = [];
+        $this->parcelTracking = [];
+        $this->trackingError = '';
+
+        $provider = (string) ($meta['courier_provider'] ?? '');
+        $environment = (string) ($meta['courier_environment'] ?? 'sandbox');
+        $trackingNumber = (string) ($meta['tracking_number'] ?? '');
+
+        if ($trackingNumber === '' || !in_array($provider, ['redx', 'pathao'], true)) {
+            $this->trackingError = 'This order has no courier-booked parcel — tracking is only available for Redx and Pathao parcels.';
+
+            return;
+        }
+
+        try {
+            $details = app(CourierIntegration::class)->parcelDetails(
+                $provider,
+                $environment,
+                $trackingNumber,
+                (string) ($saleOrder->customer?->phone ?? data_get($meta, 'shipping_address.phone', '')),
+            );
+
+            $this->parcelInfo = $details['info'];
+            $this->parcelTracking = $details['tracking'];
+
+            if ($this->parcelInfo === [] && $this->parcelTracking === []) {
+                $this->trackingError = "The courier returned no data for parcel {$trackingNumber} yet.";
+            }
+        } catch (\Throwable $exception) {
+            $this->trackingError = "Could not load parcel data: {$exception->getMessage()}";
+        }
+    }
+
+    public function closeTrackingModal(): void
+    {
+        $this->trackingModalOpen = false;
+        $this->trackingOrderId = null;
+        $this->parcelInfo = [];
+        $this->parcelTracking = [];
+        $this->trackingError = '';
     }
 
     public function updatedParcelFormProvider(): void
@@ -386,6 +456,23 @@ class DispatchTerminalPage extends Component
             $this->redxPickupStores = [];
             session()->flash('dispatch_error', "Could not load Redx areas: {$exception->getMessage()}");
         }
+    }
+
+    /**
+     * The Redx area name for a selected area id, from the loaded area list.
+     * Redx's parcel API requires the name alongside the id; CourierIntegration
+     * falls back to an API lookup when the list wasn't loaded (manual id entry).
+     */
+    private function redxAreaName(string $areaId): ?string
+    {
+        if ($areaId === '') {
+            return null;
+        }
+
+        $name = collect($this->redxAreas)
+            ->first(fn (array $area): bool => (string) ($area['id'] ?? '') === $areaId)['name'] ?? null;
+
+        return $name !== null ? (string) $name : null;
     }
 
     /** Delivery-area options narrowed by the search box — capped so the select stays usable. */
@@ -438,11 +525,11 @@ class DispatchTerminalPage extends Component
             'cod_amount'        => [Rule::excludeIf($isHandCarry), 'required', 'numeric', 'min:0'],
             'item_description'  => ['nullable', 'string', 'max:160'],
             'delivery_area_id'  => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
-            'pickup_area_id'    => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
+            'pickup_store_id'   => ['required_if:provider,redx', 'nullable', 'integer', 'min:1'],
             'carried_by'        => ['required_if:provider,hand_carry', 'nullable', 'string', 'max:160'],
         ], [
             'delivery_area_id.required_if' => 'Redx needs a delivery area.',
-            'pickup_area_id.required_if'   => 'Redx needs a pickup area.',
+            'pickup_store_id.required_if'  => 'Redx needs a pickup store.',
             'carried_by.required_if'       => 'Who is hand-carrying this parcel?',
         ])->validate();
 
@@ -473,7 +560,8 @@ class DispatchTerminalPage extends Component
                     'cod_amount'        => (float) $this->parcelForm['cod_amount'],
                     'item_description'  => filled($this->parcelForm['item_description'] ?? null) ? $this->parcelForm['item_description'] : $saleOrder->so_number,
                     'delivery_area_id'  => filled($this->parcelForm['delivery_area_id'] ?? null) ? (int) $this->parcelForm['delivery_area_id'] : null,
-                    'pickup_area_id'    => filled($this->parcelForm['pickup_area_id'] ?? null) ? (int) $this->parcelForm['pickup_area_id'] : null,
+                    'delivery_area'     => $this->redxAreaName((string) ($this->parcelForm['delivery_area_id'] ?? '')),
+                    'pickup_store_id'   => filled($this->parcelForm['pickup_store_id'] ?? null) ? (int) $this->parcelForm['pickup_store_id'] : null,
                 ]);
             } catch (\Throwable $exception) {
                 session()->flash('dispatch_error', "Courier parcel creation failed for {$saleOrder->so_number}: {$exception->getMessage()}");
@@ -490,7 +578,7 @@ class DispatchTerminalPage extends Component
             'courier_provider'    => $provider,
             'courier_environment' => $isHandCarry ? null : $this->parcelForm['environment'],
             'delivery_area_id'    => $provider === 'redx' ? (int) $this->parcelForm['delivery_area_id'] : null,
-            'pickup_area_id'      => $provider === 'redx' ? (int) $this->parcelForm['pickup_area_id'] : null,
+            'pickup_store_id'     => $provider === 'redx' ? (int) $this->parcelForm['pickup_store_id'] : null,
             'carried_by'          => $isHandCarry ? $this->parcelForm['carried_by'] : null,
             'tracking_number'     => $trackingNumber,
             'parcel_status'       => 'Ready for courier',
@@ -581,10 +669,10 @@ class DispatchTerminalPage extends Component
         return [
             'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Shipped']],
             'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED                                                       => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
                 SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default                                                                          => 1,
+                default => 1,
             },
             'halted'      => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'statusReady' => $statusReady,
@@ -704,8 +792,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'draft', 'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                                       => null,
-            default                                                                                                     => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
+            'all'   => null,
+            default => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);
@@ -744,6 +832,15 @@ class DispatchTerminalPage extends Component
         if ($this->parcelModalOpen && $this->parcelOrderId) {
             $parcelOrder = $orders->getCollection()->find($this->parcelOrderId)
                 ?? SaleOrder::query()->with(['customer', 'warehouse', 'items.product'])->find($this->parcelOrderId);
+        }
+
+        $trackingOrder = null;
+        $trackingMeta = [];
+
+        if ($this->trackingModalOpen && $this->trackingOrderId) {
+            $trackingOrder = $orders->getCollection()->find($this->trackingOrderId)
+                ?? SaleOrder::query()->with(['customer', 'warehouse'])->find($this->trackingOrderId);
+            $trackingMeta = $metadata[$this->trackingOrderId] ?? ($trackingOrder ? $this->metadataFor($trackingOrder) : []);
         }
 
         $modalOrder = null;
@@ -876,6 +973,8 @@ class DispatchTerminalPage extends Component
             'modalOrder'           => $modalOrder,
             'modalMeta'            => $modalMeta,
             'parcelOrder'          => $parcelOrder,
+            'trackingOrder'        => $trackingOrder,
+            'trackingMeta'         => $trackingMeta,
             'courierApiEnabled'    => app(CourierIntegration::class)->enabled(),
             'redxAreaOptions'      => $this->parcelModalOpen ? $this->filteredRedxAreas() : [],
             'detailOrder'          => $detailOrder,

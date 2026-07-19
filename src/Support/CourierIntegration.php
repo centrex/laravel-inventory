@@ -30,7 +30,8 @@ class CourierIntegration
     /**
      * @param  array<string, mixed>  $fields  recipient_name, recipient_phone, recipient_address,
      *                                        weight_kg, cod_amount, item_description, and
-     *                                        (redx only) delivery_area_id
+     *                                        (redx only) delivery_area_id, delivery_area,
+     *                                        pickup_store_id
      * @return array{tracking_number: string, raw: array<string, mixed>}
      */
     public function createParcel(SaleOrder $saleOrder, string $provider, string $environment, array $fields): array
@@ -80,12 +81,24 @@ class CourierIntegration
 
         $codAmount = (string) $fields['cod_amount'];
         $itemDescription = (string) ($fields['item_description'] ?? $saleOrder->so_number);
+        $deliveryAreaId = (int) $fields['delivery_area_id'];
 
-        $response = $service->createParcel([
+        // Redx requires the area *name* alongside its id; look it up when the
+        // caller didn't supply one so the API doesn't reject the parcel.
+        $deliveryArea = (string) ($fields['delivery_area'] ?? '');
+
+        if ($deliveryArea === '') {
+            $areaResponse = $service->getAreaById($deliveryAreaId);
+            $deliveryArea = (string) (data_get($areaResponse, 'areas.0.name')
+                ?? data_get($areaResponse, 'area.name')
+                ?? '');
+        }
+
+        $payload = [
             'customer_name'          => (string) $fields['recipient_name'],
             'customer_phone'         => (string) $fields['recipient_phone'],
-            'delivery_area_id'       => (int) $fields['delivery_area_id'],
-            'pickup_area_id'         => (int) $fields['pickup_area_id'],
+            'delivery_area'          => $deliveryArea,
+            'delivery_area_id'       => $deliveryAreaId,
             'customer_address'       => (string) $fields['recipient_address'],
             'merchant_invoice_id'    => $saleOrder->so_number,
             'cash_collection_amount' => $codAmount,
@@ -94,12 +107,72 @@ class CourierIntegration
             'parcel_details_json'    => [
                 ['name' => $itemDescription, 'category' => 'Others', 'value' => $codAmount],
             ],
-        ]);
+        ];
+
+        if (filled($fields['pickup_store_id'] ?? null)) {
+            $payload['pickup_store_id'] = (int) $fields['pickup_store_id'];
+        }
+
+        $response = $service->createParcel($payload);
 
         return [
             'tracking_number' => (string) ($response['tracking_id'] ?? ''),
             'raw'             => $response,
         ];
+    }
+
+    /**
+     * Live parcel info + tracking history from the courier API for a booked parcel.
+     *
+     * @return array{info: array<string, mixed>, tracking: array<int, array<string, mixed>>}
+     */
+    public function parcelDetails(string $provider, string $environment, string $trackingNumber, ?string $phone = null): array
+    {
+        if (!$this->enabled()) {
+            throw new \RuntimeException('Courier integration is not enabled.');
+        }
+
+        return match ($provider) {
+            'redx'   => $this->redxParcelDetails($environment, $trackingNumber),
+            'pathao' => $this->pathaoParcelDetails($environment, $trackingNumber, $phone),
+            default  => throw new \InvalidArgumentException("Unsupported courier provider [{$provider}]."),
+        };
+    }
+
+    /** @return array{info: array<string, mixed>, tracking: array<int, array<string, mixed>>} */
+    private function redxParcelDetails(string $environment, string $trackingNumber): array
+    {
+        $service = new RedxService(app(HttpFactory::class), ['redx' => $this->redxConfigFor($environment)]);
+
+        $info = (array) (data_get($service->parcelInfo($trackingNumber), 'parcel') ?? []);
+        $tracking = (array) (data_get($service->track($trackingNumber), 'tracking') ?? []);
+
+        return ['info' => $info, 'tracking' => array_values($tracking)];
+    }
+
+    /** @return array{info: array<string, mixed>, tracking: array<int, array<string, mixed>>} */
+    private function pathaoParcelDetails(string $environment, string $trackingNumber, ?string $phone): array
+    {
+        $service = new PathaoService(app(HttpFactory::class), ['pathao' => $this->pathaoConfigFor($environment)]);
+
+        $info = (array) (data_get($service->orderInfo($trackingNumber), 'data') ?? []);
+
+        $tracking = [];
+
+        if (filled($phone)) {
+            try {
+                $trackResponse = $service->track($trackingNumber, (string) $phone);
+                $tracking = (array) (data_get($trackResponse, 'data.log')
+                    ?? data_get($trackResponse, 'data.tracking')
+                    ?? data_get($trackResponse, 'data')
+                    ?? []);
+            } catch (\Throwable) {
+                // Pathao's tracking endpoint is separate from the merchant API —
+                // still show the order info when only tracking is unavailable.
+            }
+        }
+
+        return ['info' => $info, 'tracking' => array_values($tracking)];
     }
 
     /**
@@ -151,6 +224,9 @@ class CourierIntegration
             'username'      => $envConfig['username'] ?? '',
             'password'      => $envConfig['password'] ?? '',
             'store_id'      => config('inventory.courier.pathao.store_id', ''),
+            // Constructor config replaces the whole pathao key — carry the package's
+            // tracking endpoint over so PathaoService::track() keeps working.
+            'tracking_url' => (string) config('courier.pathao.tracking_url', 'https://merchant.pathao.com/api/v1/user/tracking'),
             // TokenManager::tokenUrl() throws without an auth endpoint — mirror the
             // laravel-courier package's own pathao auth defaults (config/courier.php).
             'auth' => [

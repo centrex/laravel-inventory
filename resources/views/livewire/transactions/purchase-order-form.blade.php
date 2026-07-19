@@ -131,23 +131,12 @@
 
     {{-- Line Items --}}
     <x-tallui-card padding="none" :shadow="true">
-        <x-slot:actions>
-            @if ($editable)
-                <x-tallui-button
-                    label="Add Line"
-                    icon="o-plus"
-                    class="btn-ghost btn-sm"
-                    type="button"
-                    wire:click="addItem"
-                />
-            @endif
-        </x-slot:actions>
-
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
                     <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th class="pl-5 w-64">Product</th>
+                        <th class="w-36">Barcode</th>
                         <th class="w-28">Qty Ordered</th>
                         <th class="w-24">On Hand</th>
                         <th class="w-36">Unit Price (Local)</th>
@@ -179,8 +168,17 @@
                             </td>
                             <td class="py-2">
                                 <x-tallui-input
+                                    wire:key="po-barcode-{{ $index }}-{{ $item['product_id'] ?? 'none' }}"
+                                    name="items.{{ $index }}.barcode"
+                                    wire:model="items.{{ $index }}.barcode"
+                                    class="input-sm w-full font-mono"
+                                    disabled
+                                />
+                            </td>
+                            <td class="py-2">
+                                <x-tallui-input
                                     name="items.{{ $index }}.qty_ordered"
-                                    type="number" step="0.0001" min="0"
+                                    type="number" step="1" min="0"
                                     wire:model="items.{{ $index }}.qty_ordered"
                                     class="input-sm text-right w-full"
                                 />
@@ -247,6 +245,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if ($editable)
+            <x-slot:footer>
+                <x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" />
+            </x-slot:footer>
+        @endif
     </x-tallui-card>
 
     {{-- Footer actions --}}

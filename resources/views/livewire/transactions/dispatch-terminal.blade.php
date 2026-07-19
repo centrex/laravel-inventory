@@ -186,6 +186,23 @@
                                             <x-tallui-icon name="o-eye" class="h-4 w-4" />
                                             View
                                         </button>
+                                        @if (!empty($meta['tracking_number']) && in_array($meta['courier_provider'] ?? '', ['redx', 'pathao'], true))
+                                            <button
+                                                type="button"
+                                                wire:click="openTrackingModal({{ $order->getKey() }})"
+                                                wire:loading.attr="disabled"
+                                                wire:target="openTrackingModal({{ $order->getKey() }})"
+                                                title="Parcel details & tracking"
+                                                class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:border-brand-300 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-gray-300"
+                                            >
+                                                <span wire:loading.remove wire:target="openTrackingModal({{ $order->getKey() }})">
+                                                    <x-tallui-icon name="o-truck" class="h-4 w-4" />
+                                                </span>
+                                                <span wire:loading wire:target="openTrackingModal({{ $order->getKey() }})">
+                                                    <x-tallui-icon name="o-arrow-path" class="h-4 w-4 animate-spin" />
+                                                </span>
+                                            </button>
+                                        @endif
                                         @if ($canViewDispatcherTab)
                                             <button
                                                 type="button"
@@ -559,23 +576,23 @@
                                         @error('delivery_area_id') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
                                     </div>
 
-                                    {{-- Pickup area: from the merchant's registered Redx pickup stores --}}
+                                    {{-- Pickup store: from the merchant's registered Redx pickup stores --}}
                                     <div>
-                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Pickup area</label>
+                                        <label class="mb-1.5 block text-xs font-medium text-gray-600 dark:text-gray-400">Pickup store</label>
                                         @if ($redxPickupStores !== [])
-                                            <select wire:model="parcelForm.pickup_area_id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
+                                            <select wire:model="parcelForm.pickup_store_id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white">
                                                 <option value="">— Select pickup store —</option>
                                                 @foreach ($redxPickupStores as $store)
-                                                    <option value="{{ $store['area_id'] ?? '' }}">
+                                                    <option value="{{ $store['id'] ?? '' }}">
                                                         {{ $store['name'] ?? ('Store #' . ($store['id'] ?? '?')) }}{{ !empty($store['area_name']) ? ' — ' . $store['area_name'] : '' }}
                                                     </option>
                                                 @endforeach
                                             </select>
                                         @else
-                                            <input wire:model="parcelForm.pickup_area_id" type="number" min="1" placeholder="Pickup area id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
-                                            <p class="mt-1 text-xs text-gray-400">No pickup stores found — enter the area id manually.</p>
+                                            <input wire:model="parcelForm.pickup_store_id" type="number" min="1" placeholder="Pickup store id" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-brand-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white" />
+                                            <p class="mt-1 text-xs text-gray-400">No pickup stores found — enter the store id manually.</p>
                                         @endif
-                                        @error('pickup_area_id') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
+                                        @error('pickup_store_id') <p class="mt-1 text-xs text-error-600">{{ $message }}</p> @enderror
                                     </div>
                                 </div>
                             @endif
@@ -614,6 +631,101 @@
                     </div>
                 </form>
 
+            </div>
+        </div>
+    @endif
+
+
+    {{-- ───── Parcel details & tracking modal (live courier API data) ───── --}}
+    @if ($trackingModalOpen && $trackingOrder)
+        <div
+            class="fixed inset-0 z-[9990] flex items-start justify-center overflow-y-auto p-4 pt-16"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tracking-modal-title"
+        >
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeTrackingModal"></div>
+
+            <div class="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900">
+
+                {{-- Modal header --}}
+                <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-zinc-800">
+                    <div>
+                        <h2 id="tracking-modal-title" class="font-mono text-base font-semibold text-gray-900 dark:text-white">
+                            Parcel — {{ $trackingMeta['tracking_number'] ?? $trackingOrder->so_number }}
+                        </h2>
+                        <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                            {{ $trackingOrder->so_number }} · {{ $trackingMeta['carrier'] ?? '' }}{{ !empty($trackingMeta['courier_environment']) ? ' (' . $trackingMeta['courier_environment'] . ')' : '' }}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        wire:click="closeTrackingModal"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800 dark:hover:text-gray-200"
+                    >
+                        <x-tallui-icon name="o-x-mark" class="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div class="max-h-[70vh] space-y-6 overflow-y-auto p-6">
+
+                    @if ($trackingError !== '')
+                        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                            {{ $trackingError }}
+                        </div>
+                    @endif
+
+                    {{-- Parcel details --}}
+                    @if ($parcelInfo !== [])
+                        <div>
+                            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Parcel details</h3>
+                            <dl class="grid gap-x-6 gap-y-2 rounded-xl border border-gray-200 p-4 text-sm sm:grid-cols-2 dark:border-zinc-800">
+                                @foreach ($parcelInfo as $field => $value)
+                                    @continue(!is_scalar($value) || $value === '' || $value === null)
+                                    <div class="flex items-start justify-between gap-3">
+                                        <dt class="shrink-0 text-gray-500 dark:text-gray-400">{{ \Illuminate\Support\Str::headline((string) $field) }}</dt>
+                                        <dd class="break-all text-right font-medium text-gray-900 dark:text-white">{{ $value }}</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+                    @endif
+
+                    {{-- Tracking history --}}
+                    @if ($parcelTracking !== [])
+                        <div>
+                            <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Tracking history</h3>
+                            <ol class="relative space-y-4 border-l border-gray-200 pl-5 dark:border-zinc-700">
+                                @foreach ($parcelTracking as $event)
+                                    @php
+                                        $eventMessage = is_array($event)
+                                            ? ($event['message_en'] ?? $event['message'] ?? $event['status'] ?? $event['desc'] ?? null)
+                                            : (is_scalar($event) ? (string) $event : null);
+                                        $eventTime = is_array($event)
+                                            ? ($event['time'] ?? $event['created_at'] ?? $event['updated_at'] ?? $event['timestamp'] ?? null)
+                                            : null;
+                                    @endphp
+                                    @continue($eventMessage === null && $eventTime === null)
+                                    <li class="relative">
+                                        <span class="absolute -left-[26px] top-1 h-3 w-3 rounded-full {{ $loop->first ? 'bg-brand-500' : 'bg-gray-300 dark:bg-zinc-600' }}"></span>
+                                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ $eventMessage ?? '—' }}</div>
+                                        @if ($eventTime)
+                                            <div class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                                @php
+                                                    try { $eventTime = \Carbon\Carbon::parse((string) $eventTime)->format('d M Y · h:i A'); } catch (\Throwable) {}
+                                                @endphp
+                                                {{ $eventTime }}
+                                            </div>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ol>
+                        </div>
+                    @elseif ($trackingError === '' && $parcelInfo !== [])
+                        <p class="text-sm text-gray-500 dark:text-gray-400">No tracking updates from the courier yet.</p>
+                    @endif
+
+                </div>
             </div>
         </div>
     @endif

@@ -4,9 +4,10 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Entities;
 
-use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
+use Centrex\Inventory\Support\{CommercialTeamAccess, EntityUserProvisioner, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\{Component, WithFileUploads};
@@ -52,7 +53,7 @@ class EntityFormPage extends Component
     public function save()
     {
         $record = $this->record(false);
-        $payload = InventoryEntityRegistry::fillablePayload($this->entity, $this->form);
+        $payload = InventoryEntityRegistry::fillablePayload($this->entity, $this->form, forCreate: $record === null);
         $validated = validator($payload, InventoryEntityRegistry::validationRules($this->entity, $record, $payload))->validate();
 
         if ($this->primaryImage) {
@@ -61,11 +62,14 @@ class EntityFormPage extends Component
             ]);
         }
 
+        $persistable = Arr::except($validated, InventoryEntityRegistry::virtualFieldNames($this->entity));
+
         if ($record) {
-            $record->fill($validated)->save();
+            $record->fill($persistable)->save();
         } else {
             $model = InventoryEntityRegistry::makeModel($this->entity);
-            $record = $model->newQuery()->create($validated);
+            $record = $model->newQuery()->create($persistable);
+            EntityUserProvisioner::provision($this->entity, $record, $validated);
         }
 
         $this->storePrimaryImage($record);

@@ -239,10 +239,10 @@ return [
         'redx' => [
             // Redx merchant pickup store name/id — single default pickup point.
             'pickup_store' => env('INVENTORY_COURIER_REDX_PICKUP_STORE', ''),
-            // Default pickup area id preselected in the Dispatch Terminal parcel modal
-            // (the area of your usual pickup store, from Redx's area lookup).
-            'pickup_area_id' => env('INVENTORY_COURIER_REDX_PICKUP_AREA_ID', ''),
-            'sandbox'        => [
+            // Default pickup store id preselected in the Dispatch Terminal parcel modal
+            // (from Redx's pickup store lookup — this is what Redx's parcel API expects).
+            'pickup_store_id' => env('INVENTORY_COURIER_REDX_PICKUP_STORE_ID', env('INVENTORY_COURIER_REDX_PICKUP_AREA_ID', '')),
+            'sandbox'         => [
                 'base_url'         => env('INVENTORY_COURIER_REDX_SANDBOX_BASE_URL', 'https://sandbox.redx.com.bd/v1.0.0-beta'),
                 'api_access_token' => env('INVENTORY_COURIER_REDX_SANDBOX_TOKEN', ''),
             ],

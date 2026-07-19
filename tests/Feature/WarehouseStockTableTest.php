@@ -17,3 +17,13 @@ it('routes the sku column search through the product/variant relation instead of
     expect($sql)->not->toContain('`sku`')
         ->and($sql)->toContain('exists');
 });
+
+it('merges sku into the product column and shows a b2b retail price column', function (): void {
+    $keys = collect((new WarehouseStockTable())->columns())
+        ->map(fn ($column) => $column->toArray()['key'])
+        ->all();
+
+    expect($keys)->not->toContain('sku')
+        ->and($keys)->toContain('b2b_retail_price')
+        ->and($keys)->toContain('product.name');
+});

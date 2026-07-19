@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
+use Centrex\Inventory\Exceptions\PriceNotFoundException;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, ProductPrice, ProductVariant, SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
@@ -161,9 +162,7 @@ class SaleOrderFormPage extends Component
         }
 
         if (!$this->canManagePricingTier()) {
-            $this->price_tier_code = $this->recordId
-                ? (SaleOrder::query()->find($this->recordId)?->price_tier_code ?: PriceTierCode::B2B_RETAIL->value)
-                : PriceTierCode::B2B_RETAIL->value;
+            $this->price_tier_code = $this->trustedPriceTierCode();
 
             foreach (array_keys($this->items) as $index) {
                 $this->items[$index]['price_tier_code'] = null; // falls back to $price_tier_code above
@@ -579,52 +578,35 @@ class SaleOrderFormPage extends Component
         }
     }
 
+    /**
+     * Resolves the line price for the requested tier, falling back to the BASE
+     * tier and finally the product's meta default — never to another tier's
+     * price, so a product missing a row for the selected tier can't silently
+     * pick up e.g. a POS price on a wholesale order.
+     */
     private function resolvePriceForLine(Inventory $inventory, int $productId, string $tierCode, ?int $variantId = null): ProductPrice
     {
-        try {
-            return $inventory->resolvePrice($productId, $tierCode, (int) $this->warehouse_id, null, $variantId);
-        } catch (\Throwable) {
-            $query = ProductPrice::query()
-                ->where('product_id', $productId)
-                ->where('is_active', true)
-                ->where(fn ($builder) => $builder->whereNull('effective_from')->orWhere('effective_from', '<=', now()->toDateString()))
-                ->where(fn ($builder) => $builder->whereNull('effective_to')->orWhere('effective_to', '>=', now()->toDateString()));
+        foreach (array_unique([$tierCode, PriceTierCode::BASE->value]) as $tier) {
+            try {
+                $price = $inventory->resolvePrice($productId, $tier, (int) $this->warehouse_id, null, $variantId);
 
-            $price = (clone $query)
-                ->where('price_tier_code', $tierCode)
-                ->where('variant_id', $variantId)
-                ->where('warehouse_id', $this->warehouse_id)
-                ->latest()
-                ->first();
-            $price ??= (clone $query)
-                ->where('price_tier_code', $tierCode)
-                ->where('variant_id', $variantId)
-                ->whereNull('warehouse_id')
-                ->latest()
-                ->first();
-            $price ??= (clone $query)
-                ->whereNull('variant_id')
-                ->where('warehouse_id', $this->warehouse_id)
-                ->latest()
-                ->first();
-            $price ??= (clone $query)
-                ->whereNull('variant_id')
-                ->whereNull('warehouse_id')
-                ->latest()
-                ->first();
-
-            if ($price) {
-                return $price;
+                // With price_not_found_throws=false a transient zero-price stub
+                // is returned instead of throwing; only trust persisted rows.
+                if ($price->exists) {
+                    return $price;
+                }
+            } catch (PriceNotFoundException) {
+                // Try the next tier in the fallback chain.
             }
-
-            $product = Product::query()->find($productId);
-            $defaultPrice = (float) ($product?->meta['default_price'] ?? $product?->meta['price'] ?? 0);
-
-            return new ProductPrice([
-                'price_amount' => $defaultPrice,
-                'price_local'  => $defaultPrice,
-            ]);
         }
+
+        $product = Product::query()->find($productId);
+        $defaultPrice = (float) ($product?->meta['default_price'] ?? $product?->meta['price'] ?? 0);
+
+        return new ProductPrice([
+            'price_amount' => $defaultPrice,
+            'price_local'  => $defaultPrice,
+        ]);
     }
 
     private function resolvedUnitPriceLocal(ProductPrice $price, Inventory $inventory, string $currency): float
@@ -760,10 +742,36 @@ class SaleOrderFormPage extends Component
         $this->resetValidation();
     }
 
-    /** Defaults the price tier to the selected customer's tier and re-syncs line prices against it. */
+    /**
+     * Server-side tier for users who cannot manage pricing tiers, ignoring
+     * whatever the request submitted: the saved order tier on edit, else the
+     * selected customer's assigned tier, else the retail default.
+     */
+    private function trustedPriceTierCode(): string
+    {
+        if ($this->recordId) {
+            $recordTier = SaleOrder::query()->find($this->recordId)?->price_tier_code;
+
+            if ($recordTier) {
+                return $recordTier;
+            }
+        }
+
+        $customerTier = $this->customer_id
+            ? Customer::query()->whereKey($this->customer_id)->value('price_tier_code')
+            : null;
+
+        return $customerTier ?: PriceTierCode::B2B_RETAIL->value;
+    }
+
+    /**
+     * Defaults the price tier to the selected customer's tier and re-syncs line
+     * prices against it. Applies for every user — the pricing.manage gate only
+     * controls manual tier overrides, not the customer's assigned tier.
+     */
     private function applyCustomerPriceTier(): void
     {
-        if (!$this->canManagePricingTier() || !$this->customer_id) {
+        if (!$this->customer_id) {
             return;
         }
 

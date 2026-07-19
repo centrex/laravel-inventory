@@ -145,7 +145,8 @@ it('creates a redx parcel with weight converted to grams', function (): void {
         'weight_kg'         => 1.5,
         'cod_amount'        => 400.0,
         'delivery_area_id'  => 42,
-        'pickup_area_id'    => 7,
+        'delivery_area'     => 'Dhanmondi',
+        'pickup_store_id'   => 7,
     ]);
 
     expect($result['tracking_number'])->toBe('RX-445566');
@@ -153,9 +154,35 @@ it('creates a redx parcel with weight converted to grams', function (): void {
     Http::assertSent(fn ($request): bool => str_contains($request->url(), 'v1.0.0-beta/parcel')
         && $request['merchant_invoice_id'] === $saleOrder->so_number
         && $request['delivery_area_id'] === 42
-        && $request['pickup_area_id'] === 7
+        && $request['delivery_area'] === 'Dhanmondi'
+        && $request['pickup_store_id'] === 7
         && $request['parcel_weight'] === 1500
         && $request->hasHeader('API-ACCESS-TOKEN', 'Bearer redx-token'));
+});
+
+it('looks up the redx area name when the caller does not supply one', function (): void {
+    enableCourier();
+
+    Http::fake([
+        'sandbox.redx.com.bd/v1.0.0-beta/areas/42' => Http::response(['areas' => [['id' => 42, 'name' => 'Dhanmondi']]]),
+        'sandbox.redx.com.bd/v1.0.0-beta/parcel'   => Http::response(['tracking_id' => 'RX-778800']),
+    ]);
+
+    $saleOrder = makeCourierSaleOrder();
+
+    $result = app(CourierIntegration::class)->createParcel($saleOrder, 'redx', 'sandbox', [
+        'recipient_name'    => 'Courier Org',
+        'recipient_phone'   => '01700000000',
+        'recipient_address' => 'House 1, Road 2, Dhaka',
+        'weight_kg'         => 1.0,
+        'cod_amount'        => 400.0,
+        'delivery_area_id'  => 42,
+    ]);
+
+    expect($result['tracking_number'])->toBe('RX-778800');
+
+    Http::assertSent(fn ($request): bool => str_contains($request->url(), 'v1.0.0-beta/parcel')
+        && $request['delivery_area'] === 'Dhanmondi');
 });
 
 it('rejects unsupported courier providers', function (): void {
@@ -176,7 +203,7 @@ function parcelFormFor(string $provider): array
         'cod_amount'        => '400',
         'item_description'  => '',
         'delivery_area_id'  => '',
-        'pickup_area_id'    => '',
+        'pickup_store_id'   => '',
         'carried_by'        => '',
     ];
 }
@@ -323,7 +350,7 @@ it('prefills the parcel form from the customer when opening the modal', function
 it('loads redx areas and pickup stores when redx is selected in the modal', function (): void {
     enableCourier();
     config()->set('inventory.courier.default_provider', 'redx');
-    config()->set('inventory.courier.redx.pickup_area_id', '7');
+    config()->set('inventory.courier.redx.pickup_store_id', '3');
     Gate::define('inventory.courier.create-parcel', fn ($user = null): bool => true);
 
     Http::fake([
@@ -342,7 +369,7 @@ it('loads redx areas and pickup stores when redx is selected in the modal', func
     $component->openParcelModal($saleOrder->id);
 
     expect($component->parcelForm['provider'])->toBe('redx')
-        ->and($component->parcelForm['pickup_area_id'])->toBe('7')
+        ->and($component->parcelForm['pickup_store_id'])->toBe('3')
         ->and($component->redxAreas)->toHaveCount(2)
         ->and($component->redxPickupStores)->toHaveCount(1);
 
@@ -371,8 +398,40 @@ it('requires both redx areas before booking', function (): void {
         $component->createParcelForOrder();
         $this->fail('Expected a validation exception for the missing Redx areas.');
     } catch (Illuminate\Validation\ValidationException $exception) {
-        expect($exception->errors())->toHaveKeys(['delivery_area_id', 'pickup_area_id']);
+        expect($exception->errors())->toHaveKeys(['delivery_area_id', 'pickup_store_id']);
     }
 
     Http::assertNothingSent();
+});
+
+it('fetches live redx parcel details and tracking history', function (): void {
+    enableCourier();
+
+    Http::fake([
+        'sandbox.redx.com.bd/v1.0.0-beta/parcel/info/*' => Http::response(['parcel' => [
+            'tracking_id' => 'RX-TRACK-1', 'status' => 'delivery-in-progress', 'cash_collection_amount' => '400',
+        ]]),
+        'sandbox.redx.com.bd/v1.0.0-beta/parcel/track/*' => Http::response(['tracking' => [
+            ['message_en' => 'Parcel created', 'time' => '2026-07-18 10:00:00'],
+            ['message_en' => 'Picked up from store', 'time' => '2026-07-18 15:30:00'],
+        ]]),
+    ]);
+
+    $details = app(CourierIntegration::class)->parcelDetails('redx', 'sandbox', 'RX-TRACK-1');
+
+    expect($details['info']['status'])->toBe('delivery-in-progress')
+        ->and($details['tracking'])->toHaveCount(2)
+        ->and($details['tracking'][0]['message_en'])->toBe('Parcel created');
+});
+
+it('explains when an order has no courier parcel to track', function (): void {
+    enableCourier();
+
+    $saleOrder = makeCourierSaleOrder();
+
+    $component = new DispatchTerminalPage();
+    $component->openTrackingModal($saleOrder->id);
+
+    expect($component->trackingModalOpen)->toBeTrue()
+        ->and($component->trackingError)->toContain('no courier-booked parcel');
 });

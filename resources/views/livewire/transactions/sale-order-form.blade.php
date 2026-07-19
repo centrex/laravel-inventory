@@ -233,21 +233,15 @@
 
     {{-- Line Items --}}
     <x-tallui-card padding="none" :shadow="true">
-        <x-slot:actions>
-            @if ($editable)
-                <x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" />
-            @endif
-        </x-slot:actions>
-
         <div class="overflow-x-auto">
             <table class="table table-sm w-full">
                 <thead>
                     <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
                         <th class="pl-5 w-52">Product</th>
+                        <th class="w-36">Barcode</th>
                         <th class="w-24">Qty</th>
                         <th class="w-24">Available</th>
                         <th class="w-32">Tier Override</th>
-                        <th class="w-36">Barcode</th>
                         <th class="w-32">Unit Price ({{ $currency ?: 'Local' }})</th>
                         <th class="w-24">Discount %</th>
                         <th class="pr-5 w-28 text-right">Options</th>
@@ -277,7 +271,16 @@
                                 </div>
                             </td>
                             <td class="py-2">
-                                <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="0.0001" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" />
+                                <x-tallui-input
+                                    wire:key="so-barcode-{{ $index }}-{{ $item['product_id'] ?? 'none' }}"
+                                    name="items.{{ $index }}.barcode"
+                                    wire:model="items.{{ $index }}.barcode"
+                                    class="input-sm w-full font-mono"
+                                    disabled
+                                />
+                            </td>
+                            <td class="py-2">
+                                <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="1" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" />
                             </td>
                             <td class="py-2 text-sm text-base-content/70">
                                 {{ number_format((float) ($availableStock->get(($item['product_id'] ?? 0) . ':' . (int) ($item['variant_id'] ?? 0))?->qtyAvailable() ?? 0), 4) }}
@@ -290,15 +293,7 @@
                                     @endforeach
                                 </x-tallui-select>
                             </td>
-                            <td class="py-2">
-                                <x-tallui-input
-                                    wire:key="so-barcode-{{ $index }}-{{ $item['product_id'] ?? 'none' }}"
-                                    name="items.{{ $index }}.barcode"
-                                    wire:model="items.{{ $index }}.barcode"
-                                    class="input-sm w-full font-mono"
-                                    disabled
-                                />
-                            </td>
+                            
                             <td class="py-2">
                                 <x-tallui-input
                                     wire:key="so-unit-price-{{ $index }}-{{ $item['product_id'] ?? 'none' }}-{{ $item['price_tier_code'] ?: $price_tier_code }}"
@@ -367,6 +362,12 @@
                 </tbody>
             </table>
         </div>
+
+        @if ($editable)
+            <x-slot:footer>
+                <x-tallui-button label="Add Line" icon="o-plus" class="btn-ghost btn-sm" type="button" wire:click="addItem" />
+            </x-slot:footer>
+        @endif
     </x-tallui-card>
 
     <div class="flex justify-end gap-2">

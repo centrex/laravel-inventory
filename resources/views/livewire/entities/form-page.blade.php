@@ -123,6 +123,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             @foreach ($definition['form_fields'] as $field)
+                @continue(($field['virtual'] ?? false) && $recordId)
                 <div class="{{ in_array($field['type'], ['textarea', 'text-editor', 'json'], true) ? 'md:col-span-2' : '' }}">
                     @if ($field['type'] === 'textarea')
                         <x-tallui-form-group :label="$field['label']" :error="$errors->first('form.' . $field['name'])">
@@ -162,6 +163,14 @@
                                     <option value="{{ $option['value'] }}">{{ $option['label'] }}</option>
                                 @endforeach
                             </x-tallui-select>
+                        </x-tallui-form-group>
+
+                    @elseif ($field['type'] === 'password')
+                        <x-tallui-form-group :label="$field['label']" :error="$errors->first('form.' . $field['name'])">
+                            <x-tallui-password-input
+                                :name="$field['name']"
+                                wire:model="form.{{ $field['name'] }}"
+                            />
                         </x-tallui-form-group>
 
                     @elseif ($field['type'] === 'checkbox')

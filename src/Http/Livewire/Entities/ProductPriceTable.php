@@ -58,7 +58,24 @@ class ProductPriceTable extends DataTable
 
     public function query(): Builder
     {
-        return WarehouseProduct::query()->with(['product', 'warehouse']);
+        return WarehouseProduct::query()->with(['product', 'warehouse', 'variant']);
+    }
+
+    protected function applySearchConstraint(Builder $query, string $column, string $search): void
+    {
+        if ($column === 'product.name') {
+            $query->orWhereHas('product', function (Builder $q) use ($search): void {
+                $q->where('sku', 'like', '%' . $search . '%')
+                    ->orWhere('name', 'like', '%' . $search . '%');
+            })->orWhereHas('variant', function (Builder $q) use ($search): void {
+                $q->where('sku', 'like', '%' . $search . '%')
+                    ->orWhere('name', 'like', '%' . $search . '%');
+            });
+
+            return;
+        }
+
+        parent::applySearchConstraint($query, $column, $search);
     }
 
     public function renderHtmlColumn(array $column, mixed $row): string

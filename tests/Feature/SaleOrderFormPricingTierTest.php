@@ -43,7 +43,7 @@ it('defaults the price tier to the selected customer tier and re-syncs item pric
     expect($page->price_tier_code)->toBe('b2b_wholesale');
 });
 
-it('does not auto-apply the customer tier when the user cannot manage pricing tiers', function (): void {
+it('auto-applies the customer tier even when the user cannot manage pricing tiers', function (): void {
     Gate::define('inventory.sale-orders.create', fn ($user = null) => true);
     Gate::define('inventory.pricing.manage', fn ($user = null) => false);
 
@@ -60,7 +60,6 @@ it('does not auto-apply the customer tier when the user cannot manage pricing ti
 
     $page = new SaleOrderFormPage();
     $page->mount();
-    $originalTier = $page->price_tier_code;
     $page->warehouse_id = $warehouse->id;
     $page->customer_id = $customer->id;
 
@@ -68,5 +67,31 @@ it('does not auto-apply the customer tier when the user cannot manage pricing ti
     $method->setAccessible(true);
     $method->invoke($page);
 
-    expect($page->price_tier_code)->toBe($originalTier);
+    expect($page->price_tier_code)->toBe('b2b_wholesale');
+});
+
+it('resolves the trusted save tier from the customer for users who cannot manage tiers', function (): void {
+    Gate::define('inventory.sale-orders.create', fn ($user = null) => true);
+    Gate::define('inventory.pricing.manage', fn ($user = null) => false);
+
+    $customer = Customer::create([
+        'code'            => 'CUS-3',
+        'name'            => 'Wholesale Co 3',
+        'currency'        => 'GBP',
+        'price_tier_code' => 'b2b_wholesale',
+        'is_active'       => true,
+    ]);
+
+    $page = new SaleOrderFormPage();
+    $page->mount();
+    $page->customer_id = $customer->id;
+    $page->price_tier_code = 'b2c_pos'; // simulates a manipulated request
+
+    $method = new ReflectionMethod($page, 'trustedPriceTierCode');
+    $method->setAccessible(true);
+
+    expect($method->invoke($page))->toBe('b2b_wholesale');
+
+    $page->customer_id = null;
+    expect($method->invoke($page))->toBe('b2b_retail');
 });
