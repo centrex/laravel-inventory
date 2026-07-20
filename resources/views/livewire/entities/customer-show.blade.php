@@ -134,6 +134,11 @@
 
 </div>
 
+{{-- ── Account Access ────────────────────────────────────────────────── --}}
+@can('inventory.master-data.manage')
+    <livewire:inventory-manage-user-access :entity="'customers'" :record-id="$customer->getKey()" />
+@endcan
+
 {{-- ── Credit + Analytics ────────────────────────────────────────────── --}}
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
 

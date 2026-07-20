@@ -275,7 +275,7 @@
                                         @endif
                                     </div>
 
-                                    @if ($canViewUpdaterTab && $flow && $flow['canCancel'])
+                                    {{-- @if ($canViewUpdaterTab && $flow && $flow['canCancel'])
                                         <div class="flex flex-wrap justify-end gap-1.5">
                                             <button
                                                 type="button"
@@ -283,13 +283,13 @@
                                                 wire:loading.attr="disabled"
                                                 wire:target="cancelSaleOrderFlow({{ $order->getKey() }})"
                                                 wire:confirm="Cancel {{ $order->so_number }}?"
-                                                class="inline-flex items-center gap-1.5 rounded-xl bg-error-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                                class="inline-flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-error-600 disabled:cursor-not-allowed disabled:opacity-60"
                                             >
                                                 <x-tallui-icon name="o-x-circle" class="h-4 w-4" />
                                                 Cancel
                                             </button>
                                         </div>
-                                    @endif
+                                    @endif --}}
                                 </div>
                             </td>
                         </tr>

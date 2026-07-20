@@ -57,6 +57,7 @@ class InventoryServiceProvider extends ServiceProvider
                 SyncExchangeRatesCommand::class,
                 Commands\FitCustomerClvCommand::class,
                 Commands\VoidCancelledOrderInvoicesCommand::class,
+                Commands\BackfillStockMovementsCommand::class,
             ]);
 
             $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
@@ -394,6 +395,7 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-supplier-index', Http\Livewire\Entities\SupplierIndexPage::class);
         Livewire::component('inventory-supplier-table', Http\Livewire\Entities\SupplierTable::class);
         Livewire::component('inventory-manage-addresses', Http\Livewire\Entities\ManageAddresses::class);
+        Livewire::component('inventory-manage-user-access', Http\Livewire\Entities\ManageUserAccess::class);
         Livewire::component('inventory-warehouse-stock-index', Http\Livewire\Entities\WarehouseStockIndexPage::class);
         Livewire::component('inventory-warehouse-stock-table', Http\Livewire\Entities\WarehouseStockTable::class);
         Livewire::component('inventory-product-price-table', Http\Livewire\Entities\ProductPriceTable::class);

@@ -105,3 +105,68 @@ it('keeps email optional when create_user is not checked', function (): void {
 
     expect($rules['email'])->toContain('nullable');
 });
+
+it('creates and links a login user for an existing customer via createAndLink', function (): void {
+    $customer = Customer::create([
+        'code'     => 'C-200',
+        'name'     => 'Existing Corp',
+        'email'    => 'existing@example.com',
+        'currency' => 'BDT',
+    ]);
+
+    expect(EntityUserProvisioner::resolvedEmail('customers', $customer))->toBe('existing@example.com')
+        ->and(EntityUserProvisioner::linkedUser('customers', $customer))->toBeNull();
+
+    $user = EntityUserProvisioner::createAndLink('customers', $customer, 'secret-pass');
+
+    expect($user)->not->toBeNull()
+        ->and($user->email)->toBe('existing@example.com')
+        ->and(Hash::check('secret-pass', $user->password))->toBeTrue();
+
+    $customer->refresh();
+    expect(EntityUserProvisioner::linkedUser('customers', $customer)?->id)->toBe($user->id);
+});
+
+it('has no resolved email and cannot create a user when the record has none on file', function (): void {
+    $customer = Customer::create([
+        'code'     => 'C-201',
+        'name'     => 'No Email Corp',
+        'currency' => 'BDT',
+    ]);
+
+    expect(EntityUserProvisioner::resolvedEmail('customers', $customer))->toBeNull()
+        ->and(EntityUserProvisioner::createAndLink('customers', $customer, 'secret-pass'))->toBeNull();
+});
+
+it('links an existing user account to a customer and can unlink it again', function (): void {
+    $customer = Customer::create([
+        'code'     => 'C-202',
+        'name'     => 'Link Me Corp',
+        'email'    => 'linkme@example.com',
+        'currency' => 'BDT',
+    ]);
+
+    $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
+    $existingUser = new $userModel();
+    $existingUser->forceFill([
+        'name'     => 'Pre-existing User',
+        'email'    => 'preexisting@example.com',
+        'password' => Hash::make('whatever'),
+    ])->save();
+
+    $linked = EntityUserProvisioner::linkExisting('customers', $customer, (int) $existingUser->getKey());
+
+    expect($linked?->id)->toBe($existingUser->id);
+
+    $customer->refresh();
+    expect(EntityUserProvisioner::linkedUser('customers', $customer)?->id)->toBe($existingUser->id);
+
+    EntityUserProvisioner::unlink('customers', $customer);
+    $customer->refresh();
+
+    expect(EntityUserProvisioner::linkedUser('customers', $customer))->toBeNull()
+        ->and($customer->modelable_id)->toBeNull();
+
+    // Unlinking never deletes the login account itself.
+    expect($userModel::find($existingUser->getKey()))->not->toBeNull();
+});

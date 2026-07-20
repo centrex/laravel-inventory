@@ -31,7 +31,7 @@ class SalesReportPage extends Component
     {
         Gate::authorize('inventory.reports.view');
         $this->endDate = now()->toDateString();
-        $this->startDate = now()->subDays(29)->toDateString();
+        $this->startDate = now()->startOfMonth()->toDateString();
     }
 
     public function viewOrder(int $id): void
@@ -130,6 +130,7 @@ class SalesReportPage extends Component
 
         return (int) SaleOrderItem::query()
             ->whereIn('sale_order_id', $orderIds)
+            ->when($this->productId, fn ($query) => $query->where('product_id', $this->productId))
             ->distinct()
             ->count('product_id');
     }
@@ -223,7 +224,11 @@ class SalesReportPage extends Component
         ];
     }
 
-    /** Invoice paid/due totals from laravel-accounting for sale orders in the selected period. */
+    /**
+     * Invoice paid/due totals from laravel-accounting, scoped to exactly the sale orders
+     * matched by the current date range, customer, product, and commercial-team filters —
+     * not every invoice in the date range regardless of who/what it's for.
+     */
     private function invoiceSummary(): array
     {
         $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
@@ -232,13 +237,17 @@ class SalesReportPage extends Component
             return ['paid' => 0.0, 'due' => 0.0];
         }
 
+        $orderIds = $this->scopedOrderIds();
+
+        if ($orderIds->isEmpty()) {
+            return ['paid' => 0.0, 'due' => 0.0];
+        }
+
         $invoices = $invoiceClass::query()
-            ->where(function ($query): void {
-                $query->where('source_type', SaleOrder::class)
-                    ->orWhereNotNull('inventory_sale_order_id');
+            ->where(function ($query) use ($orderIds): void {
+                $query->where(fn ($q) => $q->where('source_type', SaleOrder::class)->whereIn('source_id', $orderIds))
+                    ->orWhereIn('inventory_sale_order_id', $orderIds);
             })
-            ->when($this->startDate !== '', fn ($query) => $query->whereDate('invoice_date', '>=', $this->startDate))
-            ->when($this->endDate !== '', fn ($query) => $query->whereDate('invoice_date', '<=', $this->endDate))
             ->get();
 
         return [
