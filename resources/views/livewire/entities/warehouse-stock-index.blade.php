@@ -9,7 +9,9 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
+    @can('inventory.stock.manage')
         <x-tallui-button label="New Warehouse Stock" icon="o-plus" :link="route('inventory.entities.warehouse-products.create')" class="btn-primary btn-sm" />
+    @endcan
     </x-slot:actions>
 </x-tallui-page-header>
 

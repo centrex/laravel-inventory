@@ -189,7 +189,13 @@ class SalesReportPage extends Component
             ->pluck('id');
     }
 
-    /** Aggregated over the full scoped date range — not the capped "recent orders" list. */
+    /**
+     * Aggregated over the full scoped date range — not the capped "recent orders" list.
+     * Draft and cancelled orders are excluded from every monetary figure, matching the
+     * "Sold Products" table, so a cancelled order can't inflate revenue/order-count KPIs.
+     * `status_counts` still reflects every status (including cancelled/draft) so the
+     * breakdown remains informative.
+     */
     private function buildSalesMetrics(): array
     {
         $invoiceSummary = $this->invoiceSummary();
@@ -197,14 +203,16 @@ class SalesReportPage extends Component
         $orders = $this->scopedSalesQuery()
             ->get(['id', 'status', 'subtotal_local', 'discount_local', 'tax_local', 'shipping_local', 'total_local']);
 
+        $countedOrders = $orders->reject(fn (SaleOrder $order) => in_array($order->status?->value, ['draft', 'cancelled'], true));
+
         return [
-            'count'           => $orders->count(),
-            'gross_subtotal'  => round((float) $orders->sum('subtotal_local'), 2),
-            'discount'        => round((float) $orders->sum('discount_local'), 2),
-            'tax'             => round((float) $orders->sum('tax_local'), 2),
-            'shipping'        => round((float) $orders->sum('shipping_local'), 2),
-            'net_total'       => round((float) $orders->sum('total_local'), 2),
-            'fulfilled_total' => round((float) $orders
+            'count'           => $countedOrders->count(),
+            'gross_subtotal'  => round((float) $countedOrders->sum('subtotal_local'), 2),
+            'discount'        => round((float) $countedOrders->sum('discount_local'), 2),
+            'tax'             => round((float) $countedOrders->sum('tax_local'), 2),
+            'shipping'        => round((float) $countedOrders->sum('shipping_local'), 2),
+            'net_total'       => round((float) $countedOrders->sum('total_local'), 2),
+            'fulfilled_total' => round((float) $countedOrders
                 ->filter(fn (SaleOrder $order) => in_array($order->status?->value, ['fulfilled', 'partial'], true))
                 ->sum('total_local'), 2),
             'invoice_paid'  => $invoiceSummary['paid'],

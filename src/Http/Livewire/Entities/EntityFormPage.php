@@ -42,6 +42,14 @@ class EntityFormPage extends Component
             $record = $this->record();
 
             foreach ($definition['form_fields'] as $field) {
+                // Virtual fields (e.g. create_user/user_password) drive login-user
+                // provisioning at creation time only — they aren't real columns, so
+                // reading them off an existing record trips preventAccessingMissingAttributes.
+                // defaultFormData() above already seeded the right default for them.
+                if ($field['virtual'] ?? false) {
+                    continue;
+                }
+
                 $value = $record->getAttribute($field['name']);
                 $this->form[$field['name']] = $field['type'] === 'json' && is_array($value)
                     ? json_encode($value, JSON_PRETTY_PRINT)
