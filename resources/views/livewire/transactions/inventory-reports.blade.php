@@ -6,9 +6,6 @@
             ['label' => 'Reports'],
         ]" />
     </x-slot:breadcrumbs>
-    <x-slot:actions>
-        <x-tallui-button label="Customer Heat Map" icon="o-map" :link="route('inventory.reports.customer-heatmap')" class="btn-ghost btn-sm" />
-    </x-slot:actions>
 </x-tallui-page-header>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -26,6 +23,9 @@
     </a>
     <a href="{{ route('inventory.reports.forecast') }}" wire:navigate>
         <x-tallui-card title="Sales Forecast" subtitle="Demand projection, cashflow outlook, and procurement requirement." icon="o-arrow-trending-up" :shadow="true" />
+    </a>
+     <a href="{{ route('inventory.reports.customer-heatmap') }}" wire:navigate>
+        <x-tallui-card title="Customer Heat Map" subtitle="Visual representation of customer activity and engagement." icon="o-map" :shadow="true" />
     </a>
 </div>
 </div>

@@ -36,7 +36,6 @@
         @endcan
         @if ($canViewForecast)
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
-        <x-tallui-button label="Heat Map" icon="o-map" :link="route('inventory.reports.customer-heatmap')" class="btn-outline btn-sm" />
         @endif
         @if(Route::has('payroll.entries.index'))
         <x-tallui-button label="Payroll" icon="o-users" :link="route('payroll.entries.index')" class="btn-outline btn-sm" />

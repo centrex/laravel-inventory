@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Tests;
 
+use BladeUI\Heroicons\BladeHeroiconsServiceProvider;
+use BladeUI\Icons\BladeIconsServiceProvider;
 use Centrex\Inventory\InventoryServiceProvider;
 use Centrex\LaravelOpenExchangeRates\LaravelOpenExchangeRatesServiceProvider;
 use Centrex\TallUi\TallUiServiceProvider;
@@ -54,6 +56,17 @@ class TestCase extends Orchestra
         if (class_exists(TallUiServiceProvider::class)) {
             $providers[] = LivewireServiceProvider::class;
             $providers[] = TallUiServiceProvider::class;
+        }
+
+        // Required by <x-tallui-icon> (and every tallui component that renders one) —
+        // without these, any full-page render of a view using icons throws either an
+        // unresolvable IconsManifest dependency or an "Svg ... not found" error.
+        if (class_exists(BladeIconsServiceProvider::class)) {
+            $providers[] = BladeIconsServiceProvider::class;
+        }
+
+        if (class_exists(BladeHeroiconsServiceProvider::class)) {
+            $providers[] = BladeHeroiconsServiceProvider::class;
         }
 
         return $providers;

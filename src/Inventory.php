@@ -3221,8 +3221,15 @@ class Inventory
      * Uses the same "which orders count as outstanding" rule as {@see customerOutstandingExposure()}:
      * open orders (confirmed/processing/partial) always count, fulfilled orders only count when
      * they carry a linked accounting invoice (i.e. were sold on credit, not cash/COD).
+     *
+     * @param  string|DateTimeInterface|null  $fromDate  Only include orders placed on or after
+     *                                                     this date — a lower bound on which
+     *                                                     debts count, not a historical viewpoint.
+     *                                                     Days-overdue/bucket are still computed
+     *                                                     relative to today regardless. Defaults
+     *                                                     to no lower bound (every outstanding order).
      */
-    public function dueAgingReport(?int $customerId = null): Collection
+    public function dueAgingReport(?int $customerId = null, string|DateTimeInterface|null $fromDate = null): Collection
     {
         $openStatuses = [
             SaleOrderStatus::CONFIRMED->value,
@@ -3230,10 +3237,12 @@ class Inventory
             SaleOrderStatus::PARTIAL->value,
         ];
         $tolerance = (float) config('inventory.qty_tolerance', 0.0001);
+        $now = now();
 
         $orders = SaleOrder::with('customer')
             ->when($customerId, fn ($q) => $q->where('customer_id', $customerId))
             ->where('due_amount', '>', $tolerance)
+            ->when($fromDate, fn ($q) => $q->where('ordered_at', '>=', Carbon::parse($fromDate)->startOfDay()))
             ->where(function ($q) use ($openStatuses): void {
                 $q->whereIn('status', $openStatuses)
                     ->orWhere(function ($q2): void {
@@ -3244,14 +3253,12 @@ class Inventory
             ->orderBy('ordered_at')
             ->get();
 
-        $now = now();
-
         return $orders->map(function (SaleOrder $so) use ($now) {
             $days = $so->ordered_at ? (int) $so->ordered_at->diffInDays($now) : null;
 
             return [
                 'customer_id'  => $so->customer_id,
-                'customer'     => $so->customer?->name,
+                'customer'     => $so->customer?->organization_name,
                 'so_number'    => $so->so_number,
                 'ordered_at'   => $so->ordered_at,
                 'due_amount'   => (float) $so->due_amount,
@@ -3262,11 +3269,11 @@ class Inventory
     }
 
     /** Total due amount per aging bucket (0-30 / 31-60 / 61-90 / 90+ / unknown days since order date). */
-    public function dueAgingSummary(?int $customerId = null): array
+    public function dueAgingSummary(?int $customerId = null, string|DateTimeInterface|null $fromDate = null): array
     {
         $buckets = ['0-30' => 0.0, '31-60' => 0.0, '61-90' => 0.0, '90+' => 0.0, 'unknown' => 0.0];
 
-        foreach ($this->dueAgingReport($customerId) as $row) {
+        foreach ($this->dueAgingReport($customerId, $fromDate) as $row) {
             $buckets[$row['age_bucket']] += $row['due_amount'];
         }
 
