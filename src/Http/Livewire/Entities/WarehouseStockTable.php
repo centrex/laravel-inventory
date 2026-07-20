@@ -44,7 +44,7 @@ class WarehouseStockTable extends DataTable
             Column::make('In Transit', 'qty_in_transit')->format('decimal:2')->sortable()->summable()
                 ->can('inventory.stock.manage'),
             Column::make('WAC', 'wac_amount')->format('decimal:4')
-            ->sortable()->can('inventory.pricing.view-wac'),
+                ->sortable()->can('inventory.pricing.view-wac'),
             Column::make('B2B Retail', 'b2b_retail_price')->align('right')->excludeFromExport()
                 ->view('inventory::livewire.partials.product-price-table.price'),
             Column::make('Reorder Point', 'reorder_point')->format('decimal:2')->sortable()->hideOnMobile(),
