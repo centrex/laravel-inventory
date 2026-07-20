@@ -39,7 +39,7 @@ it('groups due aging by customer and shows their invoices in a detail modal', fu
 
     $order = $inventory->createSaleOrder([
         'warehouse_id' => $warehouse->id, 'customer_id' => $customer->id, 'currency' => 'BDT', 'price_tier_code' => 'b2c_retail',
-        'items' => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 250]],
+        'items'        => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 250]],
     ]);
     $inventory->confirmSaleOrder($order->id);
 
@@ -66,7 +66,7 @@ it('computes days overdue relative to today regardless of the fromDate filter', 
 
     $order = $inventory->createSaleOrder([
         'warehouse_id' => $warehouse->id, 'customer_id' => $customer->id, 'currency' => 'BDT', 'price_tier_code' => 'b2c_retail',
-        'items' => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 100]],
+        'items'        => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 100]],
     ]);
     $inventory->confirmSaleOrder($order->id);
     $order->update(['ordered_at' => now()->subDays(45)]);
@@ -104,7 +104,7 @@ it('drives the fromDate filter through the Livewire component', function (): voi
 
     $order = $inventory->createSaleOrder([
         'warehouse_id' => $warehouse->id, 'customer_id' => $customer->id, 'currency' => 'BDT', 'price_tier_code' => 'b2c_retail',
-        'items' => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 100]],
+        'items'        => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 100]],
     ]);
     $inventory->confirmSaleOrder($order->id);
     $order->update(['ordered_at' => now()->subDays(5)]);

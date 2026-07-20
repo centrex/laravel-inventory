@@ -59,11 +59,11 @@ class AgingReportPage extends Component
         $dueAgingOrders = $inventory->dueAgingReport(fromDate: $fromDate)->sortByDesc('days_overdue')->values();
 
         return view('inventory::livewire.transactions.aging-report', [
-            'warehouses'        => $warehouses,
-            'stockAging'        => $stockAging,
-            'stockAgingSummary' => $inventory->stockAgingSummary($this->warehouseId),
-            'dueAgingSummary'   => $inventory->dueAgingSummary(fromDate: $fromDate),
-            'customerDueAging'  => $this->groupDueAgingByCustomer($dueAgingOrders),
+            'warehouses'          => $warehouses,
+            'stockAging'          => $stockAging,
+            'stockAgingSummary'   => $inventory->stockAgingSummary($this->warehouseId),
+            'dueAgingSummary'     => $inventory->dueAgingSummary(fromDate: $fromDate),
+            'customerDueAging'    => $this->groupDueAgingByCustomer($dueAgingOrders),
             'agingCustomerOrders' => $this->agingCustomerId
                 ? $dueAgingOrders->filter(fn (array $row): bool => $row['customer_id'] === $this->agingCustomerId)->values()
                 : collect(),

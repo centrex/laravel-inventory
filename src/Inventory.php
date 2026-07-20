@@ -3223,11 +3223,11 @@ class Inventory
      * they carry a linked accounting invoice (i.e. were sold on credit, not cash/COD).
      *
      * @param  string|DateTimeInterface|null  $fromDate  Only include orders placed on or after
-     *                                                     this date — a lower bound on which
-     *                                                     debts count, not a historical viewpoint.
-     *                                                     Days-overdue/bucket are still computed
-     *                                                     relative to today regardless. Defaults
-     *                                                     to no lower bound (every outstanding order).
+     *                                                   this date — a lower bound on which
+     *                                                   debts count, not a historical viewpoint.
+     *                                                   Days-overdue/bucket are still computed
+     *                                                   relative to today regardless. Defaults
+     *                                                   to no lower bound (every outstanding order).
      */
     public function dueAgingReport(?int $customerId = null, string|DateTimeInterface|null $fromDate = null): Collection
     {
