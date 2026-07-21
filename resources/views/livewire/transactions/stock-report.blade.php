@@ -8,13 +8,19 @@
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
-        <div class="w-56">
-            <x-tallui-select wire:model.live="warehouseId" class="select-sm">
-                <option value="">All warehouses</option>
-                @foreach ($warehouses as $warehouse)
-                    <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
-                @endforeach
-            </x-tallui-select>
+        <div class="flex items-center gap-2">
+            <div class="w-56">
+                <x-tallui-select wire:model.live="warehouseId" wire:loading.attr="disabled" wire:target="warehouseId" class="select-sm">
+                    <option value="">All warehouses</option>
+                    @foreach ($warehouses as $warehouse)
+                        <option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>
+                    @endforeach
+                </x-tallui-select>
+            </div>
+            <span wire:loading wire:target="warehouseId" class="flex items-center gap-1 text-xs text-base-content/60">
+                <span class="loading loading-spinner loading-xs"></span>
+                Updating…
+            </span>
         </div>
     </x-slot:actions>
 </x-tallui-page-header>

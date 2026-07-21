@@ -53,8 +53,12 @@
                     @endif
                 </div>
             </div>
-            <x-tallui-input type="date" wire:model.live="startDate" class="input-sm" />
-            <x-tallui-input type="date" wire:model.live="endDate" class="input-sm" />
+            <x-tallui-input type="date" wire:model.live="startDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId" class="input-sm" />
+            <x-tallui-input type="date" wire:model.live="endDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId" class="input-sm" />
+            <span wire:loading wire:target="startDate,endDate,customerId,productId" class="flex items-center gap-1 text-xs text-base-content/60">
+                <span class="loading loading-spinner loading-xs"></span>
+                Updating…
+            </span>
         </div>
     </x-slot:actions>
 </x-tallui-page-header>

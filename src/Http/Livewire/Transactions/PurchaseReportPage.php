@@ -58,11 +58,16 @@ class PurchaseReportPage extends Component
         $selectedSupplier = $this->supplierId ? Supplier::query()->find($this->supplierId) : null;
         $selectedProduct = $this->productId ? Product::query()->find($this->productId) : null;
 
+        // Computed once and threaded through — distinctProductCount(), buildPurchasedProductsReport(),
+        // and billSummary() (via buildPurchaseMetrics()) all used to independently re-run this
+        // same scoped-order-ids query on every render.
+        $orderIds = $this->scopedOrderIds();
+
         return view('inventory::livewire.transactions.purchase-report', [
             'purchaseOrders'    => $recentOrders,
-            'purchaseMetrics'   => $this->buildPurchaseMetrics(),
-            'productCount'      => $this->distinctProductCount(),
-            'purchasedProducts' => $this->buildPurchasedProductsReport(),
+            'purchaseMetrics'   => $this->buildPurchaseMetrics($orderIds),
+            'productCount'      => $this->distinctProductCount($orderIds),
+            'purchasedProducts' => $this->buildPurchasedProductsReport($orderIds),
             'viewingOrder'      => $this->viewingOrderId
                 ? PurchaseOrder::query()->with(['supplier', 'warehouse', 'items.product', 'items.variant'])->find($this->viewingOrderId)
                 : null,
@@ -115,9 +120,9 @@ class PurchaseReportPage extends Component
      * Distinct products purchased in the selected date range — counted separately from the
      * top-50 breakdown table below so the KPI reflects the true total, not just the top rows shown.
      */
-    private function distinctProductCount(): int
+    private function distinctProductCount(?Collection $orderIds = null): int
     {
-        $orderIds = $this->scopedOrderIds();
+        $orderIds ??= $this->scopedOrderIds();
 
         if ($orderIds->isEmpty()) {
             return 0;
@@ -135,9 +140,9 @@ class PurchaseReportPage extends Component
      * Draft and cancelled orders don't count as "purchased". Scoped to the current user's
      * commercial-team visibility, same as the purchase orders list above.
      */
-    private function buildPurchasedProductsReport(): Collection
+    private function buildPurchasedProductsReport(?Collection $orderIds = null): Collection
     {
-        $orderIds = $this->scopedOrderIds();
+        $orderIds ??= $this->scopedOrderIds();
 
         if ($orderIds->isEmpty()) {
             return collect();
@@ -186,34 +191,55 @@ class PurchaseReportPage extends Component
     }
 
     /**
-     * Aggregated over the full scoped date range — not the capped "recent orders" list.
+     * Aggregated over the full scoped date range — not the capped "recent orders" list — via
+     * SQL SUM()/COUNT() rather than pulling every matching row into a Collection, since a full
+     * quarter's worth of orders can be thousands of rows just to produce a handful of totals.
      * Draft and cancelled orders are excluded from every monetary figure, matching the
-     * "Purchased Products" table, so a cancelled order can't inflate spend/order-count KPIs.
-     * `status_counts` still reflects every status (including cancelled/draft) so the
-     * breakdown remains informative.
+     * "Purchased Products" table, so a cancelled order can't inflate spend/order-count KPIs —
+     * $orderIds (from scopedOrderIds()) already excludes them. `status_counts` still reflects
+     * every status (including cancelled/draft) so the breakdown remains informative.
      */
-    private function buildPurchaseMetrics(): array
+    private function buildPurchaseMetrics(?Collection $orderIds = null): array
     {
-        $billSummary = $this->billSummary();
+        $orderIds ??= $this->scopedOrderIds();
+        $billSummary = $this->billSummary($orderIds);
 
-        $orders = $this->scopedPurchaseQuery()
-            ->get(['id', 'status', 'subtotal_local', 'tax_local', 'shipping_local', 'other_charges_amount', 'total_local']);
+        $totals = $orderIds->isEmpty()
+            ? null
+            : PurchaseOrder::query()
+                ->whereIn('id', $orderIds)
+                ->toBase()
+                ->selectRaw("
+                    COUNT(*) as cnt,
+                    SUM(subtotal_local) as gross_subtotal,
+                    SUM(tax_local) as tax,
+                    SUM(shipping_local) as shipping,
+                    SUM(other_charges_amount) as other_charges,
+                    SUM(total_local) as net_total,
+                    SUM(CASE WHEN status IN ('received', 'partial') THEN total_local ELSE 0 END) as received_total
+                ")
+                ->first();
 
-        $countedOrders = $orders->reject(fn (PurchaseOrder $order) => in_array($order->status?->value, ['draft', 'cancelled'], true));
+        $statusCounts = $this->scopedPurchaseQuery()
+            ->toBase()
+            ->select('status')
+            ->selectRaw('COUNT(*) as cnt')
+            ->groupBy('status')
+            ->pluck('cnt', 'status')
+            ->mapWithKeys(fn ($cnt, $status) => [($status ?: 'unknown') => (int) $cnt])
+            ->all();
 
         return [
-            'count'          => $countedOrders->count(),
-            'gross_subtotal' => round((float) $countedOrders->sum('subtotal_local'), 2),
-            'tax'            => round((float) $countedOrders->sum('tax_local'), 2),
-            'shipping'       => round((float) $countedOrders->sum('shipping_local'), 2),
-            'other_charges'  => round((float) $countedOrders->sum('other_charges_amount'), 2),
-            'net_total'      => round((float) $countedOrders->sum('total_local'), 2),
-            'received_total' => round((float) $countedOrders->filter(fn (PurchaseOrder $order) => in_array($order->status?->value, ['received', 'partial'], true))->sum('total_local'), 2),
+            'count'          => (int) ($totals->cnt ?? 0),
+            'gross_subtotal' => round((float) ($totals->gross_subtotal ?? 0), 2),
+            'tax'            => round((float) ($totals->tax ?? 0), 2),
+            'shipping'       => round((float) ($totals->shipping ?? 0), 2),
+            'other_charges'  => round((float) ($totals->other_charges ?? 0), 2),
+            'net_total'      => round((float) ($totals->net_total ?? 0), 2),
+            'received_total' => round((float) ($totals->received_total ?? 0), 2),
             'bill_paid'      => $billSummary['paid'],
             'bill_due'       => $billSummary['due'],
-            'status_counts'  => $orders->groupBy(fn (PurchaseOrder $order) => $order->status?->value ?? 'unknown')
-                ->map(fn (Collection $group) => $group->count())
-                ->all(),
+            'status_counts'  => $statusCounts,
         ];
     }
 
@@ -221,18 +247,18 @@ class PurchaseReportPage extends Component
      * Bill paid/due totals from laravel-accounting, scoped to exactly the purchase orders
      * matched by the current date range, supplier, product, and commercial-team filters —
      * not every bill in the date range regardless of who/what it's for.
+     *
+     * `base_paid_amount`/`base_balance` are Bill accessors (currency conversion, plus
+     * `balance` folding in AP-reducing expenses and posted purchase-return credits via their
+     * own sub-queries — see Bill::getBalanceAttribute()) rather than plain columns, so this
+     * can't be pushed into a single SQL SUM() without reimplementing that business logic here.
      */
-    private function billSummary(): array
+    private function billSummary(?Collection $orderIds = null): array
     {
         $billClass = \Centrex\Accounting\Models\Bill::class;
+        $orderIds ??= $this->scopedOrderIds();
 
-        if (!class_exists($billClass)) {
-            return ['paid' => 0.0, 'due' => 0.0];
-        }
-
-        $orderIds = $this->scopedOrderIds();
-
-        if ($orderIds->isEmpty()) {
+        if (!class_exists($billClass) || $orderIds->isEmpty()) {
             return ['paid' => 0.0, 'due' => 0.0];
         }
 

@@ -9,17 +9,21 @@
     </x-slot:breadcrumbs>
     <x-slot:actions>
         <div class="flex flex-wrap items-center gap-2">
-            <x-tallui-select wire:model.live="lookbackDays" class="select-sm">
+            <x-tallui-select wire:model.live="lookbackDays" wire:loading.attr="disabled" wire:target="lookbackDays,forecastDays" class="select-sm">
                 <option value="30">30 day history</option>
                 <option value="90">90 day history</option>
                 <option value="180">180 day history</option>
                 <option value="365">365 day history</option>
             </x-tallui-select>
-            <x-tallui-select wire:model.live="forecastDays" class="select-sm">
+            <x-tallui-select wire:model.live="forecastDays" wire:loading.attr="disabled" wire:target="lookbackDays,forecastDays" class="select-sm">
                 <option value="30">30 day horizon</option>
                 <option value="90">90 day horizon</option>
                 <option value="180">180 day horizon</option>
             </x-tallui-select>
+            <span wire:loading wire:target="lookbackDays,forecastDays" class="flex items-center gap-1 text-xs text-base-content/60">
+                <span class="loading loading-spinner loading-xs"></span>
+                Recalculating…
+            </span>
         </div>
     </x-slot:actions>
 </x-tallui-page-header>
