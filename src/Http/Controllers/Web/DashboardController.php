@@ -57,7 +57,7 @@ class DashboardController
         $prevStart = now()->subMonthNoOverflow()->startOfMonth();
         $prevEnd = now()->subMonthNoOverflow()->endOfMonth();
 
-        $excluded = [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
+        $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
 
         // Scoped to the current user's own orders plus their reporting line (via
         // CommercialTeamAccess), same rule the dispatch terminal and order lists use —
