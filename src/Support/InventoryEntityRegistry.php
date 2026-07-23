@@ -39,7 +39,7 @@ class InventoryEntityRegistry
                 'search'        => ['name', 'slug'],
                 'index_columns' => ['name', 'slug', 'parent_id', 'sort_order', 'is_active'],
                 'form_fields'   => [
-                    self::field('parent_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductCategory())->getTable() . ',id'], null, ProductCategory::class, 'name'),
+                    self::field('parent_id', 'select', ['nullable', 'integer', 'exists:' . ProductCategory::class . ',id'], null, ProductCategory::class, 'name'),
                     self::field('name', 'text', ['required', 'string', 'max:200']),
                     self::field('slug', 'text', ['required', 'string', 'max:200']),
                     self::field('description', 'textarea', ['nullable', 'string']),
@@ -68,8 +68,8 @@ class InventoryEntityRegistry
                 'search'        => ['sku', 'name', 'barcode', 'slug'],
                 'index_columns' => ['sku', 'name', 'category_id', 'brand_id', 'unit', 'weight_kg', 'is_active', 'is_stockable'],
                 'form_fields'   => [
-                    self::field('category_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductCategory())->getTable() . ',id'], null, ProductCategory::class, 'name'),
-                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . (new ProductBrand())->getTable() . ',id'], null, ProductBrand::class, 'name'),
+                    self::field('category_id', 'select', ['nullable', 'integer', 'exists:' . ProductCategory::class . ',id'], null, ProductCategory::class, 'name'),
+                    self::field('brand_id', 'select', ['nullable', 'integer', 'exists:' . ProductBrand::class . ',id'], null, ProductBrand::class, 'name'),
                     self::field('sku', 'text', ['required', 'string', 'max:100']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('slug', 'text', ['nullable', 'string', 'max:200'], null, null, null, null, 'URL Slug (auto-generated if blank)'),
@@ -121,7 +121,7 @@ class InventoryEntityRegistry
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('organization_name', 'text', ['nullable', 'string', 'max:300']),
                     self::field('email', 'email', ['nullable', 'email', 'max:200']),
-                    self::field('phone', 'text', ['nullable', 'string', 'max:50']),
+                    self::field('phone', 'text', ['required', 'string', 'max:50']),
                     self::field('zone', 'text', ['nullable', 'string', 'max:120']),
                     self::field('area', 'text', ['nullable', 'string', 'max:120']),
                     self::field('demographic_segment', 'text', ['nullable', 'string', 'max:120']),
@@ -184,7 +184,7 @@ class InventoryEntityRegistry
                 'search'        => ['sku', 'name', 'barcode'],
                 'index_columns' => ['product_id', 'sku', 'name', 'barcode', 'weight_kg', 'sort_order', 'is_active'],
                 'form_fields'   => [
-                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),
+                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . Product::class . ',id'], null, Product::class, 'name'),
                     self::field('sku', 'text', ['required', 'string', 'max:100']),
                     self::field('name', 'text', ['required', 'string', 'max:300']),
                     self::field('barcode', 'text', ['nullable', 'string', 'max:100']),
@@ -214,7 +214,7 @@ class InventoryEntityRegistry
                 'search'        => ['value', 'display_value'],
                 'index_columns' => ['attribute_type_id', 'value', 'display_value', 'color_hex', 'sort_order'],
                 'form_fields'   => [
-                    self::field('attribute_type_id', 'select', ['required', 'integer', 'exists:' . (new ProductVariantAttributeType())->getTable() . ',id'], null, ProductVariantAttributeType::class, 'name'),
+                    self::field('attribute_type_id', 'select', ['required', 'integer', 'exists:' . ProductVariantAttributeType::class . ',id'], null, ProductVariantAttributeType::class, 'name'),
                     self::field('value', 'text', ['required', 'string', 'max:150']),
                     self::field('display_value', 'text', ['nullable', 'string', 'max:150']),
                     self::field('color_hex', 'text', ['nullable', 'string', 'max:7', 'regex:/^#[0-9A-Fa-f]{6}$/']),
@@ -226,11 +226,12 @@ class InventoryEntityRegistry
                 'singular'      => 'Product Price',
                 'model'         => ProductPrice::class,
                 'search'        => ['currency'],
-                'index_columns' => ['product_id', 'price_tier_code', 'warehouse_id', 'price_amount', 'cost_price', 'moq', 'preorder_moq', 'currency', 'effective_from', 'effective_to', 'is_active'],
+                'index_columns' => ['product_id', 'variant_id', 'price_tier_code', 'warehouse_id', 'price_amount', 'cost_price', 'moq', 'preorder_moq', 'currency', 'effective_from', 'effective_to', 'is_active'],
                 'form_fields'   => [
-                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),
+                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . Product::class . ',id'], null, Product::class, 'name'),
+                    self::field('variant_id', 'select', ['nullable', 'integer', 'exists:' . ProductVariant::class . ',id'], null, ProductVariant::class, 'sku', label: 'Variant (leave blank for base product)'),
                     self::field('price_tier_code', 'select', ['required', 'string', Rule::in(PriceTierCode::values())], null, null, null, PriceTierCode::options()),
-                    self::field('warehouse_id', 'select', ['nullable', 'integer', 'exists:' . (new Warehouse())->getTable() . ',id'], null, Warehouse::class, 'name'),
+                    self::field('warehouse_id', 'select', ['nullable', 'integer', 'exists:' . Warehouse::class . ',id'], null, Warehouse::class, 'name'),
                     self::field('price_amount', 'number', ['required', 'numeric', 'min:0']),
                     self::field('cost_price', 'number', ['nullable', 'numeric', 'min:0']),
                     self::field('moq', 'number', ['nullable', 'integer', 'min:1'], 1),
@@ -247,10 +248,11 @@ class InventoryEntityRegistry
                 'singular'      => 'Warehouse Stock',
                 'model'         => WarehouseProduct::class,
                 'search'        => ['bin_location'],
-                'index_columns' => ['warehouse_id', 'product_id', 'sku', 'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'wac_amount', 'reorder_point'],
+                'index_columns' => ['warehouse_id', 'product_id', 'variant_id', 'sku', 'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'wac_amount', 'reorder_point'],
                 'form_fields'   => [
-                    self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . (new Warehouse())->getTable() . ',id'], null, Warehouse::class, 'name'),
-                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . (new Product())->getTable() . ',id'], null, Product::class, 'name'),
+                    self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . Warehouse::class . ',id'], null, Warehouse::class, 'name'),
+                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . Product::class . ',id'], null, Product::class, 'name'),
+                    self::field('variant_id', 'select', ['nullable', 'integer', 'exists:' . ProductVariant::class . ',id'], null, ProductVariant::class, 'sku', label: 'Variant (leave blank for base product)'),
                     self::field('qty_on_hand', 'number', ['required', 'numeric']),
                     self::field('qty_reserved', 'number', ['required', 'numeric']),
                     self::field('qty_in_transit', 'number', ['required', 'numeric']),
@@ -296,18 +298,21 @@ class InventoryEntityRegistry
         $definition = self::definition($entity);
         $rules = [];
         $model = self::makeModel($entity);
-        $table = $model->getTable();
 
         foreach ($definition['form_fields'] as $field) {
             $fieldRules = $field['rules'];
 
             if (in_array($field['name'], ['code', 'slug', 'sku', 'barcode'], true) && filled($field['rules'] ?? [])) {
-                $fieldRules[] = Rule::unique($table, $field['name'])->ignore($record?->getKey());
+                // Pass the model class (not a bare table name) so Laravel's rule parser
+                // resolves the model's own connection — inventory tables may live on a
+                // dedicated connection (INVENTORY_DB_CONNECTION) different from the
+                // app's default, and a bare table string always queries the default one.
+                $fieldRules[] = Rule::unique($model::class, $field['name'])->ignore($record?->getKey());
             }
 
             if ($entity === 'variant-attribute-values' && $field['name'] === 'value') {
                 $typeId = $payload['attribute_type_id'] ?? null;
-                $fieldRules[] = Rule::unique($table, 'value')
+                $fieldRules[] = Rule::unique($model::class, 'value')
                     ->where('attribute_type_id', $typeId)
                     ->ignore($record?->getKey());
             }
