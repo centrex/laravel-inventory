@@ -210,6 +210,17 @@ class DispatchTerminalPage extends Component
                     "{$saleOrder->so_number} is still {$saleOrder->status?->label()} — reserve its stock (move it to Processing) before it can be dispatched.",
                 );
             }
+
+            $confirmsNow = $saleOrder->status?->value !== $form['order_status']
+                && $form['order_status'] === SaleOrderStatus::CONFIRMED->value;
+
+            if ($confirmsNow) {
+                try {
+                    app(Inventory::class)->assertHighValueConfirmAuthorized($saleOrder);
+                } catch (\Illuminate\Auth\Access\AuthorizationException $exception) {
+                    $validator->errors()->add('order_status', $exception->getMessage());
+                }
+            }
         })->validate();
 
         $metadata = $this->metadataFor($saleOrder);
@@ -788,10 +799,10 @@ class DispatchTerminalPage extends Component
         return [
             'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Shipped']],
             'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED                                                       => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
                 SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default                                                                          => 1,
+                default => 1,
             },
             'halted'      => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'statusReady' => $statusReady,
@@ -911,8 +922,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'draft', 'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                                       => null,
-            default                                                                                                     => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
+            'all'   => null,
+            default => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);

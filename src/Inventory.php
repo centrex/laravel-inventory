@@ -1735,8 +1735,12 @@ class Inventory
      * ability, since a large order shouldn't be confirmable by whoever merely has the everyday
      * sales-confirm permission. Skipped for console callers (seeders, artisan, tinker) — there's
      * no web user to check, and CLI access is already a higher trust boundary.
+     *
+     * Public so any code path that can move a sale order into CONFIRMED outside of
+     * confirmSaleOrder() (e.g. DispatchTerminalPage's manual order-status override) can enforce
+     * the same gate instead of silently bypassing it.
      */
-    private function assertHighValueConfirmAuthorized(SaleOrder $so): void
+    public function assertHighValueConfirmAuthorized(SaleOrder $so): void
     {
         if (app()->runningInConsole()) {
             return;
