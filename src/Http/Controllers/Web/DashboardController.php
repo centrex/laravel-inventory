@@ -47,7 +47,30 @@ class DashboardController
             'salesTarget'          => $salesTarget,
             'canViewForecast'      => $canViewForecast,
             'salesTrend'           => $this->buildSalesTrend(),
+            'draftSaleOrders'      => $this->buildDraftSaleOrders(),
         ]);
+    }
+
+    /**
+     * Draft sale orders are excluded from the Sales Order Trend (they aren't real
+     * commitments yet), so surface them separately — count, pending value, and the
+     * most recent few — to flag orders still awaiting confirmation.
+     */
+    private function buildDraftSaleOrders(): array
+    {
+        $orders = CommercialTeamAccess::applySalesScope(
+            SaleOrder::query()->where('document_type', 'order'),
+        )
+            ->where('status', SaleOrderStatus::DRAFT->value)
+            ->with('customer:id,name')
+            ->latest('ordered_at')
+            ->get(['id', 'so_number', 'customer_id', 'warehouse_id', 'ordered_at', 'total_amount']);
+
+        return [
+            'count'  => $orders->count(),
+            'total'  => (float) $orders->sum('total_amount'),
+            'recent' => $orders->take(5),
+        ];
     }
 
     private function buildSalesTrend(): array
