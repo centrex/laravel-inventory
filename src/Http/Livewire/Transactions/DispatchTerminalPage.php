@@ -38,9 +38,10 @@ class DispatchTerminalPage extends Component
     /**
      * A sale order can only be dispatched once its stock has actually been reserved
      * (SaleOrder::reserveStock() moves it from CONFIRMED to PROCESSING). SHIPPED/FULFILLED are
-     * included because quickDispatch() force-sets those statuses itself between the three quick
-     * actions (dispatched → out_for_delivery → delivered), so a later action must still see the
-     * order as dispatchable after an earlier one already advanced it.
+     * included because quickDispatch() advances through these between the three quick actions
+     * (dispatched → out_for_delivery → delivered — the first two force-set SHIPPED, the last
+     * calls Inventory::fulfillSaleOrder()), so a later action must still see the order as
+     * dispatchable after an earlier one already advanced it.
      */
     private const DISPATCHABLE_STATUSES = ['processing', 'partial', 'shipped', 'fulfilled'];
 
@@ -221,6 +222,19 @@ class DispatchTerminalPage extends Component
                     $validator->errors()->add('order_status', $exception->getMessage());
                 }
             }
+
+            // Fulfilled/Partial can only be reached through Inventory::fulfillSaleOrder() (it's
+            // what actually decrements stock and computes COGS at WAC) — never by hand-setting
+            // the status here, which would silently leave qty_on_hand and cogs_amount untouched.
+            $targetsFulfillment = $saleOrder->status?->value !== $form['order_status']
+                && in_array($form['order_status'], [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::PARTIAL->value], true);
+
+            if ($targetsFulfillment) {
+                $validator->errors()->add(
+                    'order_status',
+                    'Fulfilled/Partial can\'t be set manually — use the Ship action (or the Delivered quick action) so stock and COGS are recorded correctly.',
+                );
+            }
         })->validate();
 
         $metadata = $this->metadataFor($saleOrder);
@@ -265,10 +279,10 @@ class DispatchTerminalPage extends Component
 
         $meta = $this->metadataFor($saleOrder);
 
-        [$parcelStatus, $orderStatus] = match ($action) {
-            'out_for_delivery' => ['Out for delivery', SaleOrderStatus::SHIPPED->value],
-            'delivered'        => ['Delivered', SaleOrderStatus::FULFILLED->value],
-            default            => ['Dispatched', SaleOrderStatus::SHIPPED->value],
+        $parcelStatus = match ($action) {
+            'out_for_delivery' => 'Out for delivery',
+            'delivered'        => 'Delivered',
+            default            => 'Dispatched',
         };
 
         $updatedMeta = array_merge($meta, [
@@ -281,8 +295,23 @@ class DispatchTerminalPage extends Component
             'dispatch_updated_at' => now()->toDateTimeString(),
         ]);
 
+        if ($action === 'delivered') {
+            // Real fulfillment — decrements qty_on_hand/qty_reserved and records COGS at WAC.
+            // Must not be a plain forceFill(status) or those figures silently stay at zero.
+            // Attempted before the metadata write so a failed fulfillment doesn't leave the
+            // parcel status reading "Delivered" while the order itself never actually moved.
+            try {
+                $saleOrder = app(Inventory::class)->fulfillSaleOrder($saleOrderId);
+            } catch (\Throwable $exception) {
+                session()->flash('dispatch_error', $exception->getMessage());
+
+                return;
+            }
+        } else {
+            $saleOrder->forceFill(['status' => SaleOrderStatus::SHIPPED->value])->save();
+        }
+
         $this->putMetadata($saleOrder, $updatedMeta);
-        $saleOrder->forceFill(['status' => $orderStatus])->save();
         $this->orderForms[$saleOrderId] = $this->formStateFor($saleOrder->fresh('warehouse'), $updatedMeta);
 
         session()->flash('status', "{$saleOrder->so_number} marked as {$parcelStatus}.");
@@ -799,10 +828,10 @@ class DispatchTerminalPage extends Component
         return [
             'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Shipped']],
             'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED                                                       => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
                 SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default                                                                          => 1,
+                default => 1,
             },
             'halted'      => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'statusReady' => $statusReady,
@@ -922,8 +951,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'draft', 'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                                       => null,
-            default                                                                                                     => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
+            'all'   => null,
+            default => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);

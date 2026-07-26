@@ -947,13 +947,16 @@ class Inventory
     /** Post a GRN: increment stock, recalculate WAC, write stock movements. */
     public function postStockReceipt(int $grnId): StockReceipt
     {
-        $grn = StockReceipt::with('items.product', 'purchaseOrder')->findOrFail($grnId);
+        $grn = DB::transaction(function () use ($grnId): StockReceipt {
+            // Locked and status-checked inside the transaction so a double-click on a slow
+            // connection can't post the same GRN twice — the second call blocks on this row
+            // lock until the first commits, then sees status=POSTED and throws.
+            $grn = StockReceipt::with('items.product', 'purchaseOrder')->lockForUpdate()->findOrFail($grnId);
 
-        if ($grn->status !== StockReceiptStatus::DRAFT) {
-            throw new InvalidTransitionException("GRN #{$grnId} is already {$grn->status->value}.");
-        }
+            if ($grn->status !== StockReceiptStatus::DRAFT) {
+                throw new InvalidTransitionException("GRN #{$grnId} is already {$grn->status->value}.");
+            }
 
-        $grn = DB::transaction(function () use ($grn): StockReceipt {
             foreach ($grn->items as $item) {
                 $wp = $this->lockWarehouseProduct($grn->warehouse_id, $item->product_id, $item->variant_id);
 
@@ -1760,24 +1763,33 @@ class Inventory
         }
     }
 
-    /** Reserve stock: increment qty_reserved for each line item. */
+    /**
+     * Reserve stock: increment qty_reserved for each line item.
+     *
+     * The sale order row is locked and its status re-checked inside the transaction (rather
+     * than before it) so that two overlapping requests for the same order — e.g. a
+     * double-click on a slow connection — serialize instead of both passing the "not already
+     * reserved" check and double-incrementing qty_reserved.
+     */
     public function reserveStock(int $soId): SaleOrder
     {
-        $so = SaleOrder::with('items.product')->findOrFail($soId);
-        $this->assertSaleOrderAccess($so);
-
-        if ($so->status === SaleOrderStatus::PROCESSING) {
-            throw new InvalidTransitionException("Stock is already reserved for sale order #{$soId}.");
-        }
-
-        if ($so->status !== SaleOrderStatus::CONFIRMED) {
-            throw new InvalidTransitionException("Cannot reserve stock for sale order in status [{$so->status->value}].");
-        }
-
         $shortages = [];
 
-        $result = DB::transaction(function () use ($so, &$shortages): SaleOrder {
-            foreach ($so->items as $item) {
+        $result = DB::transaction(function () use ($soId, &$shortages): SaleOrder {
+            $so = SaleOrder::lockForUpdate()->findOrFail($soId);
+            $this->assertSaleOrderAccess($so);
+
+            if ($so->status === SaleOrderStatus::PROCESSING) {
+                throw new InvalidTransitionException("Stock is already reserved for sale order #{$soId}.");
+            }
+
+            if ($so->status !== SaleOrderStatus::CONFIRMED) {
+                throw new InvalidTransitionException("Cannot reserve stock for sale order in status [{$so->status->value}].");
+            }
+
+            $items = $so->items()->with('product')->lockForUpdate()->get();
+
+            foreach ($items as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
                     ->where('product_id', $item->product_id)
                     ->where('variant_id', $item->variant_id)
@@ -1826,19 +1838,27 @@ class Inventory
      */
     public function fulfillSaleOrder(int $soId, array $fulfilledQtys = []): SaleOrder
     {
-        $so = SaleOrder::with('items.product')->findOrFail($soId);
-        $this->assertSaleOrderAccess($so);
-
-        if (!in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL])) {
-            throw new InvalidTransitionException("Sale order #{$soId} cannot be fulfilled from status [{$so->status->value}].");
-        }
-
         $totalCogs = 0.0;
 
-        $so = DB::transaction(function () use ($so, $fulfilledQtys, &$totalCogs): SaleOrder {
+        $so = DB::transaction(function () use ($soId, $fulfilledQtys, &$totalCogs): SaleOrder {
+            // The order row is locked and re-checked here rather than before the transaction
+            // so overlapping requests for the same order (e.g. a double-click on a slow
+            // connection) serialize instead of both reading a pre-fulfillment qty_fulfilled
+            // and each decrementing stock / adding COGS for the same quantity.
+            $so = SaleOrder::lockForUpdate()->findOrFail($soId);
+            $this->assertSaleOrderAccess($so);
+
+            // SHIPPED is a parallel courier-tracking state (see SaleOrderStatus) that doesn't
+            // gate fulfilment — an order can be marked Delivered from Shipped without ever
+            // having passed back through Processing/Partial.
+            if (!in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL, SaleOrderStatus::SHIPPED], true)) {
+                throw new InvalidTransitionException("Sale order #{$soId} cannot be fulfilled from status [{$so->status->value}].");
+            }
+
+            $items = $so->items()->with('product')->lockForUpdate()->get();
             $fullyFulfilled = true;
 
-            foreach ($so->items as $item) {
+            foreach ($items as $item) {
                 // $fulfilledQtys supports two formats:
                 //   legacy:  [item_id => qty]
                 //   with lot: [item_id => ['qty' => x, 'lot_id' => y, 'serial_ids' => [...]]]
@@ -2384,13 +2404,15 @@ class Inventory
 
     public function postAdjustment(int $adjustmentId): Adjustment
     {
-        $adjustment = Adjustment::with('items')->findOrFail($adjustmentId);
+        $adjustment = DB::transaction(function () use ($adjustmentId): Adjustment {
+            // Locked and status-checked inside the transaction so a double-click on a slow
+            // connection can't post the same adjustment twice.
+            $adjustment = Adjustment::with('items')->lockForUpdate()->findOrFail($adjustmentId);
 
-        if ($adjustment->status !== StockReceiptStatus::DRAFT) {
-            throw new InvalidTransitionException("Adjustment #{$adjustmentId} is already {$adjustment->status->value}.");
-        }
+            if ($adjustment->status !== StockReceiptStatus::DRAFT) {
+                throw new InvalidTransitionException("Adjustment #{$adjustmentId} is already {$adjustment->status->value}.");
+            }
 
-        $adjustment = DB::transaction(function () use ($adjustment): Adjustment {
             foreach ($adjustment->items as $item) {
                 if (abs((float) $item->qty_delta) < (float) config('inventory.qty_tolerance')) {
                     continue;
