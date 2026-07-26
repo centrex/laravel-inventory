@@ -73,6 +73,7 @@ class PurchaseOrderTable extends DataTable
                 'received'  => 'Received',
                 'cancelled' => 'Cancelled',
             ]),
+            Filter::dateRange('Order Date', 'ordered_at'),
         ];
     }
 

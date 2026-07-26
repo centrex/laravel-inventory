@@ -67,6 +67,7 @@ class SaleOrderTable extends DataTable
                 'cancelled'  => 'Cancelled',
                 'returned'   => 'Returned',
             ]),
+            Filter::dateRange('Order Date', 'ordered_at'),
         ];
     }
 
