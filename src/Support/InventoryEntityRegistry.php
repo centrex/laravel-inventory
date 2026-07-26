@@ -248,7 +248,7 @@ class InventoryEntityRegistry
                 'singular'      => 'Warehouse Stock',
                 'model'         => WarehouseProduct::class,
                 'search'        => ['bin_location'],
-                'index_columns' => ['warehouse_id', 'product_id', 'variant_id', 'sku', 'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'wac_amount', 'reorder_point'],
+                'index_columns' => ['warehouse_id', 'product_id', 'variant_id', 'sku', 'qty_on_hand', 'qty_reserved', 'net_saleable_stock', 'qty_in_transit', 'wac_amount', 'reorder_point'],
                 'form_fields'   => [
                     self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . Warehouse::class . ',id'], null, Warehouse::class, 'name'),
                     self::field('product_id', 'select', ['required', 'integer', 'exists:' . Product::class . ',id'], null, Product::class, 'name'),

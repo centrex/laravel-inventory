@@ -94,6 +94,12 @@ class WarehouseProduct extends Model implements Auditable
         return (float) $this->qty_on_hand - (float) $this->qty_reserved;
     }
 
+    /** Accessor form of qtyAvailable() — "net saleable stock" for generic column rendering (e.g. the Warehouse Stocks table). */
+    public function getNetSaleableStockAttribute(): float
+    {
+        return $this->qtyAvailable();
+    }
+
     public function qtyDamagedAvailable(): float
     {
         return max(0.0, (float) $this->qty_damaged);

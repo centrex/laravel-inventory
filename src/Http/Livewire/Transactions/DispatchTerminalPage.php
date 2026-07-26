@@ -324,7 +324,15 @@ class DispatchTerminalPage extends Component
 
         try {
             $saleOrder = app(Inventory::class)->confirmSaleOrder($saleOrderId);
-            session()->flash('status', "{$saleOrder->so_number} confirmed.");
+
+            // confirmSaleOrder() auto-reserves stock by default (see inventory.auto_reserve_on_confirm),
+            // so it can surface the same shortage warnings reserveSaleOrderFlow() does below.
+            if (!empty($saleOrder->shortageWarnings)) {
+                $lines = implode('; ', $saleOrder->shortageWarnings);
+                session()->flash('status', "{$saleOrder->so_number} confirmed with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");
+            } else {
+                session()->flash('status', "{$saleOrder->so_number} confirmed.");
+            }
         } catch (\Throwable $exception) {
             session()->flash('dispatch_error', $exception->getMessage());
         }
@@ -828,10 +836,10 @@ class DispatchTerminalPage extends Component
         return [
             'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Shipped']],
             'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED                                                       => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
                 SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default                                                                          => 1,
+                default => 1,
             },
             'halted'      => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'statusReady' => $statusReady,
@@ -951,8 +959,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'draft', 'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                                       => null,
-            default                                                                                                     => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
+            'all'   => null,
+            default => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);

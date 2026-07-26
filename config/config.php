@@ -114,6 +114,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Auto-Reserve On Confirm
+    |--------------------------------------------------------------------------
+    | When true, Inventory::confirmSaleOrder() immediately reserves stock for the order in the
+    | same call — it goes straight from draft to processing, skipping the separate manual
+    | "Reserve" step. Any stock shortages are still surfaced via $order->shortageWarnings rather
+    | than blocking confirmation, exactly as the standalone reserveStock() already behaves.
+    | Set to false to restore the two-step confirm-then-reserve workflow.
+    */
+    'auto_reserve_on_confirm' => env('INVENTORY_AUTO_RESERVE_ON_CONFIRM', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Price Resolution
     |--------------------------------------------------------------------------
     */

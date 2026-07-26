@@ -88,10 +88,10 @@ class SaleOrderShowPage extends Component
     private function saleFlowCurrentStep(): int
     {
         return match ($this->record->status) {
-            SaleOrderStatus::CONFIRMED                                                       => 2,
-            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+            SaleOrderStatus::CONFIRMED => 2,
+            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
             SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-            default                                                                          => 1,
+            default => 1,
         };
     }
 
@@ -99,10 +99,21 @@ class SaleOrderShowPage extends Component
     {
         CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.confirm']);
 
-        $this->runWorkflowAction(
-            fn (Inventory $inventory) => $inventory->confirmSaleOrder((int) $this->record->getKey()),
-            "{$this->record->so_number} confirmed.",
-        );
+        try {
+            $so = app(Inventory::class)->confirmSaleOrder((int) $this->record->getKey());
+            $this->refreshRecord();
+
+            // confirmSaleOrder() auto-reserves stock by default (see inventory.auto_reserve_on_confirm),
+            // so it can surface the same shortage warnings reserveStock() does.
+            if (!empty($so->shortageWarnings)) {
+                $lines = implode('; ', $so->shortageWarnings);
+                $this->dispatch('notify', type: 'warning', message: "Confirmed with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");
+            } else {
+                $this->dispatch('notify', type: 'success', message: "{$this->record->so_number} confirmed.");
+            }
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+        }
     }
 
     /** Mirrors Inventory::assertHighValueConfirmAuthorized() so the button hides for orders the user can't confirm. */
