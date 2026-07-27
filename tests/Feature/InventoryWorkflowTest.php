@@ -1101,6 +1101,120 @@ it('issues an accounting credit memo when a sale return is posted against an inv
     expect((float) $invoice->fresh()->balance)->toBe(200.0);
 });
 
+it('reconciles a sale return credit memo once its invoice is posted after the return', function (): void {
+    if (!class_exists('Centrex\\Accounting\\Models\\CreditMemo')) {
+        $this->markTestSkipped('Accounting package (with credit memo support) is not available in this test environment.');
+    }
+
+    $accountClass = 'Centrex\\Accounting\\Models\\Account';
+    $invoiceClass = 'Centrex\\Accounting\\Models\\Invoice';
+    $creditMemoClass = 'Centrex\\Accounting\\Models\\CreditMemo';
+
+    $accountClass::create(['code' => '1000', 'name' => 'Cash', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '1300', 'name' => 'Inventory', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '2300', 'name' => 'Sales Tax Payable', 'type' => 'liability', 'is_active' => true]);
+    $accountClass::create(['code' => '4000', 'name' => 'Sales Revenue', 'type' => 'revenue', 'is_active' => true]);
+    $accountClass::create(['code' => '5000', 'name' => 'Cost of Goods Sold', 'type' => 'expense', 'is_active' => true]);
+    $accountClass::create(['code' => '6134', 'name' => 'Sales Returns & Allowances', 'type' => 'expense', 'is_active' => true]);
+
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-RC',
+        'name'         => 'Reconcile Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'            => 'CUS-RC-1',
+        'name'            => 'Reconcile Customer',
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'is_active'       => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-RC-1',
+        'name'         => 'Reconcile Widget',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    WarehouseProduct::create([
+        'warehouse_id'   => $warehouse->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 10,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 120,
+    ]);
+
+    $saleOrder = $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 200,
+        ]],
+    ]);
+
+    // inventory.auto_reserve_on_confirm defaults to true, so confirmSaleOrder() already
+    // reserves stock and moves the order straight to PROCESSING — an explicit reserveStock()
+    // call here would find it already reserved and throw.
+    $inventory->confirmSaleOrder($saleOrder->id);
+    $inventory->fulfillSaleOrder($saleOrder->id);
+
+    // Invoice stays draft — nothing posted against it yet.
+    $invoice = $invoiceClass::findOrFail($saleOrder->fresh()->accounting_invoice_id);
+    expect($invoice->journal_entry_id)->toBeNull();
+
+    $saleReturn = $inventory->createSaleReturn([
+        'sale_order_id' => $saleOrder->id,
+        'warehouse_id'  => $warehouse->id,
+        'customer_id'   => $customer->id,
+        'returned_at'   => now(),
+        'items'         => [[
+            'product_id'        => $product->id,
+            'qty_returned'      => 1,
+            'unit_price_amount' => 200,
+            'unit_cost_amount'  => 120,
+        ]],
+    ]);
+    $saleReturn = $inventory->postSaleReturn($saleReturn->id);
+
+    // COGS reversal still happens immediately — it doesn't depend on the invoice.
+    expect($saleReturn->accounting_journal_entry_id)->not->toBeNull();
+
+    // No AR credit yet: there was nothing posted to credit against.
+    expect(
+        $creditMemoClass::where('source_type', Centrex\Inventory\Models\SaleReturn::class)
+            ->where('source_id', $saleReturn->id)
+            ->exists(),
+    )->toBeFalse();
+
+    // Posting the invoice now should catch the return up automatically.
+    app('accounting')->postInvoice($invoice);
+
+    $memos = $creditMemoClass::where('source_type', Centrex\Inventory\Models\SaleReturn::class)
+        ->where('source_id', $saleReturn->id)
+        ->get();
+
+    expect($memos)->toHaveCount(1)
+        ->and($memos->first()->status->value)->toBe('issued')
+        ->and((float) $memos->first()->total)->toBe(200.0);
+
+    // Reconciling again (e.g. a second InvoicePosted-adjacent call) must not duplicate it.
+    app(Centrex\Inventory\Support\ErpIntegration::class)->reconcileSaleReturnsForInvoice($invoice->fresh());
+
+    expect(
+        $creditMemoClass::where('source_type', Centrex\Inventory\Models\SaleReturn::class)
+            ->where('source_id', $saleReturn->id)
+            ->count(),
+    )->toBe(1);
+});
+
 it('creates ecommerce sale orders from cart instances', function (): void {
     if (!class_exists('Centrex\\Cart\\Cart')) {
         $this->markTestSkipped('Cart package is not available in this test environment.');

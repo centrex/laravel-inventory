@@ -74,6 +74,13 @@ class TestCase extends Orchestra
 
     public function getEnvironmentSetUp($app)
     {
+        // Laravel's own framework default (vendor/laravel/framework/config/queue.php) is
+        // 'database', not 'sync' — and this package's test schema has no `jobs` table.
+        // Any ShouldQueue job/listener touched during a test (e.g. accounting's
+        // SyncCustomerOutstanding, fired via Accounting::postInvoice()) would otherwise try
+        // to INSERT into a nonexistent table instead of just running inline.
+        config()->set('queue.default', 'sync');
+
         config()->set('database.default', 'testing');
         config()->set('database.connections.testing', [
             'driver'   => 'sqlite',

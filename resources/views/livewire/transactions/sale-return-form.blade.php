@@ -5,7 +5,19 @@
 <form wire:submit="save" class="space-y-4">
     <x-tallui-card title="Return Details" subtitle="Source document and return destination." icon="o-document-text" :shadow="true">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <x-tallui-form-group label="Sale Order"><x-tallui-select wire:model.live="sale_order_id"><option value="">Optional</option>@foreach($saleOrders as $order)<option value="{{ $order->id }}">{{ $order->so_number }}{{ $order->customer?->organization_name ? ' - ' . $order->customer->organization_name : ' - ' . $order->customer?->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
+            <x-tallui-form-group label="Sale Order">
+                <div wire:key="sale-return-order-select-{{ $sale_order_id ?? 'none' }}">
+                    <x-tallui-select
+                        name="sale_order_id"
+                        wire:model.live="sale_order_id"
+                        :value="$sale_order_id"
+                        searchable
+                        placeholder="Search sale order…"
+                        :options="$selectedSaleOrderOptions"
+                        :search-url="parse_url(route('inventory.async-select', ['resource' => 'sale-orders']), PHP_URL_PATH)"
+                    />
+                </div>
+            </x-tallui-form-group>
             <x-tallui-form-group label="Warehouse *"><x-tallui-select wire:model="warehouse_id"><option value="">Select</option>@foreach($warehouses as $warehouse)<option value="{{ $warehouse->id }}">{{ $warehouse->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
             @if($selectedOrder)
                 <x-tallui-form-group label="Customer">

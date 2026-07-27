@@ -5,10 +5,11 @@ declare(strict_types = 1);
 namespace Centrex\Inventory;
 
 use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand, SyncExchangeRatesCommand};
+use Centrex\Inventory\Listeners\ReconcileSaleReturnCreditMemos;
 use Centrex\Inventory\Models\{Customer, Supplier};
 use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, InvoicePaymentObserver, SupplierObserver};
 use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
-use Illuminate\Support\Facades\{Blade, Gate};
+use Illuminate\Support\Facades\{Blade, Event, Gate};
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -43,6 +44,10 @@ class InventoryServiceProvider extends ServiceProvider
 
             if (class_exists(\Centrex\Accounting\Models\Bill::class)) {
                 \Centrex\Accounting\Models\Bill::observe(BillPaymentObserver::class);
+            }
+
+            if (class_exists(\Centrex\Accounting\Events\InvoicePosted::class)) {
+                Event::listen(\Centrex\Accounting\Events\InvoicePosted::class, ReconcileSaleReturnCreditMemos::class);
             }
         }
 

@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Models\{Customer, Product, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, Product, SaleOrder, Supplier, Warehouse, WarehouseProduct};
 
 it('returns matching customers for the async select endpoint', function (): void {
     Customer::create([
@@ -22,6 +22,57 @@ it('returns matching customers for the async select endpoint', function (): void
         ->assertOk()
         ->assertJsonCount(1)
         ->assertJsonFragment(['label' => 'Alice Buyer']);
+});
+
+it('returns matching sale orders for the async select endpoint', function (): void {
+    $warehouse = Warehouse::create([
+        'code'         => 'W-SO',
+        'name'         => 'Sale Order Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'     => 'CUS-SO',
+        'name'     => 'Alice Buyer',
+        'currency' => 'BDT',
+    ]);
+
+    $confirmedOrder = SaleOrder::create([
+        'so_number'       => 'SO-1001',
+        'document_type'   => 'order',
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'price_tier_code' => 'b2c_retail',
+        'currency'        => 'BDT',
+        'exchange_rate'   => 1,
+        'total_local'     => 100,
+        'total_amount'    => 100,
+        'status'          => 'confirmed',
+        'ordered_at'      => now(),
+    ]);
+    // Draft orders aren't returnable yet — must not show up in the picker.
+    SaleOrder::create([
+        'so_number'       => 'SO-1002',
+        'document_type'   => 'order',
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'price_tier_code' => 'b2c_retail',
+        'currency'        => 'BDT',
+        'exchange_rate'   => 1,
+        'total_local'     => 100,
+        'total_amount'    => 100,
+        'status'          => 'draft',
+        'ordered_at'      => now(),
+    ]);
+
+    $this->getJson(route('inventory.async-select', ['resource' => 'sale-orders', 'q' => 'SO-1001']))
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonFragment([
+            'value'    => $confirmedOrder->id,
+            'label'    => 'SO-1001',
+            'sublabel' => 'Alice Buyer',
+        ]);
 });
 
 it('returns matching suppliers for the async select endpoint', function (): void {

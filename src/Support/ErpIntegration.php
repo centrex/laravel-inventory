@@ -619,6 +619,13 @@ class ErpIntegration
      * The memo (not this integration) owns the DR Sales Returns / CR AR journal entry, gives
      * the return a numbered document, and tracks any later cash refund
      * (see Accounting::issueCreditMemo() / recordCreditMemoRefund()).
+     *
+     * If the invoice isn't posted yet (still draft), the credit memo is skipped here — there's
+     * no AR entry yet to credit against — and picked up later by
+     * reconcileSaleReturnsForInvoice(), which InventoryServiceProvider wires to fire on
+     * Centrex\Accounting\Events\InvoicePosted. issueSaleReturnCreditMemo() is shared by both
+     * paths and is idempotent, so a return posted after its invoice (the common case) and one
+     * posted before it (caught up later) both end up with exactly one credit memo either way.
      */
     public function postSaleReturn(SaleReturn $saleReturn): ?int
     {
@@ -629,7 +636,6 @@ class ErpIntegration
         $saleReturn->loadMissing(['items', 'saleOrder']);
 
         $totalCost = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_cost_amount), 2);
-        $totalRevenue = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_price_amount), 2);
 
         $entryId = null;
 
@@ -667,22 +673,76 @@ class ErpIntegration
 
         $invoice = $this->postedInvoiceFor($saleReturn->saleOrder);
 
-        if ($invoice && $totalRevenue > 0) {
-            $accounting = app('accounting');
-            $creditMemo = $accounting->createCreditMemo($invoice, [
-                'date'             => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
-                'reason'           => "Customer return {$saleReturn->return_number}",
-                'subtotal'         => $totalRevenue,
-                'tax_amount'       => 0,
-                'source_type'      => SaleReturn::class,
-                'source_id'        => $saleReturn->id,
-                'source_reference' => $saleReturn->return_number,
-                'created_by'       => $saleReturn->created_by,
-            ]);
-            $accounting->issueCreditMemo($creditMemo);
+        if ($invoice) {
+            $this->issueSaleReturnCreditMemo($saleReturn, $invoice);
         }
 
         return $entryId;
+    }
+
+    /**
+     * Catch-up pass for sale returns posted while their sale order's invoice was still draft
+     * (see postSaleReturn()'s docblock). Bound to Centrex\Accounting\Events\InvoicePosted in
+     * InventoryServiceProvider, so this runs the moment that invoice is actually posted.
+     */
+    public function reconcileSaleReturnsForInvoice(\Centrex\Accounting\Models\Invoice $invoice): void
+    {
+        if (!$this->enabled()) {
+            return;
+        }
+
+        $saleOrder = SaleOrder::query()->where('accounting_invoice_id', $invoice->id)->first();
+
+        if (!$saleOrder) {
+            return;
+        }
+
+        SaleReturn::query()
+            ->where('sale_order_id', $saleOrder->id)
+            ->where('status', 'posted')
+            ->with('items')
+            ->get()
+            ->each(fn (SaleReturn $saleReturn) => $this->issueSaleReturnCreditMemo($saleReturn, $invoice));
+    }
+
+    /**
+     * Idempotent: skips if a non-void credit memo already exists for this return
+     * (source_type/source_id), so it's safe to call from both postSaleReturn() (when the
+     * invoice happens to already be posted) and reconcileSaleReturnsForInvoice() (the
+     * deferred catch-up) without risking a duplicate memo for the same return.
+     */
+    private function issueSaleReturnCreditMemo(SaleReturn $saleReturn, \Centrex\Accounting\Models\Invoice $invoice): void
+    {
+        $saleReturn->loadMissing('items');
+
+        $totalRevenue = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_price_amount), 2);
+
+        if ($totalRevenue <= 0) {
+            return;
+        }
+
+        $alreadyCredited = \Centrex\Accounting\Models\CreditMemo::query()
+            ->where('source_type', SaleReturn::class)
+            ->where('source_id', $saleReturn->id)
+            ->whereNotIn('status', ['void'])
+            ->exists();
+
+        if ($alreadyCredited) {
+            return;
+        }
+
+        $accounting = app('accounting');
+        $creditMemo = $accounting->createCreditMemo($invoice, [
+            'date'             => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
+            'reason'           => "Customer return {$saleReturn->return_number}",
+            'subtotal'         => $totalRevenue,
+            'tax_amount'       => 0,
+            'source_type'      => SaleReturn::class,
+            'source_id'        => $saleReturn->id,
+            'source_reference' => $saleReturn->return_number,
+            'created_by'       => $saleReturn->created_by,
+        ]);
+        $accounting->issueCreditMemo($creditMemo);
     }
 
     /**

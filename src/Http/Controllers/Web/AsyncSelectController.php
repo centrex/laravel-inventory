@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Web;
 
-use Centrex\Inventory\Models\{Customer, Product, ProductVariant, Supplier, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, Product, ProductVariant, SaleOrder, Supplier, WarehouseProduct};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
@@ -26,6 +26,7 @@ class AsyncSelectController extends Controller
 
         return response()->json(match ($resource) {
             'customers'         => $this->searchCustomers($term, $page, $perPage),
+            'sale-orders'       => $this->searchSaleOrders($term, $page, $perPage),
             'suppliers'         => $this->searchSuppliers($term, $page, $perPage),
             'purchase-products' => $this->searchPurchaseProducts($term, $page, $perPage),
             'sale-products'     => $this->searchSaleProducts($term, $warehouseId, $page, $perPage),
@@ -87,6 +88,37 @@ class AsyncSelectController extends Controller
         return [
             'data'     => $customers->take($perPage)->values()->all(),
             'has_more' => $customers->count() > $perPage,
+        ];
+    }
+
+    /**
+     * @return array{data:array<int, array{value:int,label:string,sublabel:?string}>,has_more:bool}
+     */
+    private function searchSaleOrders(string $term, int $page, int $perPage): array
+    {
+        $orders = SaleOrder::query()
+            ->with('customer')
+            ->where('document_type', 'order')
+            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $builder) use ($term): void {
+                $builder->where('so_number', 'like', '%' . $term . '%')
+                    ->orWhereHas('customer', fn (Builder $customerQuery) => $customerQuery
+                        ->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('organization_name', 'like', '%' . $term . '%'));
+            }))
+            ->orderByDesc('ordered_at')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage + 1)
+            ->get(['id', 'so_number', 'customer_id', 'ordered_at'])
+            ->map(fn (SaleOrder $order): array => [
+                'value'    => (int) $order->id,
+                'label'    => (string) $order->so_number,
+                'sublabel' => $order->customer?->organization_name ?: $order->customer?->name,
+            ]);
+
+        return [
+            'data'     => $orders->take($perPage)->values()->all(),
+            'has_more' => $orders->count() > $perPage,
         ];
     }
 
