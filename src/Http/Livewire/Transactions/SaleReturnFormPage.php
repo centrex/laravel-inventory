@@ -94,7 +94,7 @@ class SaleReturnFormPage extends Component
         $availableProducts = $this->availableProducts();
 
         return view('inventory::livewire.transactions.sale-return-form', [
-            'saleOrders' => SaleOrder::query()->with('customer')->where('document_type', 'order')->whereNotIn('status', ['draft', 'cancelled'])->orderByDesc('ordered_at')->limit(100)->get(),
+            'saleOrders' => SaleOrder::query()->with('customer')->where('document_type', 'order')->whereNotIn('status', ['draft', 'cancelled'])->orderByDesc('ordered_at')->limit(200)->get(),
             'warehouses' => Warehouse::query()->orderBy('name')->get(),
             'customers'  => Customer::query()->orderBy('name')->get(),
             'products'   => $selectedOrder
