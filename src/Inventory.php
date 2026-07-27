@@ -2117,6 +2117,7 @@ class Inventory
                 'transfer_number'      => $this->nextNumber('TRF', Transfer::class, 'transfer_number'),
                 'from_warehouse_id'    => $data['from_warehouse_id'],
                 'to_warehouse_id'      => $data['to_warehouse_id'],
+                'supplier_id'          => $data['supplier_id'] ?? null,
                 'status'               => TransferStatus::PENDING,
                 'shipping_rate_per_kg' => $rate,
                 'total_weight_kg'      => 0,
@@ -2325,9 +2326,22 @@ class Inventory
                     'qty_in_transit' => (float) $wp->qty_in_transit + (float) $item->qty_sent,
                 ]);
 
-                $item->update(['wac_source_before_amount' => (float) $wp->wac_amount]);
+                // Re-price off the source WAC as it stands right now, not the WAC captured when the
+                // transfer was drafted — the two can diverge if the draft sat while GRNs posted at
+                // the source, and the destination must inherit the true cost of the stock leaving.
+                $precision = (int) config('inventory.wac_precision', 4);
+                $currentSourceCost = round((float) $wp->wac_amount, $precision);
+                $shippingPerUnit = (float) $item->qty_sent > 0
+                    ? (float) $item->shipping_allocated_amount / (float) $item->qty_sent
+                    : 0.0;
 
-                $this->writeMovement($transfer->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Transfer::class, $transfer->id);
+                $item->update([
+                    'unit_cost_source_amount'  => $currentSourceCost,
+                    'unit_landed_cost_amount'  => round($currentSourceCost + $shippingPerUnit, $precision),
+                    'wac_source_before_amount' => $currentSourceCost,
+                ]);
+
+                $this->writeMovement($transfer->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, $currentSourceCost, $currentSourceCost, Transfer::class, $transfer->id);
             }
 
             $transfer->update(['status' => TransferStatus::DISPATCHED, 'shipped_at' => now()]);
@@ -2702,6 +2716,7 @@ class Inventory
                 'shipment_number'      => $this->nextNumber('SHP', Shipment::class, 'shipment_number'),
                 'from_warehouse_id'    => $data['from_warehouse_id'],
                 'to_warehouse_id'      => $data['to_warehouse_id'],
+                'supplier_id'          => $data['supplier_id'] ?? null,
                 'status'               => ShipmentStatus::DRAFT,
                 'shipping_rate_per_kg' => $rate,
                 'total_weight_kg'      => 0,
@@ -2869,9 +2884,22 @@ class Inventory
                     'qty_in_transit' => (float) $wp->qty_in_transit + (float) $item->qty_sent,
                 ]);
 
-                $item->update(['wac_source_before_amount' => (float) $wp->wac_amount]);
+                // Re-price off the source WAC as it stands right now, not the WAC captured when the
+                // shipment was drafted — the two can diverge if the draft sat while GRNs posted at
+                // the source, and the destination must inherit the true cost of the stock leaving.
+                $precision = (int) config('inventory.wac_precision', 4);
+                $currentSourceCost = round((float) $wp->wac_amount, $precision);
+                $shippingPerUnit = (float) $item->qty_sent > 0
+                    ? (float) $item->shipping_allocated_amount / (float) $item->qty_sent
+                    : 0.0;
 
-                $this->writeMovement($shipment->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, (float) $item->unit_cost_source_amount, (float) $wp->wac_amount, Shipment::class, $shipment->id);
+                $item->update([
+                    'unit_cost_source_amount'  => $currentSourceCost,
+                    'unit_landed_cost_amount'  => round($currentSourceCost + $shippingPerUnit, $precision),
+                    'wac_source_before_amount' => $currentSourceCost,
+                ]);
+
+                $this->writeMovement($shipment->from_warehouse_id, $item->product_id, $item->variant_id, MovementType::TRANSFER_OUT, (float) $item->qty_sent, $qtyBefore, $qtyAfter, $currentSourceCost, $currentSourceCost, Shipment::class, $shipment->id);
             }
 
             $shipment->update(['status' => ShipmentStatus::IN_TRANSIT, 'shipped_at' => now()]);

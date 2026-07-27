@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Product, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Product, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -17,6 +17,8 @@ class TransferFormPage extends Component
     public ?int $from_warehouse_id = null;
 
     public ?int $to_warehouse_id = null;
+
+    public ?int $supplier_id = null;
 
     public float $shipping_rate_per_kg = 0;
 
@@ -62,6 +64,7 @@ class TransferFormPage extends Component
         $validated = $this->validate([
             'from_warehouse_id'          => ['required', 'integer'],
             'to_warehouse_id'            => ['required', 'integer', 'different:from_warehouse_id'],
+            'supplier_id'                => ['nullable', 'integer'],
             'shipping_rate_per_kg'       => ['nullable', 'numeric', 'min:0'],
             'notes'                      => ['nullable', 'string'],
             'boxes'                      => ['required', 'array', 'min:1'],
@@ -121,6 +124,7 @@ class TransferFormPage extends Component
 
         return view('inventory::livewire.transactions.transfer-form', [
             'warehouses'     => Warehouse::query()->orderBy('name')->get(),
+            'suppliers'      => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
             'products'       => $products,
             'productsJson'   => $productsJson,
             'availableStock' => $availableStock,

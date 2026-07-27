@@ -29,10 +29,11 @@ class Shipment extends Model implements Auditable
     }
 
     protected $fillable = [
-        'shipment_number', 'from_warehouse_id', 'to_warehouse_id',
+        'shipment_number', 'from_warehouse_id', 'to_warehouse_id', 'supplier_id',
         'status', 'total_weight_kg',
         'shipping_rate_per_kg', 'shipping_cost_amount',
         'notes', 'shipped_at', 'received_at', 'created_by',
+        'accounting_bill_id',
     ];
 
     protected $casts = [
@@ -52,6 +53,11 @@ class Shipment extends Model implements Auditable
     public function toWarehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class, 'to_warehouse_id');
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function items(): HasMany

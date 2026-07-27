@@ -6,7 +6,8 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Exceptions\InsufficientStockException;
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\Transfer;
+use Centrex\Inventory\Models\{Supplier, Transfer};
+use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -21,11 +22,57 @@ class TransferShowPage extends Component
 
     public array $receiveQtys = [];
 
+    public ?array $financeDocument = null;
+
+    public ?int $supplier_id = null;
+
     public function mount(int $recordId): void
     {
         $this->record = Transfer::query()
-            ->with(['fromWarehouse', 'toWarehouse', 'items.product', 'boxes.items.product'])
+            ->with($this->relations())
             ->findOrFail($recordId);
+
+        $this->supplier_id = $this->record->supplier_id;
+        $this->financeDocument = $this->resolveFinanceDocument();
+    }
+
+    /** Set/change the courier/vendor — needed since a transfer has no separate edit page. */
+    public function updateSupplier(): void
+    {
+        $this->record->update(['supplier_id' => $this->supplier_id ?: null]);
+        $this->refreshRecord();
+        $this->dispatch('notify', type: 'success', message: 'Courier/vendor updated.');
+    }
+
+    public function createBill(): void
+    {
+        try {
+            $erp = app(ErpIntegration::class);
+
+            if (!$erp->enabled()) {
+                throw new \RuntimeException('Accounting integration is disabled. Enable INVENTORY_ACCOUNTING_ENABLED to create bills from transfers.');
+            }
+
+            if (!$this->record->supplier_id) {
+                throw new \RuntimeException('Set a courier/vendor for this transfer before creating a bill.');
+            }
+
+            if ((float) $this->record->shipping_cost_amount <= 0) {
+                throw new \RuntimeException('This transfer has no shipping cost yet — nothing to bill.');
+            }
+
+            $billId = $erp->syncTransferDocument($this->record);
+
+            if (!$billId) {
+                throw new \RuntimeException('Unable to create an accounting bill for this transfer.');
+            }
+
+            $this->refreshRecord();
+            $this->financeDocument = $this->resolveFinanceDocument();
+            $this->dispatch('notify', type: 'success', message: "Bill created for {$this->record->transfer_number}.");
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+        }
     }
 
     public function dispatchTransfer(): void
@@ -77,9 +124,74 @@ class TransferShowPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.transactions.transfer-show', [
-            'record'      => $this->record->fresh(['fromWarehouse', 'toWarehouse', 'items.product', 'boxes.items.product']),
-            'canDispatch' => Gate::allows('inventory.transfers.dispatch'),
-            'canReceive'  => Gate::allows('inventory.transfers.receive'),
+            'record'          => $this->refreshRecord(),
+            'canDispatch'     => Gate::allows('inventory.transfers.dispatch'),
+            'canReceive'      => Gate::allows('inventory.transfers.receive'),
+            'financeDocument' => $this->financeDocument,
+            'canCreateBill'   => $this->financeDocument === null,
+            'suppliers'       => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
+    }
+
+    private function refreshRecord(): Transfer
+    {
+        $this->record = $this->record->fresh($this->relations());
+        $this->supplier_id = $this->record->supplier_id;
+
+        return $this->record;
+    }
+
+    private function relations(): array
+    {
+        return ['fromWarehouse', 'toWarehouse', 'supplier', 'items.product', 'boxes.items.product'];
+    }
+
+    private function resolveFinanceDocument(): ?array
+    {
+        $billClass = \Centrex\Accounting\Models\Bill::class;
+
+        if (!class_exists($billClass)) {
+            return null;
+        }
+
+        $bill = $this->record->accounting_bill_id
+            ? $billClass::query()
+                ->with(['payments.journalEntry'])
+                ->find($this->record->accounting_bill_id)
+            : $billClass::query()
+                ->with(['payments.journalEntry'])
+                ->where('source_type', Transfer::class)
+                ->where('source_id', $this->record->getKey())
+                ->first();
+
+        if (!$bill) {
+            return null;
+        }
+
+        $status = $bill->status->value ?? (string) $bill->status;
+
+        return [
+            'id'         => (int) $bill->getKey(),
+            'number'     => (string) $bill->bill_number,
+            'status'     => ucfirst(str_replace('_', ' ', $status)),
+            'status_raw' => strtolower((string) $status),
+            'total'      => (float) $bill->total,
+            'paid'       => (float) $bill->paid_amount,
+            'balance'    => (float) $bill->balance,
+            'due_date'   => $bill->due_date?->format('M d, Y') ?? '—',
+            'is_due'     => (float) $bill->balance > 0,
+            'payments'   => $bill->payments
+                ->sortByDesc(fn ($payment) => $payment->payment_date?->getTimestamp() ?? 0)
+                ->values()
+                ->map(fn ($payment): array => [
+                    'date'          => $payment->payment_date?->format('M d, Y') ?? '—',
+                    'method'        => str((string) $payment->payment_method)->replace('_', ' ')->title()->toString(),
+                    'reference'     => $payment->reference ?: null,
+                    'notes'         => $payment->notes ?: null,
+                    'amount'        => (float) $payment->amount,
+                    'journal_entry' => $payment->journalEntry?->entry_number ?: null,
+                ])
+                ->all(),
+        ];
     }
 }

@@ -6,8 +6,8 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Exceptions\InsufficientStockException;
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\Shipment;
-use Centrex\Inventory\Support\ShipmentExcelExporter;
+use Centrex\Inventory\Models\{Shipment, Supplier};
+use Centrex\Inventory\Support\{ErpIntegration, ShipmentExcelExporter};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -23,11 +23,57 @@ class ShipmentShowPage extends Component
 
     public array $receiveQtys = [];
 
+    public ?array $financeDocument = null;
+
+    public ?int $supplier_id = null;
+
     public function mount(int $recordId): void
     {
         $this->record = Shipment::query()
             ->with($this->relations())
             ->findOrFail($recordId);
+
+        $this->supplier_id = $this->record->supplier_id;
+        $this->financeDocument = $this->resolveFinanceDocument();
+    }
+
+    /** Set/change the courier/vendor — needed since a shipment has no separate edit page. */
+    public function updateSupplier(): void
+    {
+        $this->record->update(['supplier_id' => $this->supplier_id ?: null]);
+        $this->refreshRecord();
+        $this->dispatch('notify', type: 'success', message: 'Courier/vendor updated.');
+    }
+
+    public function createBill(): void
+    {
+        try {
+            $erp = app(ErpIntegration::class);
+
+            if (!$erp->enabled()) {
+                throw new \RuntimeException('Accounting integration is disabled. Enable INVENTORY_ACCOUNTING_ENABLED to create bills from shipments.');
+            }
+
+            if (!$this->record->supplier_id) {
+                throw new \RuntimeException('Set a courier/vendor for this shipment before creating a bill.');
+            }
+
+            if ((float) $this->record->shipping_cost_amount <= 0) {
+                throw new \RuntimeException('This shipment has no shipping cost yet — nothing to bill.');
+            }
+
+            $billId = $erp->syncShipmentDocument($this->record);
+
+            if (!$billId) {
+                throw new \RuntimeException('Unable to create an accounting bill for this shipment.');
+            }
+
+            $this->refreshRecord();
+            $this->financeDocument = $this->resolveFinanceDocument();
+            $this->dispatch('notify', type: 'success', message: "Bill created for {$this->record->shipment_number}.");
+        } catch (\Throwable $exception) {
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
+        }
     }
 
     public function dispatch_shipment(): void
@@ -86,15 +132,19 @@ class ShipmentShowPage extends Component
     public function render(): View
     {
         return view('inventory::livewire.transactions.shipment-show', [
-            'record'      => $this->refreshRecord(),
-            'canDispatch' => Gate::allows('inventory.transfers.dispatch'),
-            'canReceive'  => Gate::allows('inventory.transfers.receive'),
+            'record'          => $this->refreshRecord(),
+            'canDispatch'     => Gate::allows('inventory.transfers.dispatch'),
+            'canReceive'      => Gate::allows('inventory.transfers.receive'),
+            'financeDocument' => $this->financeDocument,
+            'canCreateBill'   => $this->financeDocument === null,
+            'suppliers'       => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
     private function refreshRecord(): Shipment
     {
         $this->record = $this->record->fresh($this->relations());
+        $this->supplier_id = $this->record->supplier_id;
 
         return $this->record;
     }
@@ -104,10 +154,60 @@ class ShipmentShowPage extends Component
         return [
             'fromWarehouse',
             'toWarehouse',
+            'supplier',
             'items.product',
             'items.variant',
             'boxes.items.product',
             'boxes.items.variant',
+        ];
+    }
+
+    private function resolveFinanceDocument(): ?array
+    {
+        $billClass = \Centrex\Accounting\Models\Bill::class;
+
+        if (!class_exists($billClass)) {
+            return null;
+        }
+
+        $bill = $this->record->accounting_bill_id
+            ? $billClass::query()
+                ->with(['payments.journalEntry'])
+                ->find($this->record->accounting_bill_id)
+            : $billClass::query()
+                ->with(['payments.journalEntry'])
+                ->where('source_type', Shipment::class)
+                ->where('source_id', $this->record->getKey())
+                ->first();
+
+        if (!$bill) {
+            return null;
+        }
+
+        $status = $bill->status->value ?? (string) $bill->status;
+
+        return [
+            'id'         => (int) $bill->getKey(),
+            'number'     => (string) $bill->bill_number,
+            'status'     => ucfirst(str_replace('_', ' ', $status)),
+            'status_raw' => strtolower((string) $status),
+            'total'      => (float) $bill->total,
+            'paid'       => (float) $bill->paid_amount,
+            'balance'    => (float) $bill->balance,
+            'due_date'   => $bill->due_date?->format('M d, Y') ?? '—',
+            'is_due'     => (float) $bill->balance > 0,
+            'payments'   => $bill->payments
+                ->sortByDesc(fn ($payment) => $payment->payment_date?->getTimestamp() ?? 0)
+                ->values()
+                ->map(fn ($payment): array => [
+                    'date'          => $payment->payment_date?->format('M d, Y') ?? '—',
+                    'method'        => str((string) $payment->payment_method)->replace('_', ' ')->title()->toString(),
+                    'reference'     => $payment->reference ?: null,
+                    'notes'         => $payment->notes ?: null,
+                    'amount'        => (float) $payment->amount,
+                    'journal_entry' => $payment->journalEntry?->entry_number ?: null,
+                ])
+                ->all(),
         ];
     }
 }

@@ -498,6 +498,134 @@ it('allocates transfer weight and landed cost from mixed-product boxes', functio
     expect((float) $heavyTransferItem->unit_landed_cost_amount)->toBe(90.0);
 });
 
+it('re-prices transfer landed cost from the current source WAC at dispatch time, not draft creation', function (): void {
+    $inventory = app(Inventory::class);
+    $source = Warehouse::create([
+        'code'         => 'W-REPRICE-1',
+        'name'         => 'Reprice Source',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $destination = Warehouse::create([
+        'code'         => 'W-REPRICE-2',
+        'name'         => 'Reprice Destination',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-REPRICE-1',
+        'name'         => 'Reprice Widget',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+        'weight_kg'    => 1,
+    ]);
+
+    $sourceStock = WarehouseProduct::create([
+        'warehouse_id'   => $source->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 20,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 100,
+    ]);
+
+    $transfer = $inventory->createTransfer([
+        'from_warehouse_id' => $source->id,
+        'to_warehouse_id'   => $destination->id,
+        'items'             => [[
+            'product_id' => $product->id,
+            'qty_sent'   => 10,
+        ]],
+    ]);
+
+    // Landed cost is priced off the source WAC at draft time.
+    $draftItem = $transfer->fresh('items')->items->first();
+    expect((float) $draftItem->unit_landed_cost_amount)->toBe(100.0);
+
+    // A GRN posts at the source while the transfer is still a draft, moving its WAC.
+    $sourceStock->update(['wac_amount' => 150]);
+
+    $transfer = $inventory->dispatchTransfer($transfer->id);
+
+    // Dispatch must re-price off the WAC as it stands right now, not the stale draft-time figure.
+    $dispatchedItem = $transfer->fresh('items')->items->first();
+    expect((float) $dispatchedItem->unit_cost_source_amount)->toBe(150.0);
+    expect((float) $dispatchedItem->unit_landed_cost_amount)->toBe(150.0);
+    expect((float) $dispatchedItem->wac_source_before_amount)->toBe(150.0);
+
+    $inventory->receiveTransfer($transfer->id);
+
+    $destStock = WarehouseProduct::where('warehouse_id', $destination->id)
+        ->where('product_id', $product->id)
+        ->firstOrFail();
+
+    // Destination (previously empty) inherits the re-priced landed cost as its WAC.
+    expect((float) $destStock->wac_amount)->toBe(150.0);
+});
+
+it('preserves the shipping allocation when re-pricing transfer landed cost at dispatch time', function (): void {
+    $inventory = app(Inventory::class);
+    $source = Warehouse::create([
+        'code'         => 'W-REPRICE-SHIP-1',
+        'name'         => 'Reprice Shipping Source',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $destination = Warehouse::create([
+        'code'         => 'W-REPRICE-SHIP-2',
+        'name'         => 'Reprice Shipping Destination',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-REPRICE-2',
+        'name'         => 'Reprice Shipped Widget',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+        'weight_kg'    => 2,
+    ]);
+
+    $sourceStock = WarehouseProduct::create([
+        'warehouse_id'   => $source->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 20,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 100,
+    ]);
+
+    $transfer = $inventory->createTransfer([
+        'from_warehouse_id'    => $source->id,
+        'to_warehouse_id'      => $destination->id,
+        'shipping_rate_per_kg' => 5,
+        'items'                => [[
+            'product_id' => $product->id,
+            'qty_sent'   => 10,
+        ]],
+    ]);
+
+    // 10 units × 2kg = 20kg × 5/kg = 100 shipping → 10/unit on top of the 100 source cost.
+    $draftItem = $transfer->fresh('items')->items->first();
+    expect((float) $draftItem->unit_landed_cost_amount)->toBe(110.0);
+
+    $sourceStock->update(['wac_amount' => 150]);
+
+    $transfer = $inventory->dispatchTransfer($transfer->id);
+
+    $dispatchedItem = $transfer->fresh('items')->items->first();
+    expect((float) $dispatchedItem->unit_cost_source_amount)->toBe(150.0);
+    // Source cost is refreshed to 150, but the 10/unit shipping allocation is preserved.
+    expect((float) $dispatchedItem->unit_landed_cost_amount)->toBe(160.0);
+
+    $inventory->receiveTransfer($transfer->id);
+
+    $destStock = WarehouseProduct::where('warehouse_id', $destination->id)
+        ->where('product_id', $product->id)
+        ->firstOrFail();
+
+    expect((float) $destStock->wac_amount)->toBe(160.0);
+});
+
 it('can progress a purchase order from draft to received with the remaining quantity', function (): void {
     $inventory = app(Inventory::class);
     $warehouse = Warehouse::create([

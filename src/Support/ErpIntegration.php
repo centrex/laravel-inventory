@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Enums\StockReceiptStatus;
-use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, PurchaseReturn, SaleOrder, SaleReturn, StockReceipt, Supplier as InventorySupplier};
+use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, PurchaseReturn, SaleOrder, SaleReturn, Shipment, StockReceipt, Supplier as InventorySupplier, Transfer};
 use Illuminate\Support\Facades\DB;
 
 class ErpIntegration
@@ -322,6 +322,115 @@ class ErpIntegration
 
         if ((int) $purchaseOrder->accounting_bill_id !== (int) $bill->id) {
             $purchaseOrder->forceFill(['accounting_bill_id' => $bill->id])->saveQuietly();
+        }
+
+        return (int) $bill->id;
+    }
+
+    /**
+     * Create/update a draft vendor Bill for the freight/courier cost of an inter-warehouse
+     * transfer, against the courier Supplier linked on the transfer. Mirrors
+     * syncPurchaseOrderDocument() — posting (Accounting::postBill()) stays a manual step in the
+     * accounting Bills UI, same as purchase order bills.
+     */
+    public function syncTransferDocument(Transfer $transfer): ?int
+    {
+        return $this->syncFreightBillDocument($transfer, $transfer->transfer_number);
+    }
+
+    /**
+     * Create/update a draft vendor Bill for the freight/courier cost of a box-tracked
+     * inter-warehouse shipment. See syncTransferDocument().
+     */
+    public function syncShipmentDocument(Shipment $shipment): ?int
+    {
+        return $this->syncFreightBillDocument($shipment, $shipment->shipment_number);
+    }
+
+    /**
+     * Shared implementation for syncTransferDocument() / syncShipmentDocument(). The freight cost
+     * is already capitalized into destination WAC via landed-cost allocation (see
+     * dispatchTransfer()/receiveTransfer() and their shipment equivalents in Inventory.php) but no
+     * liability to the courier has ever been booked, so Accounting::postBill()'s default
+     * DR Inventory Asset / CR Accounts Payable entry is exactly the right one here — no changes
+     * needed in laravel-accounting.
+     */
+    private function syncFreightBillDocument(Transfer|Shipment $document, string $documentNumber): ?int
+    {
+        if (!$this->enabled()) {
+            return null;
+        }
+
+        $document->loadMissing('supplier');
+        $vendorId = $this->syncSupplier($document->supplier);
+
+        if (!$vendorId) {
+            return null;
+        }
+
+        $amount = round((float) $document->shipping_cost_amount, 2);
+
+        if ($amount <= 0) {
+            return null;
+        }
+
+        $documentClass = $document::class;
+        $billClass = \Centrex\Accounting\Models\Bill::class;
+        $bill = $document->accounting_bill_id
+            ? $billClass::find($document->accounting_bill_id)
+            : $billClass::query()
+                ->where('source_type', $documentClass)
+                ->where('source_id', $document->id)
+                ->first();
+
+        if ($bill && $bill->journal_entry_id !== null) {
+            if ((int) $document->accounting_bill_id !== (int) $bill->id) {
+                $document->forceFill(['accounting_bill_id' => $bill->id])->saveQuietly();
+            }
+
+            return (int) $bill->id;
+        }
+
+        $dispatchedAt = $document instanceof Transfer ? $document->dispatched_at : null;
+
+        $billData = [
+            'vendor_id'        => $vendorId,
+            'bill_date'        => $dispatchedAt?->toDateString() ?? $document->shipped_at?->toDateString() ?? now()->toDateString(),
+            'due_date'         => now()->addDays(30)->toDateString(),
+            'subtotal'         => $amount,
+            'tax_amount'       => 0,
+            'total'            => $amount,
+            'currency'         => config('inventory.base_currency', 'BDT'),
+            'exchange_rate'    => 1.0,
+            'status'           => 'draft',
+            'notes'            => "Freight/courier charge for {$documentNumber}",
+            'source_type'      => $documentClass,
+            'source_id'        => $document->id,
+            'source_reference' => $documentNumber,
+        ];
+
+        if ($bill) {
+            $bill->fill($billData);
+            $bill->save();
+        } else {
+            $bill = $billClass::create($billData);
+        }
+
+        DB::connection($bill->getConnectionName())->transaction(function () use ($bill, $documentNumber, $amount): void {
+            $bill->items()->delete();
+            $bill->items()->create([
+                'description' => "Freight / courier charge — {$documentNumber}",
+                'quantity'    => 1,
+                'unit_price'  => $amount,
+                'amount'      => $amount,
+                'tax_rate'    => 0,
+                'tax_amount'  => 0,
+                'reference'   => $documentNumber,
+            ]);
+        });
+
+        if ((int) $document->accounting_bill_id !== (int) $bill->id) {
+            $document->forceFill(['accounting_bill_id' => $bill->id])->saveQuietly();
         }
 
         return (int) $bill->id;

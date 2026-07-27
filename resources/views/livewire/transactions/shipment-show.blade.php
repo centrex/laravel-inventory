@@ -22,10 +22,12 @@
 </x-tallui-page-header>
 
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+    <div class="space-y-4 xl:col-span-1">
     <x-tallui-card title="Shipment Summary" subtitle="Route, status, and shipping cost." icon="o-map" :shadow="true">
         <div class="space-y-3 text-sm">
             <div><span class="text-base-content/50">From</span><div class="font-medium">{{ $record->fromWarehouse?->name ?? '—' }}</div></div>
             <div><span class="text-base-content/50">To</span><div class="font-medium">{{ $record->toWarehouse?->name ?? '—' }}</div></div>
+            <div><span class="text-base-content/50">Courier / Vendor</span><div class="font-medium">{{ $record->supplier?->name ?? '—' }}</div></div>
             <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $record->status?->label() ?? ucfirst((string) $record->status) }}</div></div>
             <div><span class="text-base-content/50">Weight</span><div class="font-medium">{{ number_format((float) $record->total_weight_kg, 2) }} kg</div></div>
             <div><span class="text-base-content/50">Shipping Cost</span><div class="font-medium">{{ number_format((float) $record->shipping_cost_amount, 2) }}</div></div>
@@ -34,6 +36,97 @@
             <div><span class="text-base-content/50">Notes</span><div class="font-medium whitespace-pre-line">{{ $record->notes ?: '—' }}</div></div>
         </div>
     </x-tallui-card>
+
+    <x-tallui-card title="Finance" subtitle="Freight/courier bill and dues." icon="o-banknotes" :shadow="true">
+        @if ($financeDocument)
+            <div class="space-y-3 text-sm">
+                <div><span class="text-base-content/50">Bill</span><div class="font-medium">{{ $financeDocument['number'] }}</div></div>
+                <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $financeDocument['status'] }}</div></div>
+                <div><span class="text-base-content/50">Due Date</span><div class="font-medium">{{ $financeDocument['due_date'] }}</div></div>
+                <div><span class="text-base-content/50">Total</span><div class="font-medium">{{ number_format($financeDocument['total'], 2) }}</div></div>
+                <div><span class="text-base-content/50">Paid</span><div class="font-medium text-success">{{ number_format($financeDocument['paid'], 2) }}</div></div>
+                <div><span class="text-base-content/50">Due</span><div class="font-semibold {{ $financeDocument['is_due'] ? 'text-warning' : 'text-success' }}">{{ number_format($financeDocument['balance'], 2) }}</div></div>
+            </div>
+
+            <div class="mt-4 border-t border-base-200 pt-4">
+                <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Payments</div>
+                <div class="space-y-3">
+                    @forelse ($financeDocument['payments'] as $payment)
+                        <div class="rounded-xl border border-base-200 bg-base-50/60 p-3 text-sm">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="font-medium">{{ $payment['date'] }}</div>
+                                    <div class="text-base-content/60">{{ $payment['method'] }}</div>
+                                    @if ($payment['reference'])
+                                        <div class="text-xs text-base-content/50">Ref: {{ $payment['reference'] }}</div>
+                                    @endif
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold text-success">{{ number_format($payment['amount'], 2) }}</div>
+                                    <div class="text-xs text-base-content/50">{{ $payment['journal_entry'] ?: 'Manual payment' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <p class="text-sm text-base-content/60">No payments recorded yet.</p>
+                    @endforelse
+                </div>
+            </div>
+        @else
+            <p class="text-sm text-base-content/60">No linked accounting bill yet. Set a courier/vendor and shipping cost, then create a bill to track the freight payable.</p>
+
+            <div class="mt-4 flex flex-wrap items-end gap-2">
+                <div class="min-w-[14rem] flex-1">
+                    <x-tallui-form-group label="Courier / Vendor">
+                        <x-tallui-select name="supplier_id" wire:model="supplier_id">
+                            <option value="">No courier / vendor</option>
+                            @foreach ($suppliers as $supplier)
+                                <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                            @endforeach
+                        </x-tallui-select>
+                    </x-tallui-form-group>
+                </div>
+                <x-tallui-button label="Save Courier" icon="o-check" class="btn-ghost btn-sm" wire:click="updateSupplier" />
+            </div>
+        @endif
+
+        <div class="mt-4 flex flex-wrap gap-2">
+            @if ($canCreateBill)
+                <x-tallui-button
+                    label="Create Bill"
+                    icon="o-plus-circle"
+                    class="btn-primary btn-sm"
+                    wire:click="createBill"
+                    wire:confirm="Create an accounting bill for this shipment's freight cost?"
+                />
+            @endif
+            @if ($financeDocument && Route::has('accounting.bills.show'))
+                <x-tallui-button
+                    label="View Bill"
+                    icon="o-document-text"
+                    :link="route('accounting.bills.show', ['bill' => $financeDocument['id']])"
+                    class="btn-ghost btn-sm"
+                />
+            @endif
+            @if ($financeDocument && $financeDocument['status_raw'] === 'draft' && Route::has('accounting.bills'))
+                <x-tallui-button
+                    label="Approve Bill"
+                    icon="o-check-badge"
+                    :link="route('accounting.bills', ['search' => $financeDocument['number'], 'bill' => $financeDocument['id'], 'action' => 'post'])"
+                    class="btn-info btn-sm"
+                />
+            @endif
+            @if ($financeDocument && $financeDocument['is_due'] && Route::has('accounting.bills'))
+                <x-tallui-button
+                    label="Add Payment"
+                    icon="o-banknotes"
+                    :link="route('accounting.bills', ['search' => $financeDocument['number'], 'bill' => $financeDocument['id'], 'action' => 'pay'])"
+                    class="btn-warning btn-sm"
+                />
+            @endif
+        </div>
+    </x-tallui-card>
+    </div>
 
     <div class="space-y-4 xl:col-span-2">
     <x-tallui-card title="Shipment Lines" subtitle="Products, quantities, and landed costs." icon="o-queue-list" :shadow="true">

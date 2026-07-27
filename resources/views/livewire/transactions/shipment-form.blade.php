@@ -49,6 +49,15 @@
                 <x-tallui-input name="shipping_rate_per_kg" type="number" step="0.0001" min="0" wire:model="shipping_rate_per_kg" placeholder="0.00" />
             </x-tallui-form-group>
 
+            <x-tallui-form-group label="Courier / Vendor" :error="$errors->first('supplier_id')" helper="Used to bill the freight/courier cost as an accounts payable.">
+                <x-tallui-select name="supplier_id" wire:model="supplier_id" class="{{ $errors->has('supplier_id') ? 'select-error' : '' }}">
+                    <option value="">No courier / vendor</option>
+                    @foreach ($suppliers as $supplier)
+                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
+                    @endforeach
+                </x-tallui-select>
+            </x-tallui-form-group>
+
             <div class="md:col-span-2 lg:col-span-3">
                 <x-tallui-form-group label="Notes">
                     <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Transfer instructions, reference…" />
