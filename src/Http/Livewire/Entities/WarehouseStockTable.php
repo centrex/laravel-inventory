@@ -38,9 +38,9 @@ class WarehouseStockTable extends DataTable
         return [
             Column::make('Warehouse', 'warehouse.name')->relation('warehouse')->sortable(),
             Column::make('Product', 'product.name')->relation('product')->searchable()
-                ->view('inventory::livewire.partials.warehouse-stock-table.product'),
-            Column::make('Saleable', 'net_saleable_stock')->format('decimal:2')->sortable(),
+                ->view('inventory::livewire.partials.warehouse-stock-table.product'),            
             Column::make('On Store', 'qty_on_hand')->format('decimal:2')->sortable()->summable(),
+            Column::make('Saleable', 'net_saleable_stock')->format('decimal:2')->sortable(),
             Column::make('Reserved', 'qty_reserved')->format('decimal:2')->sortable()->summable(),
             // Column::make('In Transit', 'qty_in_transit')->format('decimal:2')->sortable()->summable()
             //     ->can('inventory.stock.manage'),
