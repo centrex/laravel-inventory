@@ -39,15 +39,16 @@ class WarehouseStockTable extends DataTable
             Column::make('Warehouse', 'warehouse.name')->relation('warehouse')->sortable(),
             Column::make('Product', 'product.name')->relation('product')->searchable()
                 ->view('inventory::livewire.partials.warehouse-stock-table.product'),
-            Column::make('On Hand', 'qty_on_hand')->format('decimal:2')->sortable()->summable(),
+            Column::make('Saleable', 'net_saleable_stock')->format('decimal:2')->sortable(),
+            Column::make('On Store', 'qty_on_hand')->format('decimal:2')->sortable()->summable(),
             Column::make('Reserved', 'qty_reserved')->format('decimal:2')->sortable()->summable(),
-            Column::make('In Transit', 'qty_in_transit')->format('decimal:2')->sortable()->summable()
-                ->can('inventory.stock.manage'),
+            // Column::make('In Transit', 'qty_in_transit')->format('decimal:2')->sortable()->summable()
+            //     ->can('inventory.stock.manage'),
             Column::make('WAC', 'wac_amount')->format('decimal:4')
                 ->sortable()->can('inventory.pricing.view-wac'),
             Column::make('B2B Retail', 'b2b_retail_price')->align('right')->excludeFromExport()
                 ->view('inventory::livewire.partials.product-price-table.price'),
-            Column::make('Reorder Point', 'reorder_point')->format('decimal:2')->sortable()->hideOnMobile(),
+            // Column::make('Reorder Point', 'reorder_point')->format('decimal:2')->sortable()->hideOnMobile(),
             Column::make('Actions')
                 ->view('inventory::livewire.partials.warehouse-stock-table.actions')
                 ->excludeFromExport()
@@ -65,6 +66,9 @@ class WarehouseStockTable extends DataTable
     public function query(): Builder
     {
         return WarehouseProduct::query()
+            // Aliased so ->sortable() can ORDER BY it directly; display itself goes through
+            // the getNetSaleableStockAttribute() accessor, which computes the same value.
+            ->selectRaw('*, (qty_on_hand - qty_reserved) as net_saleable_stock')
             ->with(['warehouse', 'product', 'variant'])
             ->where(function (Builder $builder): void {
                 $builder->where('qty_on_hand', '>', 0)
