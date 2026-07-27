@@ -691,7 +691,11 @@ class Inventory
             $totalLocal = $subtotalLocal + (float) $po->tax_local - (float) $po->discount_local + (float) $po->shipping_local;
             $totalBdt = $subtotalBdt + (float) $po->tax_amount - (float) $po->discount_amount + (float) $po->shipping_amount + (float) $po->other_charges_amount;
 
-            $po->update(['subtotal_local' => $subtotalLocal, 'subtotal_amount' => $subtotalBdt, 'total_local' => $totalLocal, 'total_amount' => $totalBdt]);
+            $po->update([
+                'subtotal_local' => $subtotalLocal, 'subtotal_amount' => $subtotalBdt,
+                'total_local'    => $totalLocal, 'total_amount' => $totalBdt,
+                'due_amount'     => round($totalBdt, 4),
+            ]);
 
             return $po->fresh(['supplier', 'items.product']);
         });
@@ -3011,6 +3015,23 @@ class Inventory
         ];
     }
 
+    public function supplierCreditSnapshot(int $supplierId): array
+    {
+        $supplier = Supplier::findOrFail($supplierId);
+        $exposure = $this->supplierOutstandingExposure($supplier->id);
+        $limit = (float) $supplier->credit_limit_amount;
+
+        return [
+            'supplier_id'             => $supplier->id,
+            'credit_limit_amount'     => $limit,
+            'outstanding_exposure'    => $exposure,
+            'available_credit_amount' => round($limit - $exposure, 4),
+            'is_over_limit'           => $limit > 0
+                ? $exposure > $limit + (float) config('inventory.qty_tolerance', 0.0001)
+                : $exposure > (float) config('inventory.qty_tolerance', 0.0001),
+        ];
+    }
+
     public function getMovementHistory(int $productId, int $warehouseId, ?string $from = null, ?string $to = null): Collection
     {
         return StockMovement::where('product_id', $productId)
@@ -4754,6 +4775,34 @@ class Inventory
             ->sum('due_amount');
 
         return round($openExposure + $fulfilledExposure, 4);
+    }
+
+    private function supplierOutstandingExposure(int $supplierId): float
+    {
+        // Open purchase orders (confirmed but not yet fully received): always count due_amount.
+        // due_amount is set at creation (= total_amount) and reduced by BillPaymentObserver
+        // whenever a linked accounting bill receives a payment.
+        $openStatuses = [
+            PurchaseOrderStatus::CONFIRMED->value,
+            PurchaseOrderStatus::PARTIAL->value,
+        ];
+
+        $openExposure = (float) PurchaseOrder::query()
+            ->where('supplier_id', $supplierId)
+            ->whereIn('status', $openStatuses)
+            ->sum('due_amount');
+
+        // RECEIVED orders: only count those with a linked accounting bill.
+        // Without a bill the goods were received without credit terms, so there is no
+        // outstanding payable to track. due_amount on these rows is kept current by
+        // BillPaymentObserver.
+        $receivedExposure = (float) PurchaseOrder::query()
+            ->where('supplier_id', $supplierId)
+            ->where('status', PurchaseOrderStatus::RECEIVED->value)
+            ->whereNotNull('accounting_bill_id')
+            ->sum('due_amount');
+
+        return round($openExposure + $receivedExposure, 4);
     }
 
     private function canApproveCreditOverride(?int $approvedBy): bool

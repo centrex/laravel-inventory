@@ -30,16 +30,17 @@ class Supplier extends Model implements Auditable, HasMedia
     }
 
     protected $fillable = [
-        'code', 'name', 'country_code', 'demographic_segment', 'demographic_data', 'currency',
+        'code', 'name', 'country_code', 'demographic_segment', 'demographic_data', 'currency', 'credit_limit_amount',
         'contact_name', 'contact_email', 'contact_phone',
         'address', 'is_active', 'modelable_type', 'modelable_id', 'accounting_vendor_id',
         'purchase_manager_id', 'purchase_assistant_manager_id', 'purchase_executive_id', 'meta',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean',
-        'geo'       => 'array',
-        'meta'      => 'array',
+        'credit_limit_amount' => 'decimal:4',
+        'is_active'           => 'boolean',
+        'geo'                 => 'array',
+        'meta'                => 'array',
     ];
 
     protected $appends = [

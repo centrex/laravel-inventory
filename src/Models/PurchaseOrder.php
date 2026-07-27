@@ -40,6 +40,8 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property float $other_charges_amount
  * @property float $total_local
  * @property float $total_amount
+ * @property float $paid_amount
+ * @property float $due_amount
  * @property PurchaseOrderStatus $status
  * @property \Carbon\Carbon|null $ordered_at
  * @property \Carbon\Carbon|null $expected_at
@@ -72,7 +74,7 @@ class PurchaseOrder extends Model implements Auditable
         'discount_local', 'discount_amount',
         'shipping_local', 'shipping_amount',
         'other_charges_amount',
-        'total_local', 'total_amount',
+        'total_local', 'total_amount', 'paid_amount', 'due_amount',
         'status', 'ordered_at', 'expected_at', 'notes', 'created_by',
         'purchase_manager_id', 'purchase_assistant_manager_id', 'purchase_executive_id',
         'accounting_bill_id',
@@ -93,6 +95,8 @@ class PurchaseOrder extends Model implements Auditable
         'other_charges_amount' => 'decimal:4',
         'total_local'          => 'decimal:4',
         'total_amount'         => 'decimal:4',
+        'paid_amount'          => 'decimal:4',
+        'due_amount'           => 'decimal:4',
         'ordered_at'           => 'datetime',
         'expected_at'          => 'date',
     ];
