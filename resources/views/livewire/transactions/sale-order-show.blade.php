@@ -348,4 +348,52 @@
             </div>
         </x-tallui-card>
     </div>
+
+    <div class="xl:col-span-3">
+        <x-tallui-card title="Returns" subtitle="Sale returns recorded against this order." icon="o-arrow-uturn-left" :shadow="true">
+            @if ($record->saleReturns->isNotEmpty())
+                <div class="overflow-x-auto">
+                    <table class="table table-sm w-full">
+                        <thead>
+                            <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
+                                <th>Return #</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th class="text-right">Qty Returned</th>
+                                <th class="text-right">Value</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($record->saleReturns as $return)
+                                <tr class="even:bg-base-200/50 hover:bg-base-200">
+                                    <td class="font-medium">{{ $return->return_number }}</td>
+                                    <td>{{ $return->returned_at?->format('M d, Y') ?? '—' }}</td>
+                                    <td>
+                                        <x-tallui-badge :type="$return->status === 'posted' ? 'success' : 'warning'">
+                                            {{ ucfirst((string) $return->status) }}
+                                        </x-tallui-badge>
+                                    </td>
+                                    <td class="text-right">{{ rtrim(rtrim(number_format((float) $return->items->sum('qty_returned'), 4, '.', ''), '0'), '.') }}</td>
+                                    <td class="text-right font-medium">{{ number_format((float) $return->items->sum('line_total_amount'), 2) }}</td>
+                                    <td class="text-right">
+                                        @if (Route::has('inventory.sale-returns.show'))
+                                            <x-tallui-button
+                                                label="View"
+                                                icon="o-arrow-top-right-on-square"
+                                                :link="route('inventory.sale-returns.show', ['recordId' => $return->id])"
+                                                class="btn-ghost btn-xs"
+                                            />
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="text-sm text-base-content/60">No returns recorded for this order.</p>
+            @endif
+        </x-tallui-card>
+    </div>
 </div>

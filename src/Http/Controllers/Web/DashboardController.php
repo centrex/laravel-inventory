@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Web;
 
-use Centrex\Inventory\Enums\SaleOrderStatus;
+use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{SaleOrder, Warehouse};
 use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
@@ -48,7 +48,60 @@ class DashboardController
             'canViewForecast'      => $canViewForecast,
             'salesTrend'           => $this->buildSalesTrend(),
             'draftSaleOrders'      => $this->buildDraftSaleOrders(),
+            'salesByPriceTier'     => $this->buildSalesByPriceTier(),
+            'salesByEmployee'      => $this->buildSalesByEmployee(),
         ]);
+    }
+
+    /**
+     * This-month revenue/order-count broken down by price tier, same scope and
+     * excluded-status rules as buildSalesTrend() so the figures add up to the same total.
+     */
+    private function buildSalesByPriceTier(): array
+    {
+        $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
+
+        $rows = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
+            ->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfDay()])
+            ->whereNotIn('status', $excluded)
+            ->selectRaw('price_tier_code, COUNT(*) as orders_count, SUM(total_amount) as revenue')
+            ->groupBy('price_tier_code')
+            ->orderByDesc('revenue')
+            ->get();
+
+        return $rows->map(fn ($row): array => [
+            'code'         => $row->price_tier_code,
+            'label'        => PriceTierCode::labelFor($row->price_tier_code) ?? $row->price_tier_code,
+            'orders_count' => (int) $row->orders_count,
+            'revenue'      => (float) $row->revenue,
+        ])->all();
+    }
+
+    /**
+     * This-month revenue/order-count broken down by employee (sales executive, falling
+     * back to whoever created the order when no executive is tagged).
+     */
+    private function buildSalesByEmployee(): array
+    {
+        $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
+
+        $rows = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
+            ->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfDay()])
+            ->whereNotIn('status', $excluded)
+            ->selectRaw('COALESCE(sales_executive_id, created_by) as employee_id, COUNT(*) as orders_count, SUM(total_amount) as revenue')
+            ->groupBy('employee_id')
+            ->orderByDesc('revenue')
+            ->get();
+
+        $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
+        $users = $userModel::query()->whereIn('id', $rows->pluck('employee_id')->filter())->get(['id', 'name'])->keyBy('id');
+
+        return $rows->map(fn ($row): array => [
+            'employee_id'  => $row->employee_id,
+            'name'         => $row->employee_id ? ($users[$row->employee_id]->name ?? "User #{$row->employee_id}") : 'Unassigned',
+            'orders_count' => (int) $row->orders_count,
+            'revenue'      => (float) $row->revenue,
+        ])->all();
     }
 
     /**

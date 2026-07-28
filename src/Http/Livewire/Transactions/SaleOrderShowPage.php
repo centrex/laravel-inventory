@@ -30,7 +30,7 @@ class SaleOrderShowPage extends Component
 
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $query = SaleOrder::query()
-            ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive'])
+            ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive', 'saleReturns.items.product', 'saleReturns.items.variant'])
             ->where('document_type', $this->documentType);
 
         CommercialTeamAccess::applySalesScope($query);
@@ -43,7 +43,7 @@ class SaleOrderShowPage extends Component
 
     public function render(): View
     {
-        $this->record->loadMissing(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive']);
+        $this->record->loadMissing(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive', 'saleReturns.items.product', 'saleReturns.items.variant']);
 
         return view('inventory::livewire.transactions.sale-order-show', [
             'record'           => $this->record,
@@ -88,10 +88,10 @@ class SaleOrderShowPage extends Component
     private function saleFlowCurrentStep(): int
     {
         return match ($this->record->status) {
-            SaleOrderStatus::CONFIRMED                                                       => 2,
-            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+            SaleOrderStatus::CONFIRMED => 2,
+            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
             SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-            default                                                                          => 1,
+            default => 1,
         };
     }
 
@@ -293,7 +293,7 @@ class SaleOrderShowPage extends Component
     private function refreshRecord(): void
     {
         $this->record = SaleOrder::query()
-            ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive'])
+            ->with(['customer', 'warehouse', 'items.product', 'items.variant', 'createdBy', 'salesManager', 'salesAssistantManager', 'salesExecutive', 'saleReturns.items.product', 'saleReturns.items.variant'])
             ->where('document_type', $this->documentType)
             ->findOrFail($this->record->getKey());
 

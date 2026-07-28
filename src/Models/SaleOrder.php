@@ -164,6 +164,11 @@ class SaleOrder extends Model implements Auditable
         return $this->hasMany(SaleOrderItem::class);
     }
 
+    public function saleReturns(): HasMany
+    {
+        return $this->hasMany(SaleReturn::class);
+    }
+
     public function getPriceTierNameAttribute(): ?string
     {
         return PriceTierCode::labelFor($this->price_tier_code);

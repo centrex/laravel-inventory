@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-tallui-notification />
+
     <x-slot name="header">
         <div class="space-y-4">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -62,33 +64,9 @@
         </div>
     </x-slot>
 
-    @if (session('status'))
-        <div
-            x-data="{ show: true }"
-            x-show="show"
-            x-init="setTimeout(() => show = false, 4000)"
-            x-transition.duration.500ms
-            class="rounded-2xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-700 dark:border-success-500/20 dark:bg-success-500/10 dark:text-success-300"
-        >
-            {{ session('status') }}
-        </div>
-    @endif
-
     @if ($errors->any())
         <div class="rounded-2xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-500/20 dark:bg-error-500/10 dark:text-error-300">
             {{ $errors->first() }}
-        </div>
-    @endif
-
-    @if (session('dispatch_error'))
-        <div
-            x-data="{ show: true }"
-            x-show="show"
-            x-init="setTimeout(() => show = false, 6000)"
-            x-transition.duration.500ms
-            class="rounded-2xl border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 dark:border-error-500/20 dark:bg-error-500/10 dark:text-error-300"
-        >
-            {{ session('dispatch_error') }}
         </div>
     @endif
 

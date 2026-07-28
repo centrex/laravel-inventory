@@ -261,7 +261,7 @@ class DispatchTerminalPage extends Component
 
         $this->closeModal();
 
-        session()->flash('status', "{$saleOrder->so_number} dispatch updated.");
+        $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} dispatch updated.");
     }
 
     public function quickDispatch(int $saleOrderId, string $action): void
@@ -272,7 +272,7 @@ class DispatchTerminalPage extends Component
             ->findOrFail($saleOrderId);
 
         if (!in_array($saleOrder->status?->value, self::DISPATCHABLE_STATUSES, true)) {
-            session()->flash('dispatch_error', "{$saleOrder->so_number} is still {$saleOrder->status?->label()} — reserve its stock (move it to Processing) before it can be dispatched.");
+            $this->dispatch('notify', type: 'error', message: "{$saleOrder->so_number} is still {$saleOrder->status?->label()} — reserve its stock (move it to Processing) before it can be dispatched.");
 
             return;
         }
@@ -303,7 +303,7 @@ class DispatchTerminalPage extends Component
             try {
                 $saleOrder = app(Inventory::class)->fulfillSaleOrder($saleOrderId);
             } catch (\Throwable $exception) {
-                session()->flash('dispatch_error', $exception->getMessage());
+                $this->dispatch('notify', type: 'error', message: $exception->getMessage());
 
                 return;
             }
@@ -314,7 +314,7 @@ class DispatchTerminalPage extends Component
         $this->putMetadata($saleOrder, $updatedMeta);
         $this->orderForms[$saleOrderId] = $this->formStateFor($saleOrder->fresh('warehouse'), $updatedMeta);
 
-        session()->flash('status', "{$saleOrder->so_number} marked as {$parcelStatus}.");
+        $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} marked as {$parcelStatus}.");
     }
 
     /** Sale Updater tab: progress an order through Draft → Confirmed → Reserved → Shipped via the real workflow. */
@@ -329,12 +329,12 @@ class DispatchTerminalPage extends Component
             // so it can surface the same shortage warnings reserveSaleOrderFlow() does below.
             if (!empty($saleOrder->shortageWarnings)) {
                 $lines = implode('; ', $saleOrder->shortageWarnings);
-                session()->flash('status', "{$saleOrder->so_number} confirmed with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");
+                $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} confirmed with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");
             } else {
-                session()->flash('status', "{$saleOrder->so_number} confirmed.");
+                $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} confirmed.");
             }
         } catch (\Throwable $exception) {
-            session()->flash('dispatch_error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
         }
     }
 
@@ -346,12 +346,12 @@ class DispatchTerminalPage extends Component
             $saleOrder = app(Inventory::class)->reserveStock($saleOrderId);
 
             if (!empty($saleOrder->shortageWarnings)) {
-                session()->flash('dispatch_error', "Reserved {$saleOrder->so_number} with stock shortage — " . implode('; ', $saleOrder->shortageWarnings) . '. Post a GRN to cover before fulfillment.');
+                $this->dispatch('notify', type: 'error', message: "Reserved {$saleOrder->so_number} with stock shortage — " . implode('; ', $saleOrder->shortageWarnings) . '. Post a GRN to cover before fulfillment.');
             } else {
-                session()->flash('status', "Stock reserved for {$saleOrder->so_number}.");
+                $this->dispatch('notify', type: 'success', message: "Stock reserved for {$saleOrder->so_number}.");
             }
         } catch (\Throwable $exception) {
-            session()->flash('dispatch_error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
         }
     }
 
@@ -367,9 +367,9 @@ class DispatchTerminalPage extends Component
 
         try {
             $saleOrder = app(Inventory::class)->fulfillSaleOrder($saleOrderId);
-            session()->flash('status', "{$saleOrder->so_number} shipped.");
+            $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} shipped.");
         } catch (\Throwable $exception) {
-            session()->flash('dispatch_error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
         }
     }
 
@@ -549,7 +549,7 @@ class DispatchTerminalPage extends Component
         } catch (\Throwable $exception) {
             $this->redxAreas = [];
             $this->redxPickupStores = [];
-            session()->flash('dispatch_error', "Could not load Redx areas: {$exception->getMessage()}");
+            $this->dispatch('notify', type: 'error', message: "Could not load Redx areas: {$exception->getMessage()}");
         }
     }
 
@@ -570,7 +570,7 @@ class DispatchTerminalPage extends Component
             $this->pathaoCities = app(CourierIntegration::class)->pathaoCities($environment);
         } catch (\Throwable $exception) {
             $this->pathaoCities = [];
-            session()->flash('dispatch_error', "Could not load Pathao cities: {$exception->getMessage()}");
+            $this->dispatch('notify', type: 'error', message: "Could not load Pathao cities: {$exception->getMessage()}");
         }
     }
 
@@ -590,7 +590,7 @@ class DispatchTerminalPage extends Component
             );
         } catch (\Throwable $exception) {
             $this->pathaoZones = [];
-            session()->flash('dispatch_error', "Could not load Pathao zones: {$exception->getMessage()}");
+            $this->dispatch('notify', type: 'error', message: "Could not load Pathao zones: {$exception->getMessage()}");
         }
     }
 
@@ -610,7 +610,7 @@ class DispatchTerminalPage extends Component
             );
         } catch (\Throwable $exception) {
             $this->pathaoAreas = [];
-            session()->flash('dispatch_error', "Could not load Pathao areas: {$exception->getMessage()}");
+            $this->dispatch('notify', type: 'error', message: "Could not load Pathao areas: {$exception->getMessage()}");
         }
     }
 
@@ -702,7 +702,7 @@ class DispatchTerminalPage extends Component
         $meta = $this->metadataFor($saleOrder);
 
         if (filled($meta['tracking_number'] ?? null)) {
-            session()->flash('dispatch_error', "{$saleOrder->so_number} already has parcel {$meta['tracking_number']}.");
+            $this->dispatch('notify', type: 'error', message: "{$saleOrder->so_number} already has parcel {$meta['tracking_number']}.");
             $this->closeParcelModal();
 
             return;
@@ -728,7 +728,7 @@ class DispatchTerminalPage extends Component
                     'recipient_area'    => filled($this->parcelForm['recipient_area'] ?? null) ? (int) $this->parcelForm['recipient_area'] : null,
                 ]);
             } catch (\Throwable $exception) {
-                session()->flash('dispatch_error', "Courier parcel creation failed for {$saleOrder->so_number}: {$exception->getMessage()}");
+                $this->dispatch('notify', type: 'error', message: "Courier parcel creation failed for {$saleOrder->so_number}: {$exception->getMessage()}");
 
                 return;
             }
@@ -758,7 +758,7 @@ class DispatchTerminalPage extends Component
         $this->orderForms[$saleOrder->getKey()] = $this->formStateFor($saleOrder, $this->metadataFor($saleOrder));
         $this->closeParcelModal();
 
-        session()->flash('status', "{$carrierLabel} parcel {$trackingNumber} created for {$saleOrder->so_number}.");
+        $this->dispatch('notify', type: 'success', message: "{$carrierLabel} parcel {$trackingNumber} created for {$saleOrder->so_number}.");
     }
 
     private function canCreateParcel(): bool
@@ -804,9 +804,9 @@ class DispatchTerminalPage extends Component
 
         try {
             $saleOrder = app(Inventory::class)->cancelSaleOrder($saleOrderId);
-            session()->flash('status', "{$saleOrder->so_number} cancelled.");
+            $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} cancelled.");
         } catch (\Throwable $exception) {
-            session()->flash('dispatch_error', $exception->getMessage());
+            $this->dispatch('notify', type: 'error', message: $exception->getMessage());
         }
     }
 
@@ -836,10 +836,10 @@ class DispatchTerminalPage extends Component
         return [
             'steps'   => [['label' => 'Draft'], ['label' => 'Confirmed'], ['label' => 'Reserved'], ['label' => 'Shipped']],
             'current' => match ($status) {
-                SaleOrderStatus::CONFIRMED                                                       => 2,
-                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+                SaleOrderStatus::CONFIRMED => 2,
+                SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
                 SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-                default                                                                          => 1,
+                default => 1,
             },
             'halted'      => in_array($status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'statusReady' => $statusReady,
@@ -959,8 +959,8 @@ class DispatchTerminalPage extends Component
 
         match ($this->status) {
             'draft', 'confirmed', 'processing', 'partial', 'shipped', 'fulfilled', 'completed', 'cancelled', 'returned' => $query->where('status', $this->status),
-            'all'                                                                                                       => null,
-            default                                                                                                     => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
+            'all'   => null,
+            default => $query->whereIn('status', ['draft', 'confirmed', 'processing', 'partial', 'shipped']),
         };
 
         $search = trim($this->search);
