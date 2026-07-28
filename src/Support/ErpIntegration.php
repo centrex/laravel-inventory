@@ -713,7 +713,7 @@ class ErpIntegration
      */
     private function issueSaleReturnCreditMemo(SaleReturn $saleReturn, \Centrex\Accounting\Models\Invoice $invoice): void
     {
-        $saleReturn->loadMissing('items');
+        $saleReturn->loadMissing(['items', 'saleOrder']);
 
         $totalRevenue = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_price_amount), 2);
 
@@ -743,6 +743,10 @@ class ErpIntegration
             'created_by'       => $saleReturn->created_by,
         ]);
         $accounting->issueCreditMemo($creditMemo);
+
+        if ($saleReturn->saleOrder) {
+            $this->resyncSaleOrderDueAmount($saleReturn->saleOrder, $invoice->fresh());
+        }
     }
 
     /**
@@ -927,7 +931,12 @@ class ErpIntegration
     {
         // $invoice->total/paid_amount are already in base currency (see syncSaleOrderDocument()),
         // same as $saleOrder->due_amount/paid_amount — no rate conversion needed here.
-        $due = round(max(0.0, (float) $invoice->total - (float) $invoice->paid_amount), 4);
+        //
+        // Use Invoice::$balance rather than total-paid_amount: balance already nets out AR-reducing
+        // discounts (accounts 6130-6133) and issued credit memos (Invoice::getBalanceAttribute()),
+        // which total-paid_amount alone ignores — without this, posting a sale-return credit memo
+        // never moved the sale order's due_amount, since nothing here read the credit at all.
+        $due = round(max(0.0, (float) $invoice->balance), 4);
         $paid = round(max(0.0, (float) $invoice->paid_amount), 4);
         $saleOrder->forceFill(['due_amount' => $due, 'paid_amount' => $paid])->saveQuietly();
     }

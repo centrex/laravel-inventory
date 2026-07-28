@@ -16,6 +16,7 @@ use Centrex\ModelData\Data;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{DB, Gate, Schema};
 use Illuminate\Validation\ValidationException;
@@ -504,6 +505,16 @@ class Inventory
      *
      * Example: PO-20250610-0003 — the last four digits reset is NOT date-scoped; the counter
      * is derived from the highest existing number matching the prefix so it always increments.
+     *
+     * The LIKE pattern is width-constrained (8 underscores for the date, 4 for the sequence),
+     * not just "{prefix}-%" — some tables carry legacy/imported numbers that also start with
+     * the same prefix but in a totally different shape (e.g. "GRN-PO000955" instead of
+     * "GRN-20260728-0001"). Those legacy strings sort ABOVE every possible date-based number
+     * lexicographically ('P' > any digit in ASCII), so an unconstrained "{prefix}-%" match
+     * would let one make ORDER BY ... DESC permanently return that legacy row as "latest" —
+     * deterministically wrong on every call, not just a rare race window. Underscore wildcards
+     * are standard SQL (unlike REGEXP, which isn't portable to the sqlite connection this
+     * package's own test suite runs against), so this keeps the DB-agnostic behavior intact.
      */
     private function nextNumber(string $prefix, string $model, string $column): string
     {
@@ -513,8 +524,10 @@ class Inventory
             ? $model::withTrashed()
             : $model::query();
 
+        $shapePattern = "{$prefix}-" . str_repeat('_', 8) . '-' . str_repeat('_', 4);
+
         $latest = $query
-            ->where($column, 'like', "{$prefix}-%")
+            ->where($column, 'like', $shapePattern)
             ->lockForUpdate()
             ->orderByDesc($column)
             ->value($column);
@@ -524,6 +537,40 @@ class Inventory
             : 1;
 
         return "{$prefix}-{$today}-" . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Creates a model with a nextNumber()-generated document number, retrying with a freshly
+     * generated number if a concurrent request already claimed the one we picked.
+     *
+     * nextNumber()'s "lock the current max row" approach can't guarantee uniqueness when the
+     * locking read matches zero rows at the exact moment two requests race (nothing exists yet
+     * to lock) — this converts that rare race into a transparent retry instead of surfacing a
+     * duplicate-key 500 to the user. Only retries on a violation of the number column's own
+     * unique index, so an unrelated unique-constraint failure on the same insert still fails fast.
+     *
+     * @template TModel of Model
+     *
+     * @param  class-string<TModel>  $model
+     * @param  array<string, mixed>  $attributes  Every column except $column.
+     * @return TModel
+     */
+    private function createWithSequentialNumber(string $prefix, string $model, string $column, array $attributes, int $maxAttempts = 5): Model
+    {
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                /** @var TModel $record */
+                $record = $model::create([$column => $this->nextNumber($prefix, $model, $column), ...$attributes]);
+
+                return $record;
+            } catch (UniqueConstraintViolationException $exception) {
+                if ($attempt >= $maxAttempts || !str_contains($exception->getMessage(), "{$column}_unique")) {
+                    throw $exception;
+                }
+            }
+        }
+
+        throw new \RuntimeException("Failed to generate a unique {$column} after {$maxAttempts} attempts.");
     }
 
     /**
@@ -636,8 +683,7 @@ class Inventory
             $createdBy = $this->currentUserId() ?? ($data['created_by'] ?? null);
             $assignment = $this->purchaseAssignment($data, $createdBy);
 
-            $po = PurchaseOrder::create([
-                'po_number'     => $this->nextNumber($documentType === 'requisition' ? 'REQ' : 'PO', PurchaseOrder::class, 'po_number'),
+            $po = $this->createWithSequentialNumber($documentType === 'requisition' ? 'REQ' : 'PO', PurchaseOrder::class, 'po_number', [
                 'document_type' => $documentType,
                 'warehouse_id'  => $warehouseId,
                 'supplier_id'   => $data['supplier_id'],
@@ -861,8 +907,7 @@ class Inventory
         $po = PurchaseOrder::with('items.product')->findOrFail($poId);
 
         return DB::transaction(function () use ($po, $items, $options): StockReceipt {
-            $grn = StockReceipt::create([
-                'grn_number'        => $this->nextNumber('GRN', StockReceipt::class, 'grn_number'),
+            $grn = $this->createWithSequentialNumber('GRN', StockReceipt::class, 'grn_number', [
                 'purchase_order_id' => $po->id,
                 'warehouse_id'      => $po->warehouse_id,
                 'received_at'       => $options['received_at'] ?? now(),
@@ -1217,8 +1262,7 @@ class Inventory
             $createdBy = $this->currentUserId() ?? ($data['created_by'] ?? null);
             $assignment = $this->salesAssignment($data, $customer, $createdBy);
 
-            $so = SaleOrder::create([
-                'so_number'             => $this->nextNumber($documentType === 'quotation' ? 'QT' : 'SO', SaleOrder::class, 'so_number'),
+            $so = $this->createWithSequentialNumber($documentType === 'quotation' ? 'QT' : 'SO', SaleOrder::class, 'so_number', [
                 'document_type'         => $documentType,
                 'warehouse_id'          => $warehouseId,
                 'customer_id'           => $data['customer_id'] ?? null,
@@ -1488,8 +1532,7 @@ class Inventory
                 ]);
             }
 
-            $saleReturn = SaleReturn::create([
-                'return_number' => $this->nextNumber('SRT', SaleReturn::class, 'return_number'),
+            $saleReturn = $this->createWithSequentialNumber('SRT', SaleReturn::class, 'return_number', [
                 'sale_order_id' => $saleOrder?->getKey(),
                 'warehouse_id'  => $data['warehouse_id'],
                 'customer_id'   => $saleOrder?->customer_id ?? ($data['customer_id'] ?? null),
@@ -1617,8 +1660,7 @@ class Inventory
                 ]);
             }
 
-            $purchaseReturn = PurchaseReturn::create([
-                'return_number'     => $this->nextNumber('PRT', PurchaseReturn::class, 'return_number'),
+            $purchaseReturn = $this->createWithSequentialNumber('PRT', PurchaseReturn::class, 'return_number', [
                 'purchase_order_id' => $purchaseOrder?->getKey(),
                 'warehouse_id'      => $data['warehouse_id'],
                 'supplier_id'       => $purchaseOrder?->supplier_id ?? ($data['supplier_id'] ?? null),
@@ -2117,8 +2159,7 @@ class Inventory
             $rate = (float) ($data['shipping_rate_per_kg'] ?? config('inventory.default_shipping_rate_per_kg', 0));
             $boxes = $this->normalizeTransferBoxes($data);
 
-            $transfer = Transfer::create([
-                'transfer_number'      => $this->nextNumber('TRF', Transfer::class, 'transfer_number'),
+            $transfer = $this->createWithSequentialNumber('TRF', Transfer::class, 'transfer_number', [
                 'from_warehouse_id'    => $data['from_warehouse_id'],
                 'to_warehouse_id'      => $data['to_warehouse_id'],
                 'supplier_id'          => $data['supplier_id'] ?? null,
@@ -2425,14 +2466,13 @@ class Inventory
     public function createAdjustment(array $data): Adjustment
     {
         return DB::transaction(function () use ($data): Adjustment {
-            $adjustment = Adjustment::create([
-                'adjustment_number' => $this->nextNumber('ADJ', Adjustment::class, 'adjustment_number'),
-                'warehouse_id'      => $data['warehouse_id'],
-                'reason'            => $data['reason'],
-                'notes'             => $data['notes'] ?? null,
-                'status'            => StockReceiptStatus::DRAFT,
-                'adjusted_at'       => $data['adjusted_at'] ?? now(),
-                'created_by'        => $data['created_by'] ?? null,
+            $adjustment = $this->createWithSequentialNumber('ADJ', Adjustment::class, 'adjustment_number', [
+                'warehouse_id' => $data['warehouse_id'],
+                'reason'       => $data['reason'],
+                'notes'        => $data['notes'] ?? null,
+                'status'       => StockReceiptStatus::DRAFT,
+                'adjusted_at'  => $data['adjusted_at'] ?? now(),
+                'created_by'   => $data['created_by'] ?? null,
             ]);
 
             foreach ($data['items'] as $item) {
@@ -2515,8 +2555,7 @@ class Inventory
         }
 
         return DB::transaction(function () use ($so, $options): PickList {
-            $pickList = PickList::create([
-                'pick_number'   => $this->nextNumber('PIC', PickList::class, 'pick_number'),
+            $pickList = $this->createWithSequentialNumber('PIC', PickList::class, 'pick_number', [
                 'sale_order_id' => $so->id,
                 'warehouse_id'  => $so->warehouse_id,
                 'assigned_to'   => $options['assigned_to'] ?? null,
@@ -2621,8 +2660,7 @@ class Inventory
         }
 
         return DB::transaction(function () use ($so, $data): Shipment {
-            $shipment = Shipment::create([
-                'shipment_number'       => $this->nextNumber('SHP', Shipment::class, 'shipment_number'),
+            $shipment = $this->createWithSequentialNumber('SHP', Shipment::class, 'shipment_number', [
                 'sale_order_id'         => $so->id,
                 'warehouse_id'          => $so->warehouse_id,
                 'carrier'               => $data['carrier'] ?? null,
@@ -2716,8 +2754,7 @@ class Inventory
             $rate = (float) ($data['shipping_rate_per_kg'] ?? 0);
             $boxes = $this->normalizeTransferBoxes($data);
 
-            $shipment = Shipment::create([
-                'shipment_number'      => $this->nextNumber('SHP', Shipment::class, 'shipment_number'),
+            $shipment = $this->createWithSequentialNumber('SHP', Shipment::class, 'shipment_number', [
                 'from_warehouse_id'    => $data['from_warehouse_id'],
                 'to_warehouse_id'      => $data['to_warehouse_id'],
                 'supplier_id'          => $data['supplier_id'] ?? null,

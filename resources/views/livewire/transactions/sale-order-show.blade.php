@@ -144,6 +144,30 @@
                 </div>
             </div>
 
+            @if ($routeBase === 'inventory.sale-orders')
+                <div class="my-3 border-t border-base-200"></div>
+
+                {{-- Payment block --}}
+                <div class="space-y-1.5 text-sm">
+                    <div class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/40">Payment</div>
+
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Total</span>
+                        <span class="font-medium">{{ number_format((float) $record->total_amount, 2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Paid</span>
+                        <span class="font-medium text-success">{{ number_format((float) $record->paid_amount, 2) }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Due</span>
+                        <span class="font-semibold {{ (float) $record->due_amount > 0 ? 'text-warning' : 'text-success' }}">
+                            {{ number_format((float) $record->due_amount, 2) }}
+                        </span>
+                    </div>
+                </div>
+            @endif
+
             @if ($record->notes)
                 <div class="mt-3 border-t border-base-200 pt-3">
                     <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/40">Notes</div>
