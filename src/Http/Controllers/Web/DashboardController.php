@@ -33,23 +33,25 @@ class DashboardController
             ->orderBy('name')
             ->get()
             ->map(fn (Warehouse $warehouse) => [
-                'id'          => $warehouse->id,
-                'name'        => $warehouse->name,
-                'currency'    => $warehouse->currency,
-                'stock_value' => $inventory->getStockValue($warehouse->id),
+                'id'                 => $warehouse->id,
+                'name'               => $warehouse->name,
+                'currency'           => $warehouse->currency,
+                'stock_value'        => $inventory->getStockValue($warehouse->id),
+                'net_saleable_stock' => $inventory->getNetSaleableStock($warehouse->id),
             ]);
 
         return view('inventory::dashboard', [
-            'entities'             => InventoryEntityRegistry::entities(),
-            'warehouseStockValues' => $warehouseStockValues,
-            'totalStockValue'      => $warehouseStockValues->sum('stock_value'),
-            'forecast'             => $forecast,
-            'salesTarget'          => $salesTarget,
-            'canViewForecast'      => $canViewForecast,
-            'salesTrend'           => $this->buildSalesTrend(),
-            'draftSaleOrders'      => $this->buildDraftSaleOrders(),
-            'salesByPriceTier'     => $this->buildSalesByPriceTier(),
-            'salesByEmployee'      => $this->buildSalesByEmployee(),
+            'entities'              => InventoryEntityRegistry::entities(),
+            'warehouseStockValues'  => $warehouseStockValues,
+            'totalStockValue'       => $warehouseStockValues->sum('stock_value'),
+            'totalNetSaleableStock' => $warehouseStockValues->sum('net_saleable_stock'),
+            'forecast'              => $forecast,
+            'salesTarget'           => $salesTarget,
+            'canViewForecast'       => $canViewForecast,
+            'salesTrend'            => $this->buildSalesTrend(),
+            'draftSaleOrders'       => $this->buildDraftSaleOrders(),
+            'salesByPriceTier'      => $this->buildSalesByPriceTier(),
+            'salesByEmployee'       => $this->buildSalesByEmployee(),
         ]);
     }
 

@@ -453,6 +453,19 @@ class Inventory
             ->value('total_value') ?? 0.0);
     }
 
+    /** Total net saleable stock (SUM of qty_on_hand − qty_reserved) across products. Optionally scoped to one warehouse. */
+    public function getNetSaleableStock(?int $warehouseId = null): float
+    {
+        // Alias must not be "net_saleable_stock" — that name collides with
+        // WarehouseProduct::getNetSaleableStockAttribute(), and Eloquent always prefers an
+        // accessor over the raw selected column, so ->value() would call the accessor instead
+        // of returning this aggregate (and the accessor needs qty_on_hand/qty_reserved, which
+        // this query never selects as individual columns).
+        return (float) (WarehouseProduct::when($warehouseId, fn ($q) => $q->where('warehouse_id', $warehouseId))
+            ->selectRaw('SUM(qty_on_hand - qty_reserved) as net_saleable_stock_total')
+            ->value('net_saleable_stock_total') ?? 0.0);
+    }
+
     // -------------------------------------------------------------------------
     // WAC Engine (internal)
     // -------------------------------------------------------------------------
