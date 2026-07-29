@@ -107,7 +107,7 @@ it('scopes invoice paid/due totals to the selected customer, not every invoice i
         'account_code' => '1000',
     ]);
 
-    $componentForA = new SalesReportPage();
+    $componentForA = new SalesReportPage;
     $componentForA->startDate = now()->subDay()->toDateString();
     $componentForA->endDate = now()->addDay()->toDateString();
     $componentForA->customerId = $customerA->id;
@@ -117,7 +117,7 @@ it('scopes invoice paid/due totals to the selected customer, not every invoice i
     expect($metricsForA['invoice_paid'])->toBeGreaterThan(0)
         ->and($metricsForA['invoice_due'])->toBe(0.0);
 
-    $componentForB = new SalesReportPage();
+    $componentForB = new SalesReportPage;
     $componentForB->startDate = now()->subDay()->toDateString();
     $componentForB->endDate = now()->addDay()->toDateString();
     $componentForB->customerId = $customerB->id;
@@ -157,14 +157,14 @@ it('narrows the distinct-products count when a product filter is applied', funct
     ]);
     $inventory->confirmSaleOrder($order->id);
 
-    $unfiltered = new SalesReportPage();
+    $unfiltered = new SalesReportPage;
     $unfiltered->startDate = now()->subDay()->toDateString();
     $unfiltered->endDate = now()->addDay()->toDateString();
     $unfiltered->customerId = $customer->id;
 
     expect(distinctProductCountFor($unfiltered))->toBe(2);
 
-    $filteredToA = new SalesReportPage();
+    $filteredToA = new SalesReportPage;
     $filteredToA->startDate = now()->subDay()->toDateString();
     $filteredToA->endDate = now()->addDay()->toDateString();
     $filteredToA->customerId = $customer->id;

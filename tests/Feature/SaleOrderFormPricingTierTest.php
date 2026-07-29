@@ -31,7 +31,7 @@ it('defaults the price tier to the selected customer tier and re-syncs item pric
         'qty_on_hand'  => 10, 'qty_reserved' => 0, 'qty_in_transit' => 0, 'wac_amount' => 10,
     ]);
 
-    $page = new SaleOrderFormPage();
+    $page = new SaleOrderFormPage;
     $page->mount();
     $page->warehouse_id = $warehouse->id;
     $page->customer_id = $customer->id;
@@ -58,7 +58,7 @@ it('auto-applies the customer tier even when the user cannot manage pricing tier
         'is_active'       => true,
     ]);
 
-    $page = new SaleOrderFormPage();
+    $page = new SaleOrderFormPage;
     $page->mount();
     $page->warehouse_id = $warehouse->id;
     $page->customer_id = $customer->id;
@@ -82,7 +82,7 @@ it('resolves the trusted save tier from the customer for users who cannot manage
         'is_active'       => true,
     ]);
 
-    $page = new SaleOrderFormPage();
+    $page = new SaleOrderFormPage;
     $page->mount();
     $page->customer_id = $customer->id;
     $page->price_tier_code = 'b2c_pos'; // simulates a manipulated request

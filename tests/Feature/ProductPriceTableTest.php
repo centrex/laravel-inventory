@@ -5,7 +5,7 @@ declare(strict_types = 1);
 use Centrex\Inventory\Http\Livewire\Entities\ProductPriceTable;
 
 it('routes the product column search through product and variant sku', function (): void {
-    $table = new ProductPriceTable();
+    $table = new ProductPriceTable;
     $query = $table->query();
 
     $method = new ReflectionMethod($table, 'applySearchConstraint');

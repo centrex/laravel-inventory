@@ -269,7 +269,7 @@ final class SalesTargetCalculator
             return false;
         }
 
-        $model = new $class();
+        $model = new $class;
 
         if (!$model instanceof Model) {
             return false;

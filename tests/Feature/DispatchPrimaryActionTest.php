@@ -13,7 +13,7 @@ use Centrex\Inventory\Models\{Customer, Product, SaleOrder, SaleOrderItem, Wareh
  */
 function dispatchPrimaryAction(SaleOrder $saleOrder, array $meta): array
 {
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
 
     $ref = new ReflectionClass($component);
 
@@ -109,7 +109,7 @@ it('offers a Confirm step for draft orders — ready but gated by permission', f
  */
 function dispatchQueueOrderIds(string $status): Illuminate\Support\Collection
 {
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->status = $status;
 
     return collect($component->render()->getData()['orders']->items())->pluck('id');
