@@ -592,7 +592,7 @@ class Inventory
      */
     private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
-        $model = new WarehouseProduct;
+        $model = new WarehouseProduct();
         $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
@@ -2757,6 +2757,63 @@ class Inventory
     // Inter-Warehouse Shipments (box-tracked, stock-moving)
     // -------------------------------------------------------------------------
 
+    /**
+     * Resolve the source WarehouseProduct for a shipment/transfer line. When no variant is
+     * specified, picks whichever variant row has the most available stock (so dispatch doesn't
+     * hit a ghost 0-qty base record) rather than an arbitrary/first match.
+     */
+    private function resolveSourceWarehouseProduct(int $warehouseId, int $productId, ?int $variantId): WarehouseProduct
+    {
+        if ($variantId === null) {
+            return WarehouseProduct::query()
+                ->where('warehouse_id', $warehouseId)
+                ->where('product_id', $productId)
+                ->whereRaw('(qty_on_hand - qty_reserved) > 0')
+                ->orderByRaw('(qty_on_hand - qty_reserved) DESC')
+                ->first()
+                ?? $this->getOrCreateWarehouseProduct($warehouseId, $productId, null);
+        }
+
+        return $this->getOrCreateWarehouseProduct($warehouseId, $productId, $variantId);
+    }
+
+    /**
+     * Validate that every product+variant requested across all boxes is actually available
+     * (qty_on_hand − qty_reserved) at the source warehouse, aggregated across boxes — a single
+     * box's request might look fine in isolation while the shipment's total for that product
+     * exceeds what's on hand. Called before any shipment/box/item rows are created so a failed
+     * check never leaves a partially-built draft behind.
+     *
+     * @param  array<int, array{measured_weight_kg?: float, box_code?: string, notes?: string, items: array<int, array{product_id: int, variant_id?: ?int, qty_sent: float}>}>  $boxes
+     */
+    private function assertShipmentStockAvailability(int $warehouseId, array $boxes): void
+    {
+        $requested = [];
+        $sourceWps = [];
+
+        foreach ($boxes as $boxData) {
+            foreach ($boxData['items'] as $item) {
+                [$productId, $variantId] = $this->resolveProductReference($item);
+                $sourceWp = $this->resolveSourceWarehouseProduct($warehouseId, $productId, $variantId);
+
+                $key = (int) $sourceWp->id;
+                $sourceWps[$key] ??= $sourceWp;
+                $requested[$key] = ($requested[$key] ?? 0.0) + round((float) $item['qty_sent'], 4);
+            }
+        }
+
+        foreach ($requested as $wpId => $qty) {
+            $sourceWp = $sourceWps[$wpId];
+            $available = (float) $sourceWp->qty_on_hand - (float) $sourceWp->qty_reserved;
+
+            if ($qty > $available + (float) config('inventory.qty_tolerance', 0.0001)) {
+                throw new InsufficientStockException(
+                    "Insufficient stock for shipment: {$this->productLabel($sourceWp->product_id, $sourceWp->variant_id)} available {$available}, requested {$qty}.",
+                );
+            }
+        }
+    }
+
     public function createInterWarehouseShipment(array $data): Shipment
     {
         if ($data['from_warehouse_id'] === $data['to_warehouse_id']) {
@@ -2770,6 +2827,8 @@ class Inventory
             $insuranceAmount = round((float) ($data['insurance_amount'] ?? 0), 4);
             $totalExtraCharges = round($customsAmount + $handlingAmount + $insuranceAmount, 4);
             $boxes = $this->normalizeTransferBoxes($data);
+
+            $this->assertShipmentStockAvailability($data['from_warehouse_id'], $boxes);
 
             $shipment = $this->createWithSequentialNumber('SHP', Shipment::class, 'shipment_number', [
                 'from_warehouse_id'    => $data['from_warehouse_id'],
@@ -2786,162 +2845,220 @@ class Inventory
                 'created_by'           => $data['created_by'] ?? null,
             ]);
 
-            $totalWeightKg = 0.0;
-            $totalCostBasis = 0.0;
-            $aggregates = [];
-            $createdBoxItems = [];
-
-            foreach ($boxes as $index => $boxData) {
-                $measuredWeight = round((float) ($boxData['measured_weight_kg'] ?? 0), 4);
-                $isDerived = (bool) ($boxData['_derived'] ?? false);
-
-                if ($isDerived) {
-                    if ($measuredWeight < 0) {
-                        throw new \InvalidArgumentException('measured_weight_kg must be zero or greater.');
-                    }
-                } else {
-                    $this->ensurePositiveQuantity($measuredWeight, 'measured_weight_kg');
-                }
-
-                $box = ShipmentBox::create([
-                    'shipment_id'        => $shipment->id,
-                    'box_code'           => $boxData['box_code'] ?? 'BOX-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
-                    'measured_weight_kg' => $measuredWeight,
-                    'notes'              => $boxData['notes'] ?? null,
-                ]);
-
-                $preparedItems = [];
-                $theoreticalWeightTotal = 0.0;
-                $fallbackQtyTotal = 0.0;
-
-                foreach ($boxData['items'] as $item) {
-                    [$productId, $variantId] = $this->resolveProductReference($item);
-                    $product = Product::findOrFail($productId);
-                    $variant = $variantId ? ProductVariant::query()->findOrFail($variantId) : null;
-                    $qty = round((float) $item['qty_sent'], 4);
-                    $this->ensurePositiveQuantity($qty, 'qty_sent');
-
-                    $unitWeightKg = $variant?->weight_kg ?? $product->weight_kg;
-                    $theoreticalWeight = $unitWeightKg !== null ? round($qty * (float) $unitWeightKg, 4) : 0.0;
-
-                    if ($variantId === null) {
-                        $sourceWp = WarehouseProduct::query()
-                            ->where('warehouse_id', $data['from_warehouse_id'])
-                            ->where('product_id', $product->id)
-                            ->whereRaw('(qty_on_hand - qty_reserved) > 0')
-                            ->orderByRaw('(qty_on_hand - qty_reserved) DESC')
-                            ->first()
-                            ?? $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, null);
-                        $variantId = $sourceWp->variant_id;
-                    } else {
-                        $sourceWp = $this->getOrCreateWarehouseProduct($data['from_warehouse_id'], $product->id, $variantId);
-                    }
-
-                    $preparedItems[] = [
-                        'product'               => $product,
-                        'variant_id'            => $variantId,
-                        'qty_sent'              => $qty,
-                        'theoretical_weight_kg' => $theoreticalWeight,
-                        'source_unit_cost'      => (float) $sourceWp->wac_amount,
-                        'notes'                 => $item['notes'] ?? null,
-                    ];
-
-                    $theoreticalWeightTotal += $theoreticalWeight;
-                    $fallbackQtyTotal += $qty;
-                }
-
-                if ($preparedItems === []) {
-                    throw new \InvalidArgumentException('Each shipment box must contain at least one product line.');
-                }
-
-                foreach ($preparedItems as $pi) {
-                    $basis = $theoreticalWeightTotal > 0 ? $pi['theoretical_weight_kg'] : $pi['qty_sent'];
-                    $denominator = $theoreticalWeightTotal > 0 ? $theoreticalWeightTotal : $fallbackQtyTotal;
-                    $allocatedWeight = $denominator > 0 ? round($measuredWeight * $basis / $denominator, 4) : 0.0;
-                    $weightRatio = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
-
-                    $costTotal = $pi['source_unit_cost'] * $pi['qty_sent'];
-
-                    $boxItem = ShipmentBoxItem::create([
-                        'shipment_box_id'                => $box->id,
-                        'product_id'                     => $pi['product']->id,
-                        'variant_id'                     => $pi['variant_id'],
-                        'qty_sent'                       => $pi['qty_sent'],
-                        'theoretical_weight_kg'          => $pi['theoretical_weight_kg'],
-                        'allocated_weight_kg'            => $allocatedWeight,
-                        'weight_ratio'                   => $weightRatio,
-                        'source_unit_cost_amount'        => $pi['source_unit_cost'],
-                        'shipping_allocated_amount'      => 0,
-                        'extra_charges_allocated_amount' => 0,
-                        'unit_landed_cost_amount'        => $pi['source_unit_cost'],
-                        'notes'                          => $pi['notes'],
-                    ]);
-
-                    $key = $pi['product']->id . ':' . (int) ($pi['variant_id'] ?? 0);
-                    $aggregates[$key] ??= ['product_id' => $pi['product']->id, 'variant_id' => $pi['variant_id'], 'qty_sent' => 0.0, 'weight_total' => 0.0, 'cost_total' => 0.0];
-                    $aggregates[$key]['qty_sent'] += $pi['qty_sent'];
-                    $aggregates[$key]['weight_total'] += $allocatedWeight;
-                    $aggregates[$key]['cost_total'] += $costTotal;
-
-                    $createdBoxItems[] = ['model' => $boxItem, 'qty_sent' => $pi['qty_sent'], 'allocated_weight_kg' => $allocatedWeight, 'source_unit_cost' => $pi['source_unit_cost'], 'cost_total' => $costTotal];
-                    $totalCostBasis += $costTotal;
-                }
-
-                $totalWeightKg += $measuredWeight;
-            }
-
-            $shippingCost = round($totalWeightKg * $rate, 4);
-
-            // Backfill each box item's placeholder shipping/extra-charges/landed-cost values
-            // (set to zero/source-cost when created, above) now that $totalWeightKg and
-            // $totalCostBasis — and therefore this shipment's total shipping cost and the pool
-            // of extra charges to allocate by value — are finally known across all boxes.
-            foreach ($createdBoxItems as $entry) {
-                $boxShipping = $totalWeightKg > 0
-                    ? round(($entry['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4)
-                    : 0.0;
-                $boxExtraCharges = $totalCostBasis > 0
-                    ? round(($entry['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4)
-                    : 0.0;
-                $boxLanded = $entry['qty_sent'] > 0
-                    ? round($entry['source_unit_cost'] + (($boxShipping + $boxExtraCharges) / $entry['qty_sent']), 4)
-                    : $entry['source_unit_cost'];
-
-                $entry['model']->update([
-                    'shipping_allocated_amount'      => $boxShipping,
-                    'extra_charges_allocated_amount' => $boxExtraCharges,
-                    'unit_landed_cost_amount'        => $boxLanded,
-                ]);
-            }
-
-            foreach ($aggregates as $aggregate) {
-                $qtySent = $aggregate['qty_sent'];
-                $unitCost = $qtySent > 0 ? round($aggregate['cost_total'] / $qtySent, 4) : 0.0;
-                $allocatedShipping = $totalWeightKg > 0 ? round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4) : 0.0;
-                $allocatedExtraCharges = $totalCostBasis > 0 ? round(($aggregate['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4) : 0.0;
-                $unitLanded = $qtySent > 0 ? round(($aggregate['cost_total'] + $allocatedShipping + $allocatedExtraCharges) / $qtySent, 4) : 0.0;
-
-                ShipmentItem::create([
-                    'shipment_id'                    => $shipment->id,
-                    'product_id'                     => $aggregate['product_id'],
-                    'variant_id'                     => $aggregate['variant_id'],
-                    'qty_sent'                       => $qtySent,
-                    'qty_received'                   => 0,
-                    'unit_cost_source_amount'        => $unitCost,
-                    'weight_kg_total'                => round($aggregate['weight_total'], 4),
-                    'shipping_allocated_amount'      => $allocatedShipping,
-                    'extra_charges_allocated_amount' => $allocatedExtraCharges,
-                    'unit_landed_cost_amount'        => $unitLanded,
-                    'wac_source_before_amount'       => $unitCost,
-                    'wac_dest_before_amount'         => 0,
-                    'wac_dest_after_amount'          => 0,
-                ]);
-            }
-
-            $shipment->update(['total_weight_kg' => $totalWeightKg, 'shipping_cost_amount' => $shippingCost]);
+            $this->buildShipmentBoxesAndItems($shipment, (int) $data['from_warehouse_id'], $boxes, $rate, $totalExtraCharges);
 
             return $shipment->refresh();
         });
+    }
+
+    /**
+     * Edit a draft inter-warehouse shipment before it's dispatched: header fields (warehouses,
+     * courier, shipping rate, customs/handling/insurance) plus the full box/item breakdown are
+     * replaced wholesale and re-allocated from scratch — the same math createInterWarehouseShipment()
+     * uses, just against an existing shipment instead of a new one. Only DRAFT shipments are
+     * editable; nothing has moved stock yet at that point (dispatch is what decrements source
+     * qty_on_hand), so there's no reservation to unwind first.
+     */
+    public function updateInterWarehouseShipment(int $shipmentId, array $data): Shipment
+    {
+        if ($data['from_warehouse_id'] === $data['to_warehouse_id']) {
+            throw new \InvalidArgumentException('Source and destination warehouse must differ.');
+        }
+
+        return DB::transaction(function () use ($shipmentId, $data): Shipment {
+            $shipment = Shipment::lockForUpdate()->findOrFail($shipmentId);
+
+            if ($shipment->status !== ShipmentStatus::DRAFT) {
+                throw new InvalidTransitionException("Shipment #{$shipmentId} can no longer be edited (status: {$shipment->status->value}).");
+            }
+
+            $rate = (float) ($data['shipping_rate_per_kg'] ?? 0);
+            $customsAmount = round((float) ($data['customs_amount'] ?? 0), 4);
+            $handlingAmount = round((float) ($data['handling_amount'] ?? 0), 4);
+            $insuranceAmount = round((float) ($data['insurance_amount'] ?? 0), 4);
+            $totalExtraCharges = round($customsAmount + $handlingAmount + $insuranceAmount, 4);
+            $boxes = $this->normalizeTransferBoxes($data);
+
+            $this->assertShipmentStockAvailability($data['from_warehouse_id'], $boxes);
+
+            $shipment->update([
+                'from_warehouse_id'    => $data['from_warehouse_id'],
+                'to_warehouse_id'      => $data['to_warehouse_id'],
+                'supplier_id'          => $data['supplier_id'] ?? null,
+                'shipping_rate_per_kg' => $rate,
+                'customs_amount'       => $customsAmount,
+                'handling_amount'      => $handlingAmount,
+                'insurance_amount'     => $insuranceAmount,
+                'notes'                => $data['notes'] ?? null,
+            ]);
+
+            // Boxes cascade-delete their own items at the DB level (shipment_box_items.shipment_box_id
+            // is cascadeOnDelete); the per-product aggregate on the shipment itself is a sibling, not
+            // a child of boxes, so it needs its own explicit wipe before rebuilding from scratch.
+            $shipment->boxes()->delete();
+            $shipment->items()->delete();
+
+            $this->buildShipmentBoxesAndItems($shipment, (int) $data['from_warehouse_id'], $boxes, $rate, $totalExtraCharges);
+
+            return $shipment->refresh();
+        });
+    }
+
+    /**
+     * Shared box/item builder for createInterWarehouseShipment() and updateInterWarehouseShipment():
+     * creates every ShipmentBox/ShipmentBoxItem from $boxes, allocates shipping (by weight) and
+     * extra charges (by value) across them, builds the per-product ShipmentItem aggregate, and
+     * writes total_weight_kg/shipping_cost_amount back onto $shipment. Assumes $shipment already
+     * exists and has no boxes/items of its own yet (the caller is responsible for wiping old ones
+     * first on an update).
+     *
+     * @param  array<int, array{measured_weight_kg?: float, box_code?: string, notes?: string, _derived?: bool, items: array<int, array{product_id: int, variant_id?: ?int, qty_sent: float, notes?: string}>}>  $boxes
+     */
+    private function buildShipmentBoxesAndItems(Shipment $shipment, int $fromWarehouseId, array $boxes, float $rate, float $totalExtraCharges): void
+    {
+        $totalWeightKg = 0.0;
+        $totalCostBasis = 0.0;
+        $aggregates = [];
+        $createdBoxItems = [];
+
+        foreach ($boxes as $index => $boxData) {
+            $measuredWeight = round((float) ($boxData['measured_weight_kg'] ?? 0), 4);
+            $isDerived = (bool) ($boxData['_derived'] ?? false);
+
+            if ($isDerived) {
+                if ($measuredWeight < 0) {
+                    throw new \InvalidArgumentException('measured_weight_kg must be zero or greater.');
+                }
+            } else {
+                $this->ensurePositiveQuantity($measuredWeight, 'measured_weight_kg');
+            }
+
+            $box = ShipmentBox::create([
+                'shipment_id'        => $shipment->id,
+                'box_code'           => $boxData['box_code'] ?? 'BOX-' . str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
+                'measured_weight_kg' => $measuredWeight,
+                'notes'              => $boxData['notes'] ?? null,
+            ]);
+
+            $preparedItems = [];
+            $theoreticalWeightTotal = 0.0;
+            $fallbackQtyTotal = 0.0;
+
+            foreach ($boxData['items'] as $item) {
+                [$productId, $variantId] = $this->resolveProductReference($item);
+                $product = Product::findOrFail($productId);
+                $variant = $variantId ? ProductVariant::query()->findOrFail($variantId) : null;
+                $qty = round((float) $item['qty_sent'], 4);
+                $this->ensurePositiveQuantity($qty, 'qty_sent');
+
+                $unitWeightKg = $variant?->weight_kg ?? $product->weight_kg;
+                $theoreticalWeight = $unitWeightKg !== null ? round($qty * (float) $unitWeightKg, 4) : 0.0;
+
+                $sourceWp = $this->resolveSourceWarehouseProduct($fromWarehouseId, $product->id, $variantId);
+                $variantId = $sourceWp->variant_id;
+
+                $preparedItems[] = [
+                    'product'               => $product,
+                    'variant_id'            => $variantId,
+                    'qty_sent'              => $qty,
+                    'theoretical_weight_kg' => $theoreticalWeight,
+                    'source_unit_cost'      => (float) $sourceWp->wac_amount,
+                    'notes'                 => $item['notes'] ?? null,
+                ];
+
+                $theoreticalWeightTotal += $theoreticalWeight;
+                $fallbackQtyTotal += $qty;
+            }
+
+            if ($preparedItems === []) {
+                throw new \InvalidArgumentException('Each shipment box must contain at least one product line.');
+            }
+
+            foreach ($preparedItems as $pi) {
+                $basis = $theoreticalWeightTotal > 0 ? $pi['theoretical_weight_kg'] : $pi['qty_sent'];
+                $denominator = $theoreticalWeightTotal > 0 ? $theoreticalWeightTotal : $fallbackQtyTotal;
+                $allocatedWeight = $denominator > 0 ? round($measuredWeight * $basis / $denominator, 4) : 0.0;
+                $weightRatio = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
+
+                $costTotal = $pi['source_unit_cost'] * $pi['qty_sent'];
+
+                $boxItem = ShipmentBoxItem::create([
+                    'shipment_box_id'                => $box->id,
+                    'product_id'                     => $pi['product']->id,
+                    'variant_id'                     => $pi['variant_id'],
+                    'qty_sent'                       => $pi['qty_sent'],
+                    'theoretical_weight_kg'          => $pi['theoretical_weight_kg'],
+                    'allocated_weight_kg'            => $allocatedWeight,
+                    'weight_ratio'                   => $weightRatio,
+                    'source_unit_cost_amount'        => $pi['source_unit_cost'],
+                    'shipping_allocated_amount'      => 0,
+                    'extra_charges_allocated_amount' => 0,
+                    'unit_landed_cost_amount'        => $pi['source_unit_cost'],
+                    'notes'                          => $pi['notes'],
+                ]);
+
+                $key = $pi['product']->id . ':' . (int) ($pi['variant_id'] ?? 0);
+                $aggregates[$key] ??= ['product_id' => $pi['product']->id, 'variant_id' => $pi['variant_id'], 'qty_sent' => 0.0, 'weight_total' => 0.0, 'cost_total' => 0.0];
+                $aggregates[$key]['qty_sent'] += $pi['qty_sent'];
+                $aggregates[$key]['weight_total'] += $allocatedWeight;
+                $aggregates[$key]['cost_total'] += $costTotal;
+
+                $createdBoxItems[] = ['model' => $boxItem, 'qty_sent' => $pi['qty_sent'], 'allocated_weight_kg' => $allocatedWeight, 'source_unit_cost' => $pi['source_unit_cost'], 'cost_total' => $costTotal];
+                $totalCostBasis += $costTotal;
+            }
+
+            $totalWeightKg += $measuredWeight;
+        }
+
+        $shippingCost = round($totalWeightKg * $rate, 4);
+
+        // Backfill each box item's placeholder shipping/extra-charges/landed-cost values
+        // (set to zero/source-cost when created, above) now that $totalWeightKg and
+        // $totalCostBasis — and therefore this shipment's total shipping cost and the pool
+        // of extra charges to allocate by value — are finally known across all boxes.
+        foreach ($createdBoxItems as $entry) {
+            $boxShipping = $totalWeightKg > 0
+                ? round(($entry['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4)
+                : 0.0;
+            $boxExtraCharges = $totalCostBasis > 0
+                ? round(($entry['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4)
+                : 0.0;
+            $boxLanded = $entry['qty_sent'] > 0
+                ? round($entry['source_unit_cost'] + (($boxShipping + $boxExtraCharges) / $entry['qty_sent']), 4)
+                : $entry['source_unit_cost'];
+
+            $entry['model']->update([
+                'shipping_allocated_amount'      => $boxShipping,
+                'extra_charges_allocated_amount' => $boxExtraCharges,
+                'unit_landed_cost_amount'        => $boxLanded,
+            ]);
+        }
+
+        foreach ($aggregates as $aggregate) {
+            $qtySent = $aggregate['qty_sent'];
+            $unitCost = $qtySent > 0 ? round($aggregate['cost_total'] / $qtySent, 4) : 0.0;
+            $allocatedShipping = $totalWeightKg > 0 ? round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4) : 0.0;
+            $allocatedExtraCharges = $totalCostBasis > 0 ? round(($aggregate['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4) : 0.0;
+            $unitLanded = $qtySent > 0 ? round(($aggregate['cost_total'] + $allocatedShipping + $allocatedExtraCharges) / $qtySent, 4) : 0.0;
+
+            ShipmentItem::create([
+                'shipment_id'                    => $shipment->id,
+                'product_id'                     => $aggregate['product_id'],
+                'variant_id'                     => $aggregate['variant_id'],
+                'qty_sent'                       => $qtySent,
+                'qty_received'                   => 0,
+                'unit_cost_source_amount'        => $unitCost,
+                'weight_kg_total'                => round($aggregate['weight_total'], 4),
+                'shipping_allocated_amount'      => $allocatedShipping,
+                'extra_charges_allocated_amount' => $allocatedExtraCharges,
+                'unit_landed_cost_amount'        => $unitLanded,
+                'wac_source_before_amount'       => $unitCost,
+                'wac_dest_before_amount'         => 0,
+                'wac_dest_after_amount'          => 0,
+            ]);
+        }
+
+        $shipment->update(['total_weight_kg' => $totalWeightKg, 'shipping_cost_amount' => $shippingCost]);
     }
 
     public function dispatchInterWarehouseShipment(int $shipmentId): Shipment

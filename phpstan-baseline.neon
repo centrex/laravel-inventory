@@ -2936,7 +2936,72 @@ parameters:
 			path: src/Http/Livewire/Transactions/SalesReportPage.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$customs_amount\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$from_warehouse_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$handling_amount\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$insurance_amount\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$shipment_number\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$shipping_rate_per_kg\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$status\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$supplier_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$to_warehouse_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBox\\:\\:\\$box_code\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBox\\:\\:\\$measured_weight_kg\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$product_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$qty_sent\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$variant_id\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
 
@@ -2983,6 +3048,26 @@ parameters:
 		-
 			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\ShipmentFormPage\\:\\:\\$boxes type has no value type specified in iterable type array\\.$#"
 			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\ShipmentBox\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
+			count: 2
 			path: src/Http/Livewire/Transactions/ShipmentFormPage.php
 
 		-
@@ -4692,7 +4777,7 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Product\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\Product\\>\\:\\:\\$id\\.$#"
-			count: 11
+			count: 9
 			path: src/Inventory.php
 
 		-
@@ -4932,7 +5017,7 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$status\\.$#"
-			count: 4
+			count: 5
 			path: src/Inventory.php
 
 		-
@@ -5392,7 +5477,7 @@ parameters:
 
 		-
 			message: "#^Cannot cast mixed to float\\.$#"
-			count: 85
+			count: 86
 			path: src/Inventory.php
 
 		-
@@ -5671,11 +5756,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:productLabel\\(\\) is unused\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:productTrends\\(\\) return type has no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -5826,6 +5906,11 @@ parameters:
 			path: src/Inventory.php
 
 		-
+			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:updateInterWarehouseShipment\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
 			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:updatePartner\\(\\) has invalid return type Centrex\\\\Inventory\\\\Partner\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -5912,7 +5997,7 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Shipment, mixed\\>, array\\<string, mixed\\> given\\.$#"
-			count: 1
+			count: 2
 			path: src/Inventory.php
 
 		-
@@ -6031,18 +6116,23 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ShipmentBox\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentBox, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ShipmentBox\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentBox, mixed\\>, array\\<string, float\\|int\\|string\\|null\\> given\\.$#"
 			count: 1
 			path: src/Inventory.php
 
 		-
-			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem, mixed\\>, array\\<string, float\\|int\\|string\\|null\\> given\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentItem, mixed\\>, array\\<string, float\\|int\\|null\\> given\\.$#"
 			count: 1
 			path: src/Inventory.php
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentItem, mixed\\>, array\\<string, mixed\\> given\\.$#"
-			count: 2
+			count: 1
 			path: src/Inventory.php
 
 		-

@@ -12,6 +12,7 @@
     <x-slot:actions>
         <x-tallui-button label="Excel" icon="o-arrow-down-tray" wire:click="downloadExcel" class="btn-outline btn-sm" />
         @if ($record->status?->value === 'draft' && $canDispatch)
+            <x-tallui-button label="Edit" icon="o-pencil" :link="route('inventory.shipments.edit', ['recordId' => $record->id])" class="btn-ghost btn-sm" />
             <x-tallui-button label="Dispatch" icon="o-paper-airplane" class="btn-primary btn-sm" wire:click="dispatch_shipment" wire:confirm="Dispatch this shipment?" />
         @endif
         @if (in_array($record->status?->value, ['in_transit', 'partial'], true) && $canReceive)

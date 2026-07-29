@@ -75,6 +75,7 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/transfers/{recordId}', TransferShowPage::class)->name('transfers.show');
         Route::get('/shipments', ShipmentIndexPage::class)->name('shipments.index');
         Route::get('/shipments/create', ShipmentFormPage::class)->name('shipments.create');
+        Route::get('/shipments/{recordId}/edit', ShipmentFormPage::class)->name('shipments.edit');
         Route::get('/shipments/{recordId}', ShipmentShowPage::class)->name('shipments.show');
         Route::get('/adjustments/create', AdjustmentFormPage::class)->name('adjustments.create');
         Route::get('/reports', InventoryReportsPage::class)->name('reports.index');

@@ -2,7 +2,7 @@
 <x-tallui-notification />
 
 <x-tallui-page-header
-    title="New Shipment"
+    :title="$recordId ? 'Edit Shipment' : 'New Shipment'"
     subtitle="Prepare inter-warehouse shipments with box-level packing and landed-cost allocation."
     icon="o-paper-airplane"
 >
@@ -10,7 +10,7 @@
         <x-tallui-breadcrumb :links="[
             ['label' => 'Inventory', 'href' => route('inventory.dashboard')],
             ['label' => 'Shipments', 'href' => route('inventory.shipments.index')],
-            ['label' => 'New Shipment'],
+            ['label' => $recordId ? 'Edit Shipment' : 'New Shipment'],
         ]" />
     </x-slot:breadcrumbs>
     <x-slot:actions>
@@ -304,7 +304,7 @@
 
     <div class="flex justify-end gap-2">
         <x-tallui-button label="Cancel" :link="route('inventory.shipments.index')" class="btn-ghost" />
-        <x-tallui-button label="Create Shipment" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
+        <x-tallui-button :label="$recordId ? 'Save Changes' : 'Create Shipment'" icon="o-check" class="btn-primary" type="submit" :spinner="'save'" />
     </div>
 
 </form>

@@ -4,8 +4,9 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Enums\ShipmentStatus;
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Product, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{Product, Shipment, ShipmentBox, ShipmentBoxItem, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -14,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class ShipmentFormPage extends Component
 {
+    public ?int $recordId = null;
+
     public ?int $from_warehouse_id = null;
 
     public ?int $to_warehouse_id = null;
@@ -32,9 +35,44 @@ class ShipmentFormPage extends Component
 
     public array $boxes = [];
 
-    public function mount(): void
+    public function mount(?int $recordId = null): void
     {
-        $this->boxes = [$this->blankBox()];
+        $this->recordId = $recordId;
+
+        if ($recordId === null) {
+            $this->boxes = [$this->blankBox()];
+
+            return;
+        }
+
+        $shipment = Shipment::with('boxes.items')->findOrFail($recordId);
+
+        abort_unless($shipment->status === ShipmentStatus::DRAFT, 403, 'Only draft shipments can be edited.');
+
+        $this->from_warehouse_id = $shipment->from_warehouse_id;
+        $this->to_warehouse_id = $shipment->to_warehouse_id;
+        $this->supplier_id = $shipment->supplier_id;
+        $this->shipping_rate_per_kg = (float) $shipment->shipping_rate_per_kg;
+        $this->customs_amount = (float) $shipment->customs_amount;
+        $this->handling_amount = (float) $shipment->handling_amount;
+        $this->insurance_amount = (float) $shipment->insurance_amount;
+        $this->notes = (string) ($shipment->notes ?? '');
+
+        $this->boxes = $shipment->boxes->map(fn (ShipmentBox $box): array => [
+            'box_code'           => $box->box_code,
+            'measured_weight_kg' => (float) $box->measured_weight_kg,
+            'notes'              => (string) ($box->notes ?? ''),
+            'items'              => $box->items->map(fn (ShipmentBoxItem $item): array => [
+                'product_id' => $item->product_id,
+                'variant_id' => $item->variant_id,
+                'qty_sent'   => (float) $item->qty_sent,
+                'notes'      => (string) ($item->notes ?? ''),
+            ])->values()->all(),
+        ])->values()->all();
+
+        if ($this->boxes === []) {
+            $this->boxes = [$this->blankBox()];
+        }
     }
 
     public function updatedFromWarehouseId(): void
@@ -88,8 +126,14 @@ class ShipmentFormPage extends Component
 
         $this->assertStockAvailability($validated['boxes']);
 
-        $shipment = app(Inventory::class)->createInterWarehouseShipment($validated);
-        $this->dispatch('notify', type: 'success', message: "Shipment {$shipment->shipment_number} created.");
+        $inventory = app(Inventory::class);
+        $shipment = $this->recordId
+            ? $inventory->updateInterWarehouseShipment($this->recordId, $validated)
+            : $inventory->createInterWarehouseShipment($validated);
+
+        $this->dispatch('notify', type: 'success', message: $this->recordId
+            ? "Shipment {$shipment->shipment_number} updated."
+            : "Shipment {$shipment->shipment_number} created.");
 
         return redirect()->route('inventory.shipments.show', ['recordId' => $shipment->getKey()]);
     }
