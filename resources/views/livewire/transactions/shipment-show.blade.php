@@ -31,6 +31,10 @@
             <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $record->status?->label() ?? ucfirst((string) $record->status) }}</div></div>
             <div><span class="text-base-content/50">Weight</span><div class="font-medium">{{ number_format((float) $record->total_weight_kg, 2) }} kg</div></div>
             <div><span class="text-base-content/50">Shipping Cost</span><div class="font-medium">{{ number_format((float) $record->shipping_cost_amount, 2) }}</div></div>
+            <div><span class="text-base-content/50">Customs Duty</span><div class="font-medium">{{ number_format((float) $record->customs_amount, 2) }}</div></div>
+            <div><span class="text-base-content/50">Handling Charge</span><div class="font-medium">{{ number_format((float) $record->handling_amount, 2) }}</div></div>
+            <div><span class="text-base-content/50">Insurance</span><div class="font-medium">{{ number_format((float) $record->insurance_amount, 2) }}</div></div>
+            <div><span class="text-base-content/50">Total Extra Charges</span><div class="font-semibold">{{ number_format($record->extra_charges_total, 2) }}</div></div>
             <div><span class="text-base-content/50">Shipped</span><div class="font-medium">{{ $record->shipped_at?->format('M d, Y H:i') ?? '—' }}</div></div>
             <div><span class="text-base-content/50">Received</span><div class="font-medium">{{ $record->received_at?->format('M d, Y H:i') ?? '—' }}</div></div>
             <div><span class="text-base-content/50">Notes</span><div class="font-medium whitespace-pre-line">{{ $record->notes ?: '—' }}</div></div>
@@ -139,6 +143,8 @@
                         <th class="text-right">Qty Received</th>
                         <th class="text-right">Remaining</th>
                         <th class="text-right">Source Cost</th>
+                        <th class="text-right">Shipping</th>
+                        <th class="text-right">Extra Charges</th>
                         <th class="text-right">Landed Cost</th>
                     </tr>
                 </thead>
@@ -153,10 +159,12 @@
                                 {{ $remaining > 0 ? rtrim(rtrim(number_format($remaining, 4, '.', ''), '0'), '.') : '✓' }}
                             </td>
                             <td class="text-right font-mono">{{ number_format((float) $item->unit_cost_source_amount, 2) }}</td>
+                            <td class="text-right font-mono">{{ number_format((float) $item->shipping_allocated_amount, 2) }}</td>
+                            <td class="text-right font-mono">{{ number_format((float) $item->extra_charges_allocated_amount, 2) }}</td>
                             <td class="text-right font-mono">{{ number_format((float) $item->unit_landed_cost_amount, 2) }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="6" class="py-6 text-center text-sm text-base-content/60">No shipment lines recorded.</td></tr>
+                        <tr><td colspan="8" class="py-6 text-center text-sm text-base-content/60">No shipment lines recorded.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -189,6 +197,7 @@
                                 <th class="text-right">Alloc. Weight</th>
                                 <th class="text-right">Source Cost</th>
                                 <th class="text-right">Shipping</th>
+                                <th class="text-right">Extra Charges</th>
                                 <th class="pr-4 text-right">Landed Cost</th>
                             </tr>
                         </thead>
@@ -201,10 +210,11 @@
                                     <td class="text-right font-mono">{{ number_format((float) $item->allocated_weight_kg, 2) }} kg</td>
                                     <td class="text-right font-mono">{{ number_format((float) $item->source_unit_cost_amount, 2) }}</td>
                                     <td class="text-right font-mono">{{ number_format((float) $item->shipping_allocated_amount, 2) }}</td>
+                                    <td class="text-right font-mono">{{ number_format((float) $item->extra_charges_allocated_amount, 2) }}</td>
                                     <td class="pr-4 text-right font-mono">{{ number_format((float) $item->unit_landed_cost_amount, 2) }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="py-4 text-center text-sm text-base-content/60">No items recorded for this box.</td></tr>
+                                <tr><td colspan="8" class="py-4 text-center text-sm text-base-content/60">No items recorded for this box.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

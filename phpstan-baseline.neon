@@ -76,6 +76,11 @@ parameters:
 			path: database/migrations/2026_07_27_000001_add_credit_exposure_tracking_to_suppliers_and_purchase_orders.php
 
 		-
+			message: "#^Parameter \\#1 \\$name of static method Illuminate\\\\Support\\\\Facades\\\\Schema\\:\\:connection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 2
+			path: database/migrations/2026_07_29_000001_add_extra_charges_to_shipments.php
+
+		-
 			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>, array\\<string, Centrex\\\\Inventory\\\\Enums\\\\MovementType\\:\\:OPENING_STOCK\\|float\\|Illuminate\\\\Support\\\\Carbon\\|int\\|string\\|null\\> given\\.$#"
 			count: 1
 			path: src/Commands/BackfillStockMovementsCommand.php
@@ -4936,6 +4941,11 @@ parameters:
 			path: src/Inventory.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$extra_charges_allocated_amount\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$lot_id\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -4952,7 +4962,7 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$qty_sent\\.$#"
-			count: 9
+			count: 11
 			path: src/Inventory.php
 
 		-
@@ -5382,7 +5392,7 @@ parameters:
 
 		-
 			message: "#^Cannot cast mixed to float\\.$#"
-			count: 84
+			count: 85
 			path: src/Inventory.php
 
 		-
@@ -5911,6 +5921,11 @@ parameters:
 			path: src/Inventory.php
 
 		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem, mixed\\>, array\\<string, float\\> given\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
 			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentItem, mixed\\>, array\\<string, float\\> given\\.$#"
 			count: 2
 			path: src/Inventory.php
@@ -6262,7 +6277,7 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\WarehouseProduct\\>\\:\\:value\\(\\) expects Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\WarehouseProduct, string given\\.$#"
-			count: 1
+			count: 2
 			path: src/Inventory.php
 
 		-
@@ -7641,6 +7656,21 @@ parameters:
 			path: src/Models/SerialNumber.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$customs_amount\\.$#"
+			count: 1
+			path: src/Models/Shipment.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$handling_amount\\.$#"
+			count: 1
+			path: src/Models/Shipment.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$insurance_amount\\.$#"
+			count: 1
+			path: src/Models/Shipment.php
+
+		-
 			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:__construct\\(\\) has parameter \\$attributes with no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Models/Shipment.php
@@ -8651,6 +8681,21 @@ parameters:
 			path: src/Support/ErpIntegration.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$customs_amount\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$handling_amount\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$insurance_amount\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$shipment_number\\.$#"
 			count: 1
 			path: src/Support/ErpIntegration.php
@@ -9146,6 +9191,21 @@ parameters:
 			path: src/Support/ShipmentExcelExporter.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$customs_amount\\.$#"
+			count: 1
+			path: src/Support/ShipmentExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$handling_amount\\.$#"
+			count: 1
+			path: src/Support/ShipmentExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$insurance_amount\\.$#"
+			count: 1
+			path: src/Support/ShipmentExcelExporter.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$received_at\\.$#"
 			count: 1
 			path: src/Support/ShipmentExcelExporter.php
@@ -9192,6 +9252,11 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$allocated_weight_kg\\.$#"
+			count: 1
+			path: src/Support/ShipmentExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$extra_charges_allocated_amount\\.$#"
 			count: 1
 			path: src/Support/ShipmentExcelExporter.php
 

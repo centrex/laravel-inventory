@@ -22,6 +22,12 @@ class ShipmentFormPage extends Component
 
     public float $shipping_rate_per_kg = 0;
 
+    public float $customs_amount = 0;
+
+    public float $handling_amount = 0;
+
+    public float $insurance_amount = 0;
+
     public string $notes = '';
 
     public array $boxes = [];
@@ -66,6 +72,9 @@ class ShipmentFormPage extends Component
             'to_warehouse_id'            => ['required', 'integer', 'different:from_warehouse_id'],
             'supplier_id'                => ['nullable', 'integer'],
             'shipping_rate_per_kg'       => ['nullable', 'numeric', 'min:0'],
+            'customs_amount'             => ['nullable', 'numeric', 'min:0'],
+            'handling_amount'            => ['nullable', 'numeric', 'min:0'],
+            'insurance_amount'           => ['nullable', 'numeric', 'min:0'],
             'notes'                      => ['nullable', 'string'],
             'boxes'                      => ['required', 'array', 'min:1'],
             'boxes.*.box_code'           => ['nullable', 'string', 'max:50'],

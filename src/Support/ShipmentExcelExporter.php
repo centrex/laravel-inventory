@@ -39,6 +39,9 @@ class ShipmentExcelExporter
                 'To Warehouse',
                 'Shipment Weight KG',
                 'Shipping Cost',
+                'Customs Duty',
+                'Handling Charge',
+                'Insurance',
                 'Shipped At',
                 'Received At',
                 'Box Code',
@@ -52,6 +55,7 @@ class ShipmentExcelExporter
                 'Weight Ratio',
                 'Source Unit Cost',
                 'Shipping Allocated',
+                'Extra Charges Allocated',
                 'Unit Landed Cost',
                 'Item Notes',
             ], true),
@@ -61,7 +65,7 @@ class ShipmentExcelExporter
             $shipment->loadMissing(['fromWarehouse', 'toWarehouse', 'items.product', 'items.variant', 'boxes.items.product', 'boxes.items.variant']);
 
             if ($shipment->boxes->isEmpty()) {
-                $rows[] = self::row(array_merge(self::baseColumns($shipment), array_fill(0, 13, null)));
+                $rows[] = self::row(array_merge(self::baseColumns($shipment), array_fill(0, 14, null)));
 
                 continue;
             }
@@ -72,7 +76,7 @@ class ShipmentExcelExporter
                         $box->box_code,
                         self::decimal($box->measured_weight_kg),
                         $box->notes,
-                    ], array_fill(0, 10, null)));
+                    ], array_fill(0, 11, null)));
 
                     continue;
                 }
@@ -90,6 +94,7 @@ class ShipmentExcelExporter
                         self::decimal($item->weight_ratio, 8),
                         self::decimal($item->source_unit_cost_amount),
                         self::decimal($item->shipping_allocated_amount),
+                        self::decimal($item->extra_charges_allocated_amount),
                         self::decimal($item->unit_landed_cost_amount),
                         $item->notes,
                     ]));
@@ -112,6 +117,9 @@ class ShipmentExcelExporter
             $shipment->toWarehouse?->name,
             self::decimal($shipment->total_weight_kg),
             self::decimal($shipment->shipping_cost_amount),
+            self::decimal($shipment->customs_amount),
+            self::decimal($shipment->handling_amount),
+            self::decimal($shipment->insurance_amount),
             $shipment->shipped_at?->format('Y-m-d H:i:s'),
             $shipment->received_at?->format('Y-m-d H:i:s'),
         ];

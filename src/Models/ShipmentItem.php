@@ -30,21 +30,22 @@ class ShipmentItem extends Model implements Auditable
         'shipment_id', 'product_id', 'variant_id',
         'qty_sent', 'qty_received',
         'unit_cost_source_amount', 'weight_kg_total',
-        'shipping_allocated_amount', 'unit_landed_cost_amount',
+        'shipping_allocated_amount', 'extra_charges_allocated_amount', 'unit_landed_cost_amount',
         'wac_source_before_amount', 'wac_dest_before_amount', 'wac_dest_after_amount',
         'notes',
     ];
 
     protected $casts = [
-        'qty_sent'                  => 'decimal:4',
-        'qty_received'              => 'decimal:4',
-        'unit_cost_source_amount'   => 'decimal:4',
-        'weight_kg_total'           => 'decimal:4',
-        'shipping_allocated_amount' => 'decimal:4',
-        'unit_landed_cost_amount'   => 'decimal:4',
-        'wac_source_before_amount'  => 'decimal:4',
-        'wac_dest_before_amount'    => 'decimal:4',
-        'wac_dest_after_amount'     => 'decimal:4',
+        'qty_sent'                       => 'decimal:4',
+        'qty_received'                   => 'decimal:4',
+        'unit_cost_source_amount'        => 'decimal:4',
+        'weight_kg_total'                => 'decimal:4',
+        'shipping_allocated_amount'      => 'decimal:4',
+        'extra_charges_allocated_amount' => 'decimal:4',
+        'unit_landed_cost_amount'        => 'decimal:4',
+        'wac_source_before_amount'       => 'decimal:4',
+        'wac_dest_before_amount'         => 'decimal:4',
+        'wac_dest_after_amount'          => 'decimal:4',
     ];
 
     public function shipment(): BelongsTo

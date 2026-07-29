@@ -368,7 +368,13 @@ class ErpIntegration
             return null;
         }
 
-        $amount = round((float) $document->shipping_cost_amount, 2);
+        // Shipment carries customs/handling/insurance in addition to weight-based freight;
+        // Transfer only ever has shipping_cost_amount — these all read 0 for a Transfer.
+        $freightAmount = round((float) $document->shipping_cost_amount, 2);
+        $customsAmount = $document instanceof Shipment ? round((float) $document->customs_amount, 2) : 0.0;
+        $handlingAmount = $document instanceof Shipment ? round((float) $document->handling_amount, 2) : 0.0;
+        $insuranceAmount = $document instanceof Shipment ? round((float) $document->insurance_amount, 2) : 0.0;
+        $amount = round($freightAmount + $customsAmount + $handlingAmount + $insuranceAmount, 2);
 
         if ($amount <= 0) {
             return null;
@@ -403,7 +409,7 @@ class ErpIntegration
             'currency'         => config('inventory.base_currency', 'BDT'),
             'exchange_rate'    => 1.0,
             'status'           => 'draft',
-            'notes'            => "Freight/courier charge for {$documentNumber}",
+            'notes'            => "Freight/customs/handling charges for {$documentNumber}",
             'source_type'      => $documentClass,
             'source_id'        => $document->id,
             'source_reference' => $documentNumber,
@@ -416,17 +422,31 @@ class ErpIntegration
             $bill = $billClass::create($billData);
         }
 
-        DB::connection($bill->getConnectionName())->transaction(function () use ($bill, $documentNumber, $amount): void {
+        DB::connection($bill->getConnectionName())->transaction(function () use ($bill, $documentNumber, $freightAmount, $customsAmount, $handlingAmount, $insuranceAmount): void {
             $bill->items()->delete();
-            $bill->items()->create([
-                'description' => "Freight / courier charge — {$documentNumber}",
-                'quantity'    => 1,
-                'unit_price'  => $amount,
-                'amount'      => $amount,
-                'tax_rate'    => 0,
-                'tax_amount'  => 0,
-                'reference'   => $documentNumber,
-            ]);
+
+            $lines = [
+                'Freight / courier charge' => $freightAmount,
+                'Customs duty'             => $customsAmount,
+                'Handling charge'          => $handlingAmount,
+                'Insurance'                => $insuranceAmount,
+            ];
+
+            foreach ($lines as $label => $lineAmount) {
+                if ($lineAmount <= 0) {
+                    continue;
+                }
+
+                $bill->items()->create([
+                    'description' => "{$label} — {$documentNumber}",
+                    'quantity'    => 1,
+                    'unit_price'  => $lineAmount,
+                    'amount'      => $lineAmount,
+                    'tax_rate'    => 0,
+                    'tax_amount'  => 0,
+                    'reference'   => $documentNumber,
+                ]);
+            }
         });
 
         if ((int) $document->accounting_bill_id !== (int) $bill->id) {

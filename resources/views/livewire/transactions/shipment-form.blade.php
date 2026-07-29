@@ -58,6 +58,18 @@
                 </x-tallui-select>
             </x-tallui-form-group>
 
+            <x-tallui-form-group label="Customs Duty (BDT)" helper="Allocated to items by value, added to landed cost.">
+                <x-tallui-input name="customs_amount" type="number" step="0.01" min="0" wire:model="customs_amount" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Handling Charge (BDT)" helper="Allocated to items by value, added to landed cost.">
+                <x-tallui-input name="handling_amount" type="number" step="0.01" min="0" wire:model="handling_amount" placeholder="0.00" />
+            </x-tallui-form-group>
+
+            <x-tallui-form-group label="Insurance (BDT)" helper="Allocated to items by value, added to landed cost.">
+                <x-tallui-input name="insurance_amount" type="number" step="0.01" min="0" wire:model="insurance_amount" placeholder="0.00" />
+            </x-tallui-form-group>
+
             <div class="md:col-span-2 lg:col-span-3">
                 <x-tallui-form-group label="Notes">
                     <x-tallui-textarea name="notes" wire:model="notes" rows="2" placeholder="Transfer instructions, reference…" />

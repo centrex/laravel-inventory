@@ -592,7 +592,7 @@ class Inventory
      */
     private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
-        $model = new WarehouseProduct;
+        $model = new WarehouseProduct();
         $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
@@ -2765,6 +2765,10 @@ class Inventory
 
         return DB::transaction(function () use ($data): Shipment {
             $rate = (float) ($data['shipping_rate_per_kg'] ?? 0);
+            $customsAmount = round((float) ($data['customs_amount'] ?? 0), 4);
+            $handlingAmount = round((float) ($data['handling_amount'] ?? 0), 4);
+            $insuranceAmount = round((float) ($data['insurance_amount'] ?? 0), 4);
+            $totalExtraCharges = round($customsAmount + $handlingAmount + $insuranceAmount, 4);
             $boxes = $this->normalizeTransferBoxes($data);
 
             $shipment = $this->createWithSequentialNumber('SHP', Shipment::class, 'shipment_number', [
@@ -2775,11 +2779,15 @@ class Inventory
                 'shipping_rate_per_kg' => $rate,
                 'total_weight_kg'      => 0,
                 'shipping_cost_amount' => 0,
+                'customs_amount'       => $customsAmount,
+                'handling_amount'      => $handlingAmount,
+                'insurance_amount'     => $insuranceAmount,
                 'notes'                => $data['notes'] ?? null,
                 'created_by'           => $data['created_by'] ?? null,
             ]);
 
             $totalWeightKg = 0.0;
+            $totalCostBasis = 0.0;
             $aggregates = [];
             $createdBoxItems = [];
 
@@ -2852,27 +2860,31 @@ class Inventory
                     $allocatedWeight = $denominator > 0 ? round($measuredWeight * $basis / $denominator, 4) : 0.0;
                     $weightRatio = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
 
+                    $costTotal = $pi['source_unit_cost'] * $pi['qty_sent'];
+
                     $boxItem = ShipmentBoxItem::create([
-                        'shipment_box_id'           => $box->id,
-                        'product_id'                => $pi['product']->id,
-                        'variant_id'                => $pi['variant_id'],
-                        'qty_sent'                  => $pi['qty_sent'],
-                        'theoretical_weight_kg'     => $pi['theoretical_weight_kg'],
-                        'allocated_weight_kg'       => $allocatedWeight,
-                        'weight_ratio'              => $weightRatio,
-                        'source_unit_cost_amount'   => $pi['source_unit_cost'],
-                        'shipping_allocated_amount' => 0,
-                        'unit_landed_cost_amount'   => $pi['source_unit_cost'],
-                        'notes'                     => $pi['notes'],
+                        'shipment_box_id'                => $box->id,
+                        'product_id'                     => $pi['product']->id,
+                        'variant_id'                     => $pi['variant_id'],
+                        'qty_sent'                       => $pi['qty_sent'],
+                        'theoretical_weight_kg'          => $pi['theoretical_weight_kg'],
+                        'allocated_weight_kg'            => $allocatedWeight,
+                        'weight_ratio'                   => $weightRatio,
+                        'source_unit_cost_amount'        => $pi['source_unit_cost'],
+                        'shipping_allocated_amount'      => 0,
+                        'extra_charges_allocated_amount' => 0,
+                        'unit_landed_cost_amount'        => $pi['source_unit_cost'],
+                        'notes'                          => $pi['notes'],
                     ]);
 
                     $key = $pi['product']->id . ':' . (int) ($pi['variant_id'] ?? 0);
                     $aggregates[$key] ??= ['product_id' => $pi['product']->id, 'variant_id' => $pi['variant_id'], 'qty_sent' => 0.0, 'weight_total' => 0.0, 'cost_total' => 0.0];
                     $aggregates[$key]['qty_sent'] += $pi['qty_sent'];
                     $aggregates[$key]['weight_total'] += $allocatedWeight;
-                    $aggregates[$key]['cost_total'] += $pi['source_unit_cost'] * $pi['qty_sent'];
+                    $aggregates[$key]['cost_total'] += $costTotal;
 
-                    $createdBoxItems[] = ['model' => $boxItem, 'qty_sent' => $pi['qty_sent'], 'allocated_weight_kg' => $allocatedWeight, 'source_unit_cost' => $pi['source_unit_cost']];
+                    $createdBoxItems[] = ['model' => $boxItem, 'qty_sent' => $pi['qty_sent'], 'allocated_weight_kg' => $allocatedWeight, 'source_unit_cost' => $pi['source_unit_cost'], 'cost_total' => $costTotal];
+                    $totalCostBasis += $costTotal;
                 }
 
                 $totalWeightKg += $measuredWeight;
@@ -2880,25 +2892,49 @@ class Inventory
 
             $shippingCost = round($totalWeightKg * $rate, 4);
 
+            // Backfill each box item's placeholder shipping/extra-charges/landed-cost values
+            // (set to zero/source-cost when created, above) now that $totalWeightKg and
+            // $totalCostBasis — and therefore this shipment's total shipping cost and the pool
+            // of extra charges to allocate by value — are finally known across all boxes.
+            foreach ($createdBoxItems as $entry) {
+                $boxShipping = $totalWeightKg > 0
+                    ? round(($entry['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4)
+                    : 0.0;
+                $boxExtraCharges = $totalCostBasis > 0
+                    ? round(($entry['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4)
+                    : 0.0;
+                $boxLanded = $entry['qty_sent'] > 0
+                    ? round($entry['source_unit_cost'] + (($boxShipping + $boxExtraCharges) / $entry['qty_sent']), 4)
+                    : $entry['source_unit_cost'];
+
+                $entry['model']->update([
+                    'shipping_allocated_amount'      => $boxShipping,
+                    'extra_charges_allocated_amount' => $boxExtraCharges,
+                    'unit_landed_cost_amount'        => $boxLanded,
+                ]);
+            }
+
             foreach ($aggregates as $aggregate) {
                 $qtySent = $aggregate['qty_sent'];
                 $unitCost = $qtySent > 0 ? round($aggregate['cost_total'] / $qtySent, 4) : 0.0;
                 $allocatedShipping = $totalWeightKg > 0 ? round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4) : 0.0;
-                $unitLanded = $qtySent > 0 ? round(($aggregate['cost_total'] + $allocatedShipping) / $qtySent, 4) : 0.0;
+                $allocatedExtraCharges = $totalCostBasis > 0 ? round(($aggregate['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4) : 0.0;
+                $unitLanded = $qtySent > 0 ? round(($aggregate['cost_total'] + $allocatedShipping + $allocatedExtraCharges) / $qtySent, 4) : 0.0;
 
                 ShipmentItem::create([
-                    'shipment_id'               => $shipment->id,
-                    'product_id'                => $aggregate['product_id'],
-                    'variant_id'                => $aggregate['variant_id'],
-                    'qty_sent'                  => $qtySent,
-                    'qty_received'              => 0,
-                    'unit_cost_source_amount'   => $unitCost,
-                    'weight_kg_total'           => round($aggregate['weight_total'], 4),
-                    'shipping_allocated_amount' => $allocatedShipping,
-                    'unit_landed_cost_amount'   => $unitLanded,
-                    'wac_source_before_amount'  => $unitCost,
-                    'wac_dest_before_amount'    => 0,
-                    'wac_dest_after_amount'     => 0,
+                    'shipment_id'                    => $shipment->id,
+                    'product_id'                     => $aggregate['product_id'],
+                    'variant_id'                     => $aggregate['variant_id'],
+                    'qty_sent'                       => $qtySent,
+                    'qty_received'                   => 0,
+                    'unit_cost_source_amount'        => $unitCost,
+                    'weight_kg_total'                => round($aggregate['weight_total'], 4),
+                    'shipping_allocated_amount'      => $allocatedShipping,
+                    'extra_charges_allocated_amount' => $allocatedExtraCharges,
+                    'unit_landed_cost_amount'        => $unitLanded,
+                    'wac_source_before_amount'       => $unitCost,
+                    'wac_dest_before_amount'         => 0,
+                    'wac_dest_after_amount'          => 0,
                 ]);
             }
 
@@ -2946,10 +2982,16 @@ class Inventory
                 $shippingPerUnit = (float) $item->qty_sent > 0
                     ? (float) $item->shipping_allocated_amount / (float) $item->qty_sent
                     : 0.0;
+                // Extra charges (customs/handling/insurance) were allocated as fixed dollar
+                // amounts by value at draft time — unlike shipping/source cost, they don't get
+                // re-derived from a live rate, so the per-unit share stays as originally split.
+                $extraChargesPerUnit = (float) $item->qty_sent > 0
+                    ? (float) $item->extra_charges_allocated_amount / (float) $item->qty_sent
+                    : 0.0;
 
                 $item->update([
                     'unit_cost_source_amount'  => $currentSourceCost,
-                    'unit_landed_cost_amount'  => round($currentSourceCost + $shippingPerUnit, $precision),
+                    'unit_landed_cost_amount'  => round($currentSourceCost + $shippingPerUnit + $extraChargesPerUnit, $precision),
                     'wac_source_before_amount' => $currentSourceCost,
                 ]);
 

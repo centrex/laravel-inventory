@@ -32,6 +32,7 @@ class Shipment extends Model implements Auditable
         'shipment_number', 'from_warehouse_id', 'to_warehouse_id', 'supplier_id',
         'status', 'total_weight_kg',
         'shipping_rate_per_kg', 'shipping_cost_amount',
+        'customs_amount', 'handling_amount', 'insurance_amount',
         'notes', 'shipped_at', 'received_at', 'created_by',
         'accounting_bill_id',
     ];
@@ -41,9 +42,18 @@ class Shipment extends Model implements Auditable
         'total_weight_kg'      => 'decimal:4',
         'shipping_rate_per_kg' => 'decimal:4',
         'shipping_cost_amount' => 'decimal:4',
+        'customs_amount'       => 'decimal:4',
+        'handling_amount'      => 'decimal:4',
+        'insurance_amount'     => 'decimal:4',
         'shipped_at'           => 'datetime',
         'received_at'          => 'datetime',
     ];
+
+    /** Sum of customs, handling, and insurance — the pool allocated to items by value (see Inventory::createInterWarehouseShipment()). */
+    public function getExtraChargesTotalAttribute(): float
+    {
+        return (float) $this->customs_amount + (float) $this->handling_amount + (float) $this->insurance_amount;
+    }
 
     public function fromWarehouse(): BelongsTo
     {
