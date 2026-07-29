@@ -232,7 +232,8 @@ class DashboardController
     }
 
     /**
-     * Real, net-of-charges profit: revenue minus cost of goods, sales discounts (account 6130),
+     * Real, net-of-charges profit: revenue minus cost of goods, sales discounts (Invoice::
+     * AR_REDUCING_ACCOUNT_CODES — 6130-6133: sales/early-payment/volume/promotional discount),
      * and delivery/return charges (accounts 6310/6320/6330/6340) recorded against each order's
      * posted invoice — the same figures the invoice detail "Record Charge/Discount" actions
      * write via laravel-accounting. Falls back to 0 for both when accounting isn't installed.
@@ -249,18 +250,21 @@ class DashboardController
             return ['discount' => 0.0, 'charges' => 0.0];
         }
 
+        $discountCodes = $invoiceClass::AR_REDUCING_ACCOUNT_CODES;
+        $chargeCodes = ['6310', '6320', '6330', '6340'];
+
         $expenses = $expenseClass::query()
             ->where('chargeable_type', $invoiceClass)
             ->whereIn('chargeable_id', $invoiceIds)
-            ->whereHas('account', function ($query): void {
-                $query->whereIn('code', ['6130', '6310', '6320', '6330', '6340']);
+            ->whereHas('account', function ($query) use ($discountCodes, $chargeCodes): void {
+                $query->whereIn('code', [...$discountCodes, ...$chargeCodes]);
             })
             ->with('account:id,code')
             ->get(['id', 'total', 'account_id']);
 
         return [
-            'discount' => (float) $expenses->filter(static fn ($expense): bool => $expense->account?->code === '6130')->sum('total'),
-            'charges'  => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, ['6310', '6320', '6330', '6340'], true))->sum('total'),
+            'discount' => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $discountCodes, true))->sum('total'),
+            'charges'  => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $chargeCodes, true))->sum('total'),
         ];
     }
 }
