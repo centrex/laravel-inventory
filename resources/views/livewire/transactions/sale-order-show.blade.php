@@ -142,7 +142,38 @@
                     <span class="text-base-content/50">Ordered At</span>
                     <span class="font-medium">{{ $record->ordered_at?->format('M d, Y h:i A') ?? '—' }}</span>
                 </div>
+                @if ($record->currency && $record->currency !== config('inventory.base_currency', 'BDT'))
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Currency</span>
+                        <span class="font-medium">{{ $record->currency }} at {{ rtrim(rtrim(number_format((float) $record->exchange_rate, 6, '.', ''), '0'), '.') }}</span>
+                    </div>
+                @endif
             </div>
+
+            @if ($record->credit_override_required)
+                <div class="mt-3 border-t border-base-200 pt-3">
+                    <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/40">Credit Override</div>
+                    <div class="space-y-1.5 text-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-base-content/50">Credit Limit</span>
+                            <span class="font-medium">{{ number_format((float) $record->credit_limit_amount, 2) }}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-base-content/50">Exposure Before → After</span>
+                            <span class="font-medium">{{ number_format((float) $record->credit_exposure_before_amount, 2) }} → {{ number_format((float) $record->credit_exposure_after_amount, 2) }}</span>
+                        </div>
+                        @if ($record->credit_override_approved_at)
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-base-content/50">Approved</span>
+                                <span class="font-medium">{{ $record->credit_override_approved_at->format('M d, Y h:i A') }}</span>
+                            </div>
+                        @endif
+                        @if ($record->credit_override_notes)
+                            <p class="whitespace-pre-line text-xs text-base-content/60">{{ $record->credit_override_notes }}</p>
+                        @endif
+                    </div>
+                </div>
+            @endif
 
             @if ($routeBase === 'inventory.sale-orders')
                 <div class="my-3 border-t border-base-200"></div>
@@ -167,6 +198,28 @@
                     </div>
                 </div>
             @endif
+
+            @can('inventory.pricing.view-wac')
+                @if ((float) $record->cogs_amount > 0)
+                    <div class="mt-3 border-t border-base-200 pt-3">
+                        <div class="mb-1 text-xs font-semibold uppercase tracking-wide text-base-content/40">Margin</div>
+                        <div class="space-y-1.5 text-sm">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-base-content/50">COGS</span>
+                                <span class="font-medium">{{ number_format((float) $record->cogs_amount, 2) }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-base-content/50">Gross Profit</span>
+                                <span class="font-medium">{{ number_format($record->grossProfitAmount(), 2) }}</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-base-content/50">Margin %</span>
+                                <span class="font-medium">{{ number_format($record->grossMarginPct(), 2) }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            @endcan
 
             @if ($record->notes)
                 <div class="mt-3 border-t border-base-200 pt-3">
@@ -200,6 +253,74 @@
                 @endif
             </div>
         </x-tallui-card>
+
+        @if ($routeBase === 'inventory.sale-orders')
+        <x-tallui-card title="Shipping & Tracking" subtitle="Carrier, tracking number, and delivery status." icon="o-truck" :shadow="true">
+            @if ($dispatchInfo)
+                <div class="space-y-1.5 text-sm">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Status</span>
+                        <x-tallui-badge :type="match ($dispatchInfo['parcel_status']) {
+                            'Delivered' => 'success',
+                            'Out for delivery', 'Dispatched' => 'info',
+                            default => 'warning',
+                        }">{{ $dispatchInfo['parcel_status'] ?? 'Pending' }}</x-tallui-badge>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-base-content/50">Carrier</span>
+                        <span class="font-medium">{{ $dispatchInfo['carrier'] ?? '—' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="shrink-0 text-base-content/50">Tracking No.</span>
+                        <span class="text-right font-medium font-mono text-xs">{{ $dispatchInfo['tracking_number'] ?? '—' }}</span>
+                    </div>
+                    @if ($dispatchInfo['location'])
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-base-content/50">Location</span>
+                            <span class="font-medium">{{ $dispatchInfo['location'] }}</span>
+                        </div>
+                    @endif
+                    @if ($dispatchInfo['eta'])
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-base-content/50">ETA</span>
+                            <span class="font-medium">{{ $dispatchInfo['eta'] }}</span>
+                        </div>
+                    @endif
+                    @if ($dispatchInfo['dispatched_by'])
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-base-content/50">Dispatched By</span>
+                            <span class="font-medium">{{ $dispatchInfo['dispatched_by'] }}</span>
+                        </div>
+                    @endif
+                    @if ($dispatchInfo['dispatch_updated_at'])
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-base-content/50">Last Updated</span>
+                            <span class="font-medium">{{ \Carbon\Carbon::parse($dispatchInfo['dispatch_updated_at'])->format('M d, Y h:i A') }}</span>
+                        </div>
+                    @endif
+                    @if ($dispatchInfo['dispatch_note'])
+                        <div class="mt-1 border-t border-base-200 pt-2">
+                            <span class="text-xs text-base-content/50">Note</span>
+                            <p class="whitespace-pre-line text-sm text-base-content/70">{{ $dispatchInfo['dispatch_note'] }}</p>
+                        </div>
+                    @endif
+                </div>
+            @else
+                <p class="text-sm text-base-content/60">Not dispatched yet.</p>
+            @endif
+
+            @if (Route::has('inventory.dispatch.index'))
+                <div class="mt-4">
+                    <x-tallui-button
+                        label="Manage Dispatch"
+                        icon="o-truck"
+                        :link="route('inventory.dispatch.index', ['search' => $record->so_number])"
+                        class="btn-ghost btn-sm"
+                    />
+                </div>
+            @endif
+        </x-tallui-card>
+        @endif
 
         @can('accounting.invoice.view')
         <x-tallui-card title="Finance" subtitle="Track dues and open accounting actions." icon="o-banknotes" :shadow="true">

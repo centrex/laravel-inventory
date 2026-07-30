@@ -24,6 +24,10 @@ class SaleOrderShowPage extends Component
 
     public ?array $linkedSaleOrder = null;
 
+    public ?array $dispatchInfo = null;
+
+    private ?array $metadataCache = null;
+
     public function mount(int $recordId, string $documentType = 'order'): void
     {
         CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.view', 'inventory.sale-orders.view-all']);
@@ -39,6 +43,7 @@ class SaleOrderShowPage extends Component
 
         $this->financeDocument = $this->resolveFinanceDocument();
         $this->linkedSaleOrder = $this->resolveLinkedSaleOrder();
+        $this->dispatchInfo = $this->resolveDispatchInfo();
     }
 
     public function render(): View
@@ -64,6 +69,7 @@ class SaleOrderShowPage extends Component
                 && $this->record->status?->value === 'confirmed'
                 && $this->linkedSaleOrder === null,
             'linkedSaleOrder' => $this->linkedSaleOrder,
+            'dispatchInfo'    => $this->dispatchInfo,
             'saleFlowSteps'   => $this->saleFlowSteps(),
             'saleFlowCurrent' => $this->saleFlowCurrentStep(),
             'saleFlowHalted'  => in_array($this->record->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
@@ -88,10 +94,10 @@ class SaleOrderShowPage extends Component
     private function saleFlowCurrentStep(): int
     {
         return match ($this->record->status) {
-            SaleOrderStatus::CONFIRMED                                                       => 2,
-            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+            SaleOrderStatus::CONFIRMED => 2,
+            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
             SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-            default                                                                          => 1,
+            default => 1,
         };
     }
 
@@ -297,8 +303,35 @@ class SaleOrderShowPage extends Component
             ->where('document_type', $this->documentType)
             ->findOrFail($this->record->getKey());
 
+        $this->metadataCache = null;
         $this->financeDocument = $this->resolveFinanceDocument();
         $this->linkedSaleOrder = $this->resolveLinkedSaleOrder();
+        $this->dispatchInfo = $this->resolveDispatchInfo();
+    }
+
+    /**
+     * Carrier/tracking/delivery-status data recorded via the Dispatch Terminal — stored in the
+     * same polymorphic Data record as $this->documentMetadata(), not on the SaleOrder itself.
+     */
+    private function resolveDispatchInfo(): ?array
+    {
+        $data = $this->documentMetadata();
+
+        if (!filled($data['tracking_number'] ?? null) && !filled($data['parcel_status'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'carrier'             => $data['carrier'] ?? null,
+            'tracking_number'     => $data['tracking_number'] ?? null,
+            'parcel_status'       => $data['parcel_status'] ?? null,
+            'eta'                 => $data['eta'] ?? null,
+            'location'            => $data['location'] ?? null,
+            'dispatch_note'       => $data['dispatch_note'] ?? null,
+            'dispatched_by'       => $data['dispatched_by'] ?? null,
+            'dispatch_updated_at' => $data['dispatch_updated_at'] ?? null,
+            'courier_provider'    => $data['courier_provider'] ?? null,
+        ];
     }
 
     private function resolveLinkedSaleOrder(): ?array
@@ -325,8 +358,12 @@ class SaleOrderShowPage extends Component
 
     private function documentMetadata(): array
     {
+        if ($this->metadataCache !== null) {
+            return $this->metadataCache;
+        }
+
         if (!class_exists(\Centrex\ModelData\Data::class)) {
-            return [];
+            return $this->metadataCache = [];
         }
 
         $record = \Centrex\ModelData\Data::query()
@@ -334,10 +371,10 @@ class SaleOrderShowPage extends Component
             ->first();
 
         if (!$record) {
-            return [];
+            return $this->metadataCache = [];
         }
 
-        return is_array($record->data)
+        return $this->metadataCache = is_array($record->data)
             ? $record->data
             : (json_decode((string) $record->data, true) ?: []);
     }

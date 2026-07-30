@@ -2631,6 +2631,26 @@ parameters:
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
 
 		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:resolveDispatchInfo\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
+
+		-
+			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$dispatchInfo type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
+
+		-
+			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$metadataCache \\(array\\|null\\) does not accept mixed\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
+
+		-
+			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$metadataCache type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
+
+		-
 			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$record \\(Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\) does not accept Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
