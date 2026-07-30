@@ -8341,6 +8341,26 @@ parameters:
 			path: src/Observers/InvoicePaymentObserver.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Invoice\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:\\$id\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$account\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$chargeable_id\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$chargeable_type\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\FiscalPeriod\\:\\:\\$end_date\\.$#"
 			count: 1
 			path: src/Support/AccountingInventorySnapshotProvider.php

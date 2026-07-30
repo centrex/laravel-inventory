@@ -53,7 +53,7 @@ class PurchaseOrderTable extends DataTable
             Column::make('Warehouse', 'warehouse.name')->relation('warehouse')->searchable()->hideOnMobile(),
             Column::make('Status', 'status')->badge('neutral', StatusBadge::colors()),
             Column::make('Currency', 'currency')->hideOnMobile(),
-            Column::make('Total', 'total_local')->currency($currency)->sortable()->summable(),
+            Column::make('Total', 'total_amount')->currency($currency)->sortable()->summable(),
             Column::make('Due', 'computed_due')
                 ->view('inventory::livewire.partials.purchase-order-table.due')
                 ->excludeFromExport(),

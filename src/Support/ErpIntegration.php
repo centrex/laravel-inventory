@@ -947,7 +947,7 @@ class ErpIntegration
         return (int) $customer->id;
     }
 
-    private function resyncSaleOrderDueAmount(SaleOrder $saleOrder, object $invoice): void
+    public function resyncSaleOrderDueAmount(SaleOrder $saleOrder, object $invoice): void
     {
         // $invoice->total/paid_amount are already in base currency (see syncSaleOrderDocument()),
         // same as $saleOrder->due_amount/paid_amount — no rate conversion needed here.

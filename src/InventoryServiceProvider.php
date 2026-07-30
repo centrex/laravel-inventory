@@ -7,7 +7,7 @@ namespace Centrex\Inventory;
 use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand, SyncExchangeRatesCommand};
 use Centrex\Inventory\Listeners\ReconcileSaleReturnCreditMemos;
 use Centrex\Inventory\Models\{Customer, Supplier};
-use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, InvoicePaymentObserver, SupplierObserver};
+use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, InvoiceDiscountObserver, InvoicePaymentObserver, SupplierObserver};
 use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
 use Illuminate\Support\Facades\{Blade, Event, Gate};
 use Illuminate\Support\ServiceProvider;
@@ -40,6 +40,10 @@ class InventoryServiceProvider extends ServiceProvider
 
             if (class_exists(\Centrex\Accounting\Models\Invoice::class)) {
                 \Centrex\Accounting\Models\Invoice::observe(InvoicePaymentObserver::class);
+            }
+
+            if (class_exists(\Centrex\Accounting\Models\Expense::class)) {
+                \Centrex\Accounting\Models\Expense::observe(InvoiceDiscountObserver::class);
             }
 
             if (class_exists(\Centrex\Accounting\Models\Bill::class)) {
@@ -377,8 +381,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory);
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
+        $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(

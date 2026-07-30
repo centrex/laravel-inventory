@@ -155,17 +155,19 @@
                                                         this.search = p.name + (p.sku ? ' · ' + p.sku : '');
                                                         this.open = false;
                                                         $wire.set('boxes.{{ $boxIndex }}.items.{{ $itemIndex }}.product_id', p.id);
+                                                    },
+                                                    init() {
+                                                        const id = {{ (int) ($item['product_id'] ?? 0) }};
+                                                        if (id) {
+                                                            const p = this.products.find(x => x.id === id);
+                                                            if (p) this.search = p.name + (p.sku ? ' · ' + p.sku : '');
+                                                        }
                                                     }
                                                 }"
                                                 x-init="
-                                                    const id = {{ (int) ($item['product_id'] ?? 0) }};
-                                                    if (id) {
-                                                        const p = this.products.find(x => x.id === id);
-                                                        if (p) search = p.name + (p.sku ? ' · ' + p.sku : '');
-                                                    }
                                                     const handler = (e) => { if (!$refs.anchor?.contains(e.target)) open = false; };
                                                     document.addEventListener('click', handler);
-                                                    $cleanup(() => document.removeEventListener('click', handler));
+                                                    if (typeof $cleanup === 'function') $cleanup(() => document.removeEventListener('click', handler));
                                                 "
                                             >
                                                 <div x-ref="anchor" class="max-w-sm">
