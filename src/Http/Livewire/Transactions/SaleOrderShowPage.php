@@ -94,10 +94,10 @@ class SaleOrderShowPage extends Component
     private function saleFlowCurrentStep(): int
     {
         return match ($this->record->status) {
-            SaleOrderStatus::CONFIRMED => 2,
-            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
+            SaleOrderStatus::CONFIRMED                                                       => 2,
+            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
             SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-            default => 1,
+            default                                                                          => 1,
         };
     }
 
