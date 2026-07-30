@@ -381,8 +381,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory);
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
+        $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(
@@ -438,6 +438,8 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-purchase-report', Http\Livewire\Transactions\PurchaseReportPage::class);
         Livewire::component('inventory-stock-report', Http\Livewire\Transactions\StockReportPage::class);
         Livewire::component('inventory-forecast-report', Http\Livewire\Transactions\ForecastReportPage::class);
+        Livewire::component('inventory-forecast-card', Http\Livewire\Transactions\InventoryForecastCard::class);
+        Livewire::component('inventory-sales-target-card', Http\Livewire\Transactions\InventorySalesTargetCard::class);
         Livewire::component('inventory-customer-heatmap', Http\Livewire\Transactions\CustomerHeatMapPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);

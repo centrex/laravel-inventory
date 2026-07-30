@@ -482,141 +482,14 @@
 
     <x-slot:forecast>
         @if ($canViewForecast)
-            <div class="stats shadow w-full mb-6">
-                <x-tallui-stat
-                    title="Forecast Demand"
-                    :value="number_format((float) data_get($forecast, 'summary.forecast_qty', 0), 2)"
-                    :desc="data_get($forecast, 'window.forecast_days', 90) . ' day projected quantity'"
-                    icon="o-arrow-trending-up"
-                />
-                <x-tallui-stat
-                    title="Holistic Requirement"
-                    :value="number_format((float) data_get($forecast, 'summary.required_qty', 0), 2)"
-                    :desc="data_get($forecast, 'summary.products_at_risk', 0) . ' products need replenishment'"
-                    icon="o-cube"
-                />
-                <x-tallui-stat
-                    title="Forecast Cash Net"
-                    :value="number_format((float) data_get($forecast, 'summary.forecast_cash_net', 0), 2)"
-                    desc="Projected collections less procurement cash"
-                    icon="o-presentation-chart-line"
-                />
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-3 mb-6">
-                <x-tallui-card
-                    title="Sales Forecast"
-                    subtitle="Projected quantity, revenue, and cash impact from recent order behavior."
-                    icon="o-arrow-trending-up"
-                    :shadow="true"
-                >
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between"><span class="text-base-content/60">Lookback Window</span><strong>{{ data_get($forecast, 'window.lookback_days', 0) }} days</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Forecast Horizon</span><strong>{{ data_get($forecast, 'window.forecast_days', 0) }} days</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Projected Quantity</span><strong>{{ number_format((float) data_get($forecast, 'summary.forecast_qty', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Projected Revenue</span><strong>{{ number_format((float) data_get($forecast, 'summary.forecast_revenue', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Expected Cash In</span><strong class="text-success">{{ number_format((float) data_get($forecast, 'summary.forecast_cash_in', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Expected Cash Out</span><strong>{{ number_format((float) data_get($forecast, 'summary.forecast_cash_out', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Net Cash</span><strong class="{{ (float) data_get($forecast, 'summary.forecast_cash_net', 0) >= 0 ? 'text-success' : 'text-error' }}">{{ number_format((float) data_get($forecast, 'summary.forecast_cash_net', 0), 2) }}</strong></div>
-                    </div>
-                </x-tallui-card>
-
-                <x-tallui-card
-                    title="Top Product Risks"
-                    subtitle="Products with the biggest upcoming demand gap and stockout timeline."
-                    icon="o-exclamation-triangle"
-                    :shadow="true"
-                    class="xl:col-span-2"
-                >
-                    <div class="overflow-x-auto">
-                        <table class="table table-sm w-full">
-                            <thead>
-                                <tr class="bg-base-300 text-xs text-base-content/60 uppercase tracking-wide border-b border-base-300">
-                                    <th>Product</th>
-                                    <th>Forecast Qty</th>
-                                    <th>Available Soon</th>
-                                    <th>Gap</th>
-                                    <th>Cover</th>
-                                    <th>Stockout</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse (collect(data_get($forecast, 'products', []))->take(6) as $product)
-                                    <tr class="even:bg-base-200/50 hover:bg-base-200">
-                                        <td>
-                                            <div class="font-medium">{{ $product['product_name'] }}</div>
-                                            <div class="text-xs text-base-content/50">{{ $product['sku'] ?: '—' }}</div>
-                                        </td>
-                                        <td>{{ number_format((float) $product['forecast_qty'], 2) }}</td>
-                                        <td>{{ number_format((float) $product['available_soon_qty'], 2) }}</td>
-                                        <td class="{{ (float) $product['forecast_gap_qty'] > 0 ? 'text-warning font-semibold' : 'text-success' }}">{{ number_format((float) $product['forecast_gap_qty'], 2) }}</td>
-                                        <td>{{ $product['days_of_cover'] !== null ? number_format((float) $product['days_of_cover'], 1) . ' days' : '—' }}</td>
-                                        <td>{{ $product['stockout_date'] ?: 'Covered' }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="text-sm text-base-content/60">No forecast data available yet.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </x-tallui-card>
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-2 mb-6">
-                <x-tallui-card
-                    title="Customer Forecast"
-                    subtitle="Projected customer-wise demand based on recent order patterns."
-                    icon="o-user-group"
-                    :shadow="true"
-                >
-                    <div class="space-y-3 text-sm">
-                        @forelse (data_get($forecast, 'customers', []) as $customer)
-                            <div class="flex items-center justify-between gap-3 rounded-xl border border-base-200 bg-base-100 p-3">
-                                <div>
-                                    <div class="font-medium">{{ $customer['customer_name'] }}</div>
-                                    <div class="text-xs text-base-content/60">{{ $customer['zone'] ?? 'Unassigned' }} · {{ $customer['area'] ?? 'Unassigned' }} · {{ $customer['demographic'] ?? 'Unassigned' }} · {{ $customer['segment'] ?? 'New' }}</div>
-                                    <div class="text-xs text-base-content/60">{{ $customer['orders_count'] }} orders · {{ $customer['products_count'] }} products</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-semibold">{{ number_format((float) $customer['forecast_revenue'], 2) }}</div>
-                                    <div class="text-xs text-base-content/60">{{ number_format((float) $customer['forecast_qty'], 2) }} qty</div>
-                                </div>
-                            </div>
-                        @empty
-                            <p class="text-sm text-base-content/60">No customer forecast available yet.</p>
-                        @endforelse
-                    </div>
-                </x-tallui-card>
-
-                <x-tallui-card
-                    title="Forecast Timeline"
-                    subtitle="Holistic monthly demand and cash requirement for inventory planning."
-                    icon="o-calendar-days"
-                    :shadow="true"
-                >
-                    <div class="space-y-3 text-sm">
-                        @forelse (data_get($forecast, 'timeline.categories', []) as $index => $month)
-                            <div class="rounded-xl border border-base-200 bg-base-100 p-3">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="font-medium">{{ $month }}</div>
-                                    <div class="text-xs text-base-content/60">Forecast bucket</div>
-                                </div>
-                                <div class="mt-2 grid grid-cols-2 gap-2 text-xs md:grid-cols-5">
-                                    <div><span class="text-base-content/50">Qty</span><div class="font-semibold">{{ number_format((float) data_get($forecast, "timeline.series.0.data.$index", 0), 2) }}</div></div>
-                                    <div><span class="text-base-content/50">Revenue</span><div class="font-semibold">{{ number_format((float) data_get($forecast, "timeline.series.1.data.$index", 0), 2) }}</div></div>
-                                    <div><span class="text-base-content/50">Cash In</span><div class="font-semibold text-success">{{ number_format((float) data_get($forecast, "timeline.series.2.data.$index", 0), 2) }}</div></div>
-                                    <div><span class="text-base-content/50">Cash Out</span><div class="font-semibold">{{ number_format((float) data_get($forecast, "timeline.series.3.data.$index", 0), 2) }}</div></div>
-                                    <div><span class="text-base-content/50">Net</span><div class="font-semibold {{ (float) data_get($forecast, "timeline.series.4.data.$index", 0) >= 0 ? 'text-success' : 'text-error' }}">{{ number_format((float) data_get($forecast, "timeline.series.4.data.$index", 0), 2) }}</div></div>
-                                </div>
-                            </div>
-                        @empty
-                            <p class="text-sm text-base-content/60">No timeline forecast available yet.</p>
-                        @endforelse
-                    </div>
-                </x-tallui-card>
-            </div>
+            {{-- Not mounted (and its lazy AJAX fetch not fired) until this tab is actually
+                 clicked — x-tallui-tab's named-slot panels are `x-show`-toggled, not removed
+                 from the DOM, so a plain `lazy` tag here would still fetch on page load. --}}
+            <template x-if="activeTab === 'forecast'">
+                <div>
+                    <livewire:inventory-forecast-card lazy />
+                </div>
+            </template>
         @else
             <x-tallui-card
                 title="Forecast Access Required"
@@ -637,6 +510,10 @@
 
     <x-slot:target>
         @if ($canViewForecast)
+            {{-- Inputs read straight from the query string (this form does a full GET reload
+                 on submit — same values SalesTargetCalculator was given last), so this stays
+                 in the shell and renders immediately; it doesn't need the heavy computation
+                 below to know what to show. --}}
             <form method="GET" action="{{ route('inventory.dashboard') }}" class="mb-6">
                 <input type="hidden" name="dashboard_tab" value="target">
                 <x-tallui-card
@@ -648,27 +525,27 @@
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
                         <label class="form-control">
                             <span class="label-text text-xs font-semibold">Lookback Days</span>
-                            <input type="number" min="7" max="730" name="target_lookback_days" value="{{ data_get($salesTarget, 'window.lookback_days', 90) }}" class="input input-bordered input-sm">
+                            <input type="number" min="7" max="730" name="target_lookback_days" value="{{ request('target_lookback_days', 90) }}" class="input input-bordered input-sm">
                         </label>
                         <label class="form-control">
                             <span class="label-text text-xs font-semibold">Target Days</span>
-                            <input type="number" min="1" max="366" name="target_days" value="{{ data_get($salesTarget, 'window.target_days', 30) }}" class="input input-bordered input-sm">
+                            <input type="number" min="1" max="366" name="target_days" value="{{ request('target_days', 30) }}" class="input input-bordered input-sm">
                         </label>
                         <label class="form-control">
                             <span class="label-text text-xs font-semibold">Gross Margin %</span>
-                            <input type="number" min="1" max="95" step="0.01" name="target_gross_margin_pct" value="{{ data_get($salesTarget, 'inputs.expected_gross_margin_pct', 25) }}" class="input input-bordered input-sm">
+                            <input type="number" min="1" max="95" step="0.01" name="target_gross_margin_pct" value="{{ request('target_gross_margin_pct', 25) }}" class="input input-bordered input-sm">
                         </label>
                         <label class="form-control">
                             <span class="label-text text-xs font-semibold">Net Profit %</span>
-                            <input type="number" min="0" max="80" step="0.01" name="target_net_margin_pct" value="{{ data_get($salesTarget, 'inputs.desired_net_margin_pct', 10) }}" class="input input-bordered input-sm">
+                            <input type="number" min="0" max="80" step="0.01" name="target_net_margin_pct" value="{{ request('target_net_margin_pct', 10) }}" class="input input-bordered input-sm">
                         </label>
                         <label class="form-control">
                             <span class="label-text text-xs font-semibold">Growth %</span>
-                            <input type="number" min="0" max="200" step="0.01" name="target_growth_pct" value="{{ data_get($salesTarget, 'inputs.growth_pct', 0) }}" class="input input-bordered input-sm">
+                            <input type="number" min="0" max="200" step="0.01" name="target_growth_pct" value="{{ request('target_growth_pct', 0) }}" class="input input-bordered input-sm">
                         </label>
                         <label class="form-control">
                             <span class="label-text text-xs font-semibold">Expense Allocation %</span>
-                            <input type="number" min="0" max="100" step="0.01" name="target_expense_allocation_pct" value="{{ data_get($salesTarget, 'inputs.expense_allocation_pct', 100) }}" class="input input-bordered input-sm">
+                            <input type="number" min="0" max="100" step="0.01" name="target_expense_allocation_pct" value="{{ request('target_expense_allocation_pct', 100) }}" class="input input-bordered input-sm">
                         </label>
                     </div>
                     <div class="mt-4 flex justify-end">
@@ -677,67 +554,11 @@
                 </x-tallui-card>
             </form>
 
-            <div class="stats shadow w-full mb-6">
-                <x-tallui-stat
-                    title="Target Revenue"
-                    :value="number_format((float) data_get($salesTarget, 'target.revenue', 0), 2)"
-                    :desc="data_get($salesTarget, 'window.target_days', 30) . ' day sales team target'"
-                    icon="o-trophy"
-                />
-                <x-tallui-stat
-                    title="Daily Target"
-                    :value="number_format((float) data_get($salesTarget, 'target.daily_revenue', 0), 2)"
-                    desc="Required average sales per day"
-                    icon="o-calendar-days"
-                />
-                <x-tallui-stat
-                    title="Target Net Profit"
-                    :value="number_format((float) data_get($salesTarget, 'target.net_profit', 0), 2)"
-                    :desc="'Cost base ' . number_format((float) data_get($salesTarget, 'target.cost_base', 0), 2)"
-                    icon="o-banknotes"
-                />
-            </div>
-
-            <div class="grid grid-cols-1 gap-4 xl:grid-cols-3 mb-6">
-                <x-tallui-card
-                    title="Target Build"
-                    subtitle="Cost recovery plus margin and growth assumptions."
-                    icon="o-calculator"
-                    :shadow="true"
-                >
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between"><span class="text-base-content/60">Target Expense</span><strong>{{ number_format((float) data_get($salesTarget, 'target.expense', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Target Payroll</span><strong>{{ number_format((float) data_get($salesTarget, 'target.payroll', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Cost Base</span><strong>{{ number_format((float) data_get($salesTarget, 'target.cost_base', 0), 2) }}</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Contribution Rate</span><strong>{{ number_format((float) data_get($salesTarget, 'target.contribution_rate_pct', 0), 2) }}%</strong></div>
-                        <div class="flex justify-between"><span class="text-base-content/60">Gross Profit Target</span><strong>{{ number_format((float) data_get($salesTarget, 'target.gross_profit', 0), 2) }}</strong></div>
-                    </div>
-                </x-tallui-card>
-
-                <x-tallui-card
-                    title="Recent Baseline"
-                    subtitle="Actual sales, COGS, expense, and payroll from the lookback period."
-                    icon="o-chart-bar"
-                    :shadow="true"
-                    class="xl:col-span-2"
-                >
-                    <div class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Orders</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.orders_count', 0)) }}</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Revenue</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.revenue', 0), 2) }}</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Gross Margin</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.gross_margin_pct', 0), 2) }}%</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Daily Revenue</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.daily_revenue', 0), 2) }}</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Expense</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.expense', 0), 2) }}</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Allocated Expense</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.allocated_expense', 0), 2) }}</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Payroll</span><div class="font-semibold">{{ number_format((float) data_get($salesTarget, 'history.payroll', 0), 2) }}</div></div>
-                        <div class="rounded-xl border border-base-200 bg-base-100 p-3"><span class="text-xs text-base-content/50">Daily Lift</span><div class="font-semibold {{ (float) data_get($salesTarget, 'target.required_daily_lift_pct', 0) > 0 ? 'text-warning' : 'text-success' }}">{{ data_get($salesTarget, 'target.required_daily_lift_pct') === null ? '—' : number_format((float) data_get($salesTarget, 'target.required_daily_lift_pct', 0), 2) . '%' }}</div></div>
-                    </div>
-                    <div class="mt-3 text-xs text-base-content/50">
-                        Expense allocation auto baseline: {{ number_format((float) data_get($salesTarget, 'inputs.auto_expense_allocation_pct', 100), 2) }}%.
-                        Accounting: {{ data_get($salesTarget, 'availability.accounting_expenses') ? 'available' : 'not available' }}.
-                        Payroll: {{ data_get($salesTarget, 'availability.payroll') ? 'available' : 'not available' }}.
-                    </div>
-                </x-tallui-card>
-            </div>
+            <template x-if="activeTab === 'target'">
+                <div>
+                    <livewire:inventory-sales-target-card lazy />
+                </div>
+            </template>
         @else
             <x-tallui-card
                 title="Sales Target Access Required"

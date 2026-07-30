@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Http\Controllers\Web;
 
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{SaleOrder, Warehouse};
+use Centrex\Inventory\Models\{SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,15 +20,26 @@ class DashboardController
         Gate::authorize('inventory.master-data.view');
         $inventory = app(Inventory::class);
         $canViewForecast = Gate::allows('inventory.reports.view');
-        $forecast = $canViewForecast ? $inventory->salesForecast() : null;
-        $salesTarget = $canViewForecast ? $inventory->salesTarget(
-            lookbackDays: $request->integer('target_lookback_days', 90),
-            targetDays: $request->integer('target_days', 30),
-            expectedGrossMarginPct: $request->filled('target_gross_margin_pct') ? (float) $request->input('target_gross_margin_pct') : null,
-            desiredNetMarginPct: $request->filled('target_net_margin_pct') ? (float) $request->input('target_net_margin_pct') : 10.0,
-            growthPct: $request->filled('target_growth_pct') ? (float) $request->input('target_growth_pct') : 0.0,
-            expenseAllocationPct: $request->filled('target_expense_allocation_pct') ? (float) $request->input('target_expense_allocation_pct') : null,
-        ) : null;
+
+        // Forecast/Sales Target used to be computed here on every dashboard load regardless
+        // of which tab was open — salesForecast() alone is the heaviest computation in the
+        // codebase (full order/item/warehouse-product/PO-item scans). Both now live in their
+        // own lazy Livewire components (InventoryForecastCard, InventorySalesTargetCard),
+        // mounted only once their tab is actually opened — see dashboard.blade.php.
+
+        // One grouped query instead of 2 per warehouse (getStockValue()/getNetSaleableStock()
+        // called per row) — those methods stay as-is for their existing single-warehouse callers.
+        // Aliases are deliberately NOT "stock_value"/"net_saleable_stock": WarehouseProduct
+        // defines a real getNetSaleableStockAttribute() accessor, and Eloquent calls that
+        // accessor instead of returning a raw-selected column of the same name — which then
+        // throws MissingAttributeException reaching for qty_on_hand/qty_reserved, columns
+        // this aggregate query never selects.
+        $warehouseStockTotals = WarehouseProduct::query()
+            ->selectRaw('warehouse_id, SUM(qty_on_hand * wac_amount) as agg_stock_value, SUM(qty_on_hand - qty_reserved) as agg_net_saleable_stock')
+            ->groupBy('warehouse_id')
+            ->get()
+            ->keyBy('warehouse_id');
+
         $warehouseStockValues = Warehouse::query()
             ->orderBy('name')
             ->get()
@@ -36,8 +47,8 @@ class DashboardController
                 'id'                 => $warehouse->id,
                 'name'               => $warehouse->name,
                 'currency'           => $warehouse->currency,
-                'stock_value'        => $inventory->getStockValue($warehouse->id),
-                'net_saleable_stock' => $inventory->getNetSaleableStock($warehouse->id),
+                'stock_value'        => (float) ($warehouseStockTotals->get($warehouse->id)?->agg_stock_value ?? 0),
+                'net_saleable_stock' => (float) ($warehouseStockTotals->get($warehouse->id)?->agg_net_saleable_stock ?? 0),
             ]);
 
         return view('inventory::dashboard', [
@@ -45,8 +56,6 @@ class DashboardController
             'warehouseStockValues'  => $warehouseStockValues,
             'totalStockValue'       => $warehouseStockValues->sum('stock_value'),
             'totalNetSaleableStock' => $warehouseStockValues->sum('net_saleable_stock'),
-            'forecast'              => $forecast,
-            'salesTarget'           => $salesTarget,
             'canViewForecast'       => $canViewForecast,
             'salesTrend'            => $this->buildSalesTrend(),
             'draftSaleOrders'       => $this->buildDraftSaleOrders(),
