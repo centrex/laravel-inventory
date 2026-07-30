@@ -11,7 +11,7 @@ beforeEach(function (): void {
 });
 
 it('InventoryForecastCard computes a forecast and caches the result', function (): void {
-    $component = new InventoryForecastCard();
+    $component = new InventoryForecastCard;
     $component->mount();
 
     $forecast = $component->forecast();
@@ -31,7 +31,7 @@ it('InventoryForecastCard computes a forecast and caches the result', function (
 it('InventorySalesTargetCard reads inputs from the query string and caches the result', function (): void {
     request()->merge(['target_lookback_days' => 60, 'target_days' => 14]);
 
-    $component = new InventorySalesTargetCard();
+    $component = new InventorySalesTargetCard;
     $component->mount();
 
     expect($component->lookbackDays)->toBe(60)
