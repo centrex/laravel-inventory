@@ -175,6 +175,16 @@ final class CommercialTeamAccess
         ];
     }
 
+    /**
+     * Human label for the scope visibleUserIds() resolves to — "Company-wide" when the
+     * current user sees every order (admin/view-all grantee), "You & your team" otherwise.
+     * Shared by the dashboard's trend/price-tier/employee cards so their subtitles agree.
+     */
+    public static function scopeLabel(string $workflow = 'sales'): string
+    {
+        return self::visibleUserIds($workflow) === null ? 'Company-wide' : 'You & your team';
+    }
+
     public static function visibleUserIds(string $workflow, ?int $userId = null): ?array
     {
         $userId ??= self::currentUserId();
@@ -258,7 +268,7 @@ final class CommercialTeamAccess
                 return;
             }
 
-            $customerModel = new Customer;
+            $customerModel = new Customer();
 
             // Skip subquery when models live on different database connections.
             if ($customerModel->getConnectionName() !== $orderConn) {
@@ -407,7 +417,7 @@ final class CommercialTeamAccess
 
     private static function tableReady(): bool
     {
-        $model = new CommercialTeamMember;
+        $model = new CommercialTeamMember();
 
         return Schema::connection($model->getConnectionName())->hasTable($model->getTable());
     }

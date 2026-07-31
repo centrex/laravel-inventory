@@ -7,6 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Inventory;
 use Centrex\TallUi\Concerns\CachesData;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{Blade, Gate};
 use Livewire\Component;
 
@@ -33,8 +34,32 @@ class InventoryForecastCard extends Component
     {
         return $this->rememberCache(
             $this->cacheKey('inventory', 'forecast-card'),
-            fn (): array => app(Inventory::class)->salesForecast(),
+            fn (): array => $this->sanitizeForCache(app(Inventory::class)->salesForecast()),
         );
+    }
+
+    /**
+     * salesForecast()'s 'products'/'customers'/'zones'/'areas'/'demographics' entries are
+     * Collection instances (fine for its other, uncached callers) — the cache store
+     * serializes this whole array with PHP's native serialize(), and a Collection
+     * surviving into that blob comes back as __PHP_Incomplete_Class if its class isn't
+     * autoloaded yet on the next request, so a later ->count()/iteration throws deep
+     * inside the view. Flatten to plain arrays so only cache-safe data crosses that
+     * boundary — every consumer here (this card's Blade view) already wraps these with
+     * collect()/foreach, both of which work identically on a plain array.
+     *
+     * @param  array<string, mixed>  $forecast
+     * @return array<string, mixed>
+     */
+    private function sanitizeForCache(array $forecast): array
+    {
+        foreach (['products', 'customers', 'zones', 'areas', 'demographics'] as $key) {
+            if ($forecast[$key] instanceof Collection) {
+                $forecast[$key] = $forecast[$key]->all();
+            }
+        }
+
+        return $forecast;
     }
 
     public function placeholder(): string

@@ -5,10 +5,10 @@ declare(strict_types = 1);
 use Centrex\Inventory\Models\{Product, Warehouse, WarehouseProduct};
 
 /**
- * Regression test for DashboardController.php's grouped warehouse-stock query (introduced
- * to fix the getStockValue()/getNetSaleableStock() N+1). The raw SELECT must not alias a
- * column as "net_saleable_stock" — WarehouseProduct::getNetSaleableStockAttribute() is a
- * real accessor, and Eloquent calls that accessor instead of returning the raw-selected
+ * Regression test for InventoryWarehouseStockCard's grouped warehouse-stock query
+ * (introduced to fix the getStockValue()/getNetSaleableStock() N+1). The raw SELECT must
+ * not alias a column as "net_saleable_stock" — WarehouseProduct::getNetSaleableStockAttribute()
+ * is a real accessor, and Eloquent calls that accessor instead of returning the raw-selected
  * value, throwing MissingAttributeException reaching for qty_on_hand/qty_reserved (columns
  * this aggregate query never selects).
  */

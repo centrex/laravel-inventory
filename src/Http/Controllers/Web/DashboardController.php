@@ -4,12 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Web;
 
-use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
-use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{SaleOrder, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\{CommercialTeamAccess, InventoryEntityRegistry};
+use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -18,7 +14,6 @@ class DashboardController
     public function __invoke(Request $request): View
     {
         Gate::authorize('inventory.master-data.view');
-        $inventory = app(Inventory::class);
         $canViewForecast = Gate::allows('inventory.reports.view');
 
         // Forecast/Sales Target used to be computed here on every dashboard load regardless
@@ -27,253 +22,15 @@ class DashboardController
         // own lazy Livewire components (InventoryForecastCard, InventorySalesTargetCard),
         // mounted only once their tab is actually opened — see dashboard.blade.php.
 
-        // One grouped query instead of 2 per warehouse (getStockValue()/getNetSaleableStock()
-        // called per row) — those methods stay as-is for their existing single-warehouse callers.
-        // Aliases are deliberately NOT "stock_value"/"net_saleable_stock": WarehouseProduct
-        // defines a real getNetSaleableStockAttribute() accessor, and Eloquent calls that
-        // accessor instead of returning a raw-selected column of the same name — which then
-        // throws MissingAttributeException reaching for qty_on_hand/qty_reserved, columns
-        // this aggregate query never selects.
-        $warehouseStockTotals = WarehouseProduct::query()
-            ->selectRaw('warehouse_id, SUM(qty_on_hand * wac_amount) as agg_stock_value, SUM(qty_on_hand - qty_reserved) as agg_net_saleable_stock')
-            ->groupBy('warehouse_id')
-            ->get()
-            ->keyBy('warehouse_id');
-
-        $warehouseStockValues = Warehouse::query()
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Warehouse $warehouse) => [
-                'id'                 => $warehouse->id,
-                'name'               => $warehouse->name,
-                'currency'           => $warehouse->currency,
-                'stock_value'        => (float) ($warehouseStockTotals->get($warehouse->id)?->agg_stock_value ?? 0),
-                'net_saleable_stock' => (float) ($warehouseStockTotals->get($warehouse->id)?->agg_net_saleable_stock ?? 0),
-            ]);
+        // The Overview tab's report cards (Sales Order Trend, Draft Sale Orders, Sales by
+        // Price Tier, Sales by Employee, Warehouse Stock) used to be computed here too, on
+        // every dashboard load. They're each their own lazy Livewire component now
+        // (InventorySalesTrendCard and friends) — the controller only needs to authorize
+        // the page and hand over the Master Data entity list.
 
         return view('inventory::dashboard', [
-            'entities'              => InventoryEntityRegistry::entities(),
-            'warehouseStockValues'  => $warehouseStockValues,
-            'totalStockValue'       => $warehouseStockValues->sum('stock_value'),
-            'totalNetSaleableStock' => $warehouseStockValues->sum('net_saleable_stock'),
-            'canViewForecast'       => $canViewForecast,
-            'salesTrend'            => $this->buildSalesTrend(),
-            'draftSaleOrders'       => $this->buildDraftSaleOrders(),
-            'salesByPriceTier'      => $this->buildSalesByPriceTier(),
-            'salesByEmployee'       => $this->buildSalesByEmployee(),
+            'entities'        => InventoryEntityRegistry::entities(),
+            'canViewForecast' => $canViewForecast,
         ]);
-    }
-
-    /**
-     * This-month revenue/order-count broken down by price tier, same scope and
-     * excluded-status rules as buildSalesTrend() so the figures add up to the same total.
-     */
-    private function buildSalesByPriceTier(): array
-    {
-        $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
-
-        $rows = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
-            ->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfDay()])
-            ->whereNotIn('status', $excluded)
-            ->selectRaw('price_tier_code, COUNT(*) as orders_count, SUM(total_amount) as revenue')
-            ->groupBy('price_tier_code')
-            ->orderByDesc('revenue')
-            ->get();
-
-        return $rows->map(fn ($row): array => [
-            'code'         => $row->price_tier_code,
-            'label'        => PriceTierCode::labelFor($row->price_tier_code) ?? $row->price_tier_code,
-            'orders_count' => (int) $row->orders_count,
-            'revenue'      => (float) $row->revenue,
-        ])->all();
-    }
-
-    /**
-     * This-month revenue/order-count broken down by employee (sales executive, falling
-     * back to whoever created the order when no executive is tagged).
-     */
-    private function buildSalesByEmployee(): array
-    {
-        $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
-
-        $rows = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
-            ->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfDay()])
-            ->whereNotIn('status', $excluded)
-            ->selectRaw('COALESCE(sales_executive_id, created_by) as employee_id, COUNT(*) as orders_count, SUM(total_amount) as revenue')
-            ->groupBy('employee_id')
-            ->orderByDesc('revenue')
-            ->get();
-
-        $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
-        $users = $userModel::query()->whereIn('id', $rows->pluck('employee_id')->filter())->get(['id', 'name'])->keyBy('id');
-
-        return $rows->map(fn ($row): array => [
-            'employee_id'  => $row->employee_id,
-            'name'         => $row->employee_id ? ($users[$row->employee_id]->name ?? "User #{$row->employee_id}") : 'Unassigned',
-            'orders_count' => (int) $row->orders_count,
-            'revenue'      => (float) $row->revenue,
-        ])->all();
-    }
-
-    /**
-     * Draft sale orders are excluded from the Sales Order Trend (they aren't real
-     * commitments yet), so surface them separately — count, pending value, and the
-     * most recent few — to flag orders still awaiting confirmation.
-     */
-    private function buildDraftSaleOrders(): array
-    {
-        $orders = CommercialTeamAccess::applySalesScope(
-            SaleOrder::query()->where('document_type', 'order'),
-        )
-            ->where('status', SaleOrderStatus::DRAFT->value)
-            ->with('customer:id,name')
-            ->latest('ordered_at')
-            ->get(['id', 'so_number', 'customer_id', 'warehouse_id', 'ordered_at', 'total_amount']);
-
-        return [
-            'count'  => $orders->count(),
-            'total'  => (float) $orders->sum('total_amount'),
-            'recent' => $orders->take(5),
-        ];
-    }
-
-    private function buildSalesTrend(): array
-    {
-        $thisStart = now()->startOfMonth();
-        $thisEnd = now()->endOfDay();
-        $prevStart = now()->subMonthNoOverflow()->startOfMonth();
-        $prevEnd = now()->subMonthNoOverflow()->endOfMonth();
-
-        $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
-
-        // Scoped to the current user's own orders plus their reporting line (via
-        // CommercialTeamAccess), same rule the dispatch terminal and order lists use —
-        // an executive sees their own numbers, a manager sees their whole team's.
-        $scopedOrders = static fn (): \Illuminate\Database\Eloquent\Builder => CommercialTeamAccess::applySalesScope(
-            SaleOrder::query()->where('document_type', 'order'),
-        );
-
-        $thisOrders = $scopedOrders()
-            ->whereBetween('ordered_at', [$thisStart, $thisEnd])
-            ->whereNotIn('status', $excluded)
-            ->get(['id', 'total_amount', 'cogs_amount', 'accounting_invoice_id', 'ordered_at']);
-
-        $prevOrders = $scopedOrders()
-            ->whereBetween('ordered_at', [$prevStart, $prevEnd])
-            ->whereNotIn('status', $excluded)
-            ->get(['id', 'total_amount', 'cogs_amount', 'accounting_invoice_id', 'ordered_at']);
-
-        $thisSummary = $this->summarizeOrders($thisOrders);
-        $prevSummary = $this->summarizeOrders($prevOrders);
-
-        $daysInMonth = now()->daysInMonth;
-        $days = range(1, $daysInMonth);
-
-        $fillDaily = static function (Collection $orders) use ($days): array {
-            $byDay = array_fill_keys($days, 0.0);
-
-            foreach ($orders->groupBy(static fn (SaleOrder $order): int => (int) ($order->ordered_at?->format('j') ?? 0)) as $day => $group) {
-                if (array_key_exists((int) $day, $byDay)) {
-                    $byDay[(int) $day] = round((float) $group->sum('total_amount'), 2);
-                }
-            }
-
-            return array_values($byDay);
-        };
-
-        $pctChange = static fn (float $current, float $previous): ?float => $previous != 0.0 ? round(($current - $previous) / abs($previous) * 100, 1) : null;
-
-        // Live dispatch pipeline — orders currently sent to courier (Shipped) and not yet
-        // delivered. This is a snapshot, not a monthly comparison, so it isn't part of the
-        // this/prev-month trend above.
-        $dispatchedCount = $scopedOrders()->where('status', SaleOrderStatus::SHIPPED->value)->count();
-
-        return [
-            'scope_label' => CommercialTeamAccess::visibleUserIds('sales') === null ? 'Company-wide' : 'You & your team',
-            'this_month'  => [
-                'label'          => now()->format('M Y'),
-                'orders_count'   => $thisSummary['orders_count'],
-                'revenue'        => $thisSummary['revenue'],
-                'net_profit'     => $thisSummary['net_profit'],
-                'net_margin_pct' => $thisSummary['net_margin_pct'],
-            ],
-            'prev_month' => [
-                'label'          => now()->subMonthNoOverflow()->format('M Y'),
-                'orders_count'   => $prevSummary['orders_count'],
-                'revenue'        => $prevSummary['revenue'],
-                'net_profit'     => $prevSummary['net_profit'],
-                'net_margin_pct' => $prevSummary['net_margin_pct'],
-            ],
-            'change' => [
-                'orders_count' => $pctChange($thisSummary['orders_count'], $prevSummary['orders_count']),
-                'revenue'      => $pctChange($thisSummary['revenue'], $prevSummary['revenue']),
-                'net_profit'   => $pctChange($thisSummary['net_profit'], $prevSummary['net_profit']),
-            ],
-            'dispatched_count' => $dispatchedCount,
-            'chart'            => [
-                'categories' => array_map(static fn (int $d): string => (string) $d, $days),
-                'series'     => [
-                    ['name' => now()->format('M'), 'data' => $fillDaily($thisOrders)],
-                    ['name' => now()->subMonthNoOverflow()->format('M'), 'data' => $fillDaily($prevOrders)],
-                ],
-            ],
-        ];
-    }
-
-    /**
-     * @param  Collection<int, SaleOrder>  $orders
-     */
-    private function summarizeOrders(Collection $orders): array
-    {
-        $revenue = (float) $orders->sum('total_amount');
-        $cogs = (float) $orders->sum('cogs_amount');
-
-        $invoiceIds = $orders->pluck('accounting_invoice_id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
-        $deductions = $this->salesDeductions($invoiceIds);
-        $netProfit = $revenue - $cogs - $deductions['discount'] - $deductions['charges'];
-
-        return [
-            'orders_count'   => $orders->count(),
-            'revenue'        => $revenue,
-            'net_profit'     => $netProfit,
-            'net_margin_pct' => $revenue != 0.0 ? round($netProfit / $revenue * 100, 1) : null,
-        ];
-    }
-
-    /**
-     * Real, net-of-charges profit: revenue minus cost of goods, sales discounts (Invoice::
-     * AR_REDUCING_ACCOUNT_CODES — 6130-6133: sales/early-payment/volume/promotional discount),
-     * and delivery/return charges (accounts 6310/6320/6330/6340) recorded against each order's
-     * posted invoice — the same figures the invoice detail "Record Charge/Discount" actions
-     * write via laravel-accounting. Falls back to 0 for both when accounting isn't installed.
-     *
-     * @param  array<int, int>  $invoiceIds
-     * @return array{discount: float, charges: float}
-     */
-    private function salesDeductions(array $invoiceIds): array
-    {
-        $expenseClass = 'Centrex\\Accounting\\Models\\Expense';
-        $invoiceClass = 'Centrex\\Accounting\\Models\\Invoice';
-
-        if ($invoiceIds === [] || !class_exists($expenseClass) || !class_exists($invoiceClass)) {
-            return ['discount' => 0.0, 'charges' => 0.0];
-        }
-
-        $discountCodes = $invoiceClass::AR_REDUCING_ACCOUNT_CODES;
-        $chargeCodes = ['6310', '6320', '6330', '6340'];
-
-        $expenses = $expenseClass::query()
-            ->where('chargeable_type', $invoiceClass)
-            ->whereIn('chargeable_id', $invoiceIds)
-            ->whereHas('account', function ($query) use ($discountCodes, $chargeCodes): void {
-                $query->whereIn('code', [...$discountCodes, ...$chargeCodes]);
-            })
-            ->with('account:id,code')
-            ->get(['id', 'total', 'account_id']);
-
-        return [
-            'discount' => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $discountCodes, true))->sum('total'),
-            'charges'  => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $chargeCodes, true))->sum('total'),
-        ];
     }
 }

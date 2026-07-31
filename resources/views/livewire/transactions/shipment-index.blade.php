@@ -72,6 +72,12 @@
             </tbody>
         </table>
     </div>
+
+    @if ($shipments->hasPages())
+        <div class="px-5 py-3 border-t border-base-200">
+            {{ $shipments->links() }}
+        </div>
+    @endif
 </x-tallui-card>
 @include('inventory::livewire.shared.audit-trail-modal')
 </div>

@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Livewire\Transactions\AgingReportPage;
+use Centrex\Inventory\Http\Livewire\Transactions\{AgingReportPage, InventoryDueAgingCard};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, Warehouse, WarehouseProduct};
 use Illuminate\Support\Facades\Gate;
@@ -11,7 +11,10 @@ use Livewire\Livewire;
 /**
  * Regression coverage for the Aging Report page's "Stock Aging" / "Due Aging" tabs —
  * <x-tallui-tab> only renders panels via named slots (<x-slot:id>), not a default slot
- * with manual x-show divs, so this locks in the working pattern.
+ * with manual x-show divs, so this locks in the working pattern. The tab bodies
+ * themselves are lazy-loaded InventoryStockAgingCard / InventoryDueAgingCard components
+ * (see AgingReportExportTest.php and this file's own tests below), so the tab labels are
+ * the only thing the shell page itself is responsible for rendering.
  */
 it('renders both the stock aging and due aging tabs', function (): void {
     Gate::define('inventory.reports.view', fn ($user = null): bool => true);
@@ -20,6 +23,14 @@ it('renders both the stock aging and due aging tabs', function (): void {
         ->assertSee('Aging Report')
         ->assertSee('Stock Aging')
         ->assertSee('Due Aging');
+});
+
+it('mounts both tab bodies as lazy Livewire components', function (): void {
+    $blade = file_get_contents(__DIR__ . '/../../resources/views/livewire/transactions/aging-report.blade.php');
+
+    expect($blade)
+        ->toContain('<livewire:inventory-stock-aging-card lazy />')
+        ->toContain('<livewire:inventory-due-aging-card lazy />');
 });
 
 it('groups due aging by customer and shows their invoices in a detail modal', function (): void {
@@ -43,7 +54,7 @@ it('groups due aging by customer and shows their invoices in a detail modal', fu
     ]);
     $inventory->confirmSaleOrder($order->id);
 
-    Livewire::test(AgingReportPage::class)
+    Livewire::test(InventoryDueAgingCard::class)
         ->assertSee('Due Aging by Customer')
         ->assertSee('Aging Report Customer')
         ->call('viewCustomerAging', $customer->id)
@@ -110,7 +121,7 @@ it('drives the fromDate filter through the Livewire component', function (): voi
     $order->update(['ordered_at' => now()->subDays(5)]);
 
     // Setting fromDate after the order was placed removes the customer from the table.
-    Livewire::test(AgingReportPage::class)
+    Livewire::test(InventoryDueAgingCard::class)
         ->assertSee('Livewire From Customer')
         ->set('fromDate', $order->ordered_at->copy()->addDay()->toDateString())
         ->assertDontSee('Livewire From Customer');

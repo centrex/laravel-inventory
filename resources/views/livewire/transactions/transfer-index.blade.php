@@ -70,6 +70,12 @@
             </tbody>
         </table>
     </div>
+
+    @if ($transfers->hasPages())
+        <div class="px-5 py-3 border-t border-base-200">
+            {{ $transfers->links() }}
+        </div>
+    @endif
 </x-tallui-card>
 @include('inventory::livewire.shared.audit-trail-modal')
 </div>

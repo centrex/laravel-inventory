@@ -6,6 +6,15 @@
             ['label' => 'Reports'],
         ]" />
     </x-slot:breadcrumbs>
+    <x-slot:actions>
+        <x-tallui-button
+            wire:click="exportAll"
+            :spinner="'exportAll'"
+            label="Export All (Excel)"
+            icon="o-arrow-down-tray"
+            class="btn-outline btn-sm"
+        />
+    </x-slot:actions>
 </x-tallui-page-header>
 
 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

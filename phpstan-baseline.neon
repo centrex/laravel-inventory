@@ -1293,37 +1293,42 @@ parameters:
 		-
 			message: "#^Cannot access offset 'customer' on mixed\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
 			message: "#^Cannot cast mixed to float\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
 			message: "#^Cannot cast mixed to string\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			count: 2
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\AgingReportPage\\:\\:groupDueAgingByCustomer\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{customer_id\\: int, customer\\: mixed, orders_count\\: int, oldest_days_overdue\\: mixed, buckets\\: non\\-empty\\-array\\<float\\>, total_due\\: float\\}\\>\\.$#"
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{customer_id\\: int, customer\\: mixed, orders_count\\: int, oldest_days_overdue\\: mixed, buckets\\: non\\-empty\\-array\\<float\\>, total_due\\: float\\}\\>\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
 			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<int,mixed\\>\\:\\:filter\\(\\) expects \\(callable\\(mixed, int\\)\\: bool\\)\\|null, Closure\\(array\\)\\: bool given\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
 			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, array\\<int, string\\> given\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			path: src/Http/Livewire/Transactions/InventoryStockAgingCard.php
 
 		-
-			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\AgingReportPage\\:\\:groupDueAgingByCustomer\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
+			message: "#^Parameter \\#1 \\$rows of static method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:downloadStockAging\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/AgingReportPage.php
+			path: src/Http/Livewire/Transactions/InventoryStockAgingCard.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\:\\:\\$created_at\\.$#"

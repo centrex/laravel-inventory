@@ -381,8 +381,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory);
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
+        $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(
@@ -440,6 +440,13 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-forecast-report', Http\Livewire\Transactions\ForecastReportPage::class);
         Livewire::component('inventory-forecast-card', Http\Livewire\Transactions\InventoryForecastCard::class);
         Livewire::component('inventory-sales-target-card', Http\Livewire\Transactions\InventorySalesTargetCard::class);
+        Livewire::component('inventory-sales-trend-card', Http\Livewire\Transactions\InventorySalesTrendCard::class);
+        Livewire::component('inventory-draft-sale-orders-card', Http\Livewire\Transactions\InventoryDraftSaleOrdersCard::class);
+        Livewire::component('inventory-sales-by-price-tier-card', Http\Livewire\Transactions\InventorySalesByPriceTierCard::class);
+        Livewire::component('inventory-sales-by-employee-card', Http\Livewire\Transactions\InventorySalesByEmployeeCard::class);
+        Livewire::component('inventory-warehouse-stock-card', Http\Livewire\Transactions\InventoryWarehouseStockCard::class);
+        Livewire::component('inventory-stock-aging-card', Http\Livewire\Transactions\InventoryStockAgingCard::class);
+        Livewire::component('inventory-due-aging-card', Http\Livewire\Transactions\InventoryDueAgingCard::class);
         Livewire::component('inventory-customer-heatmap', Http\Livewire\Transactions\CustomerHeatMapPage::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
