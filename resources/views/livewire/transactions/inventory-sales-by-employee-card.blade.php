@@ -14,8 +14,8 @@
                         <th>Employee</th>
                         <th class="text-right">Orders</th>
                         <th class="text-right">Revenue</th>
-                        <th class="text-right">Net Profit</th>
-                        <th class="text-right">Margin %</th>
+                        <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Net Profit</th>
+                        <th class="text-right" title="Computed over fulfilled orders only; unfulfilled order revenue isn't included in this ratio">Margin %</th>
                     </tr>
                 </thead>
                 <tbody>

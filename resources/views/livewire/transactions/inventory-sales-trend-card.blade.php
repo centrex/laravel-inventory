@@ -39,7 +39,7 @@
                     <div class="mt-1 text-xs text-base-content/50">
                         Margin {{ $salesTrend['this_month']['net_margin_pct'] !== null ? number_format((float) $salesTrend['this_month']['net_margin_pct'], 1) . '%' : '—' }}
                         vs {{ $salesTrend['prev_month']['net_margin_pct'] !== null ? number_format((float) $salesTrend['prev_month']['net_margin_pct'], 1) . '%' : '—' }}
-                        · net of COGS, discounts &amp; delivery charges
+                        · net of COGS, discounts &amp; delivery charges, fulfilled orders only
                     </div>
                 @endif
                 @if ($chg !== null)

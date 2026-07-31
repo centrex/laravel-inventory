@@ -168,8 +168,48 @@
                         <tr><td colspan="8" class="py-6 text-center text-sm text-base-content/60">No shipment lines recorded.</td></tr>
                     @endforelse
                 </tbody>
+                @if ($record->items->isNotEmpty())
+                    <tfoot>
+                        <tr class="border-t-2 border-base-300 font-semibold">
+                            <td colspan="4" class="text-right text-xs uppercase tracking-wide text-base-content/50">Sum of lines</td>
+                            <td class="text-right font-mono">{{ number_format($lineTotals['sum_source_cost'], 2) }}</td>
+                            <td class="text-right font-mono {{ abs($lineTotals['shipping_diff']) > 0.005 ? 'text-error' : '' }}">{{ number_format($lineTotals['sum_shipping'], 2) }}</td>
+                            <td class="text-right font-mono {{ abs($lineTotals['extra_charges_diff']) > 0.005 ? 'text-error' : '' }}">{{ number_format($lineTotals['sum_extra_charges'], 2) }}</td>
+                            <td class="text-right font-mono {{ abs($lineTotals['landed_cost_diff']) > 0.005 ? 'text-error' : '' }}">{{ number_format($lineTotals['sum_landed_cost'], 2) }}</td>
+                        </tr>
+                    </tfoot>
+                @endif
             </table>
         </div>
+
+        @if ($record->items->isNotEmpty())
+            @php
+                $isReconciled = abs($lineTotals['shipping_diff']) <= 0.005 && abs($lineTotals['extra_charges_diff']) <= 0.005;
+            @endphp
+            <div class="mt-3 rounded-lg border p-3 text-sm {{ $isReconciled ? 'border-success/30 bg-success/10' : 'border-error/30 bg-error/10' }}">
+                @if ($isReconciled)
+                    <div class="flex items-center gap-2 text-success">
+                        <x-tallui-icon name="o-check-circle" size="w-4 h-4" />
+                        <span>Shipping ({{ number_format((float) $record->shipping_cost_amount, 2) }}) and extra charges ({{ number_format($record->extra_charges_total, 2) }}) are fully distributed across shipment lines — no difference.</span>
+                    </div>
+                @else
+                    <div class="flex items-start gap-2 text-error">
+                        <x-tallui-icon name="o-exclamation-triangle" size="w-4 h-4" />
+                        <div>
+                            <div class="font-medium">Allocated lines don't match the shipment bill.</div>
+                            <div class="mt-1 space-y-0.5">
+                                @if (abs($lineTotals['shipping_diff']) > 0.005)
+                                    <div>Shipping: bill {{ number_format((float) $record->shipping_cost_amount, 2) }} − lines {{ number_format($lineTotals['sum_shipping'], 2) }} = <span class="font-semibold">{{ number_format($lineTotals['shipping_diff'], 2) }}</span> unallocated.</div>
+                                @endif
+                                @if (abs($lineTotals['extra_charges_diff']) > 0.005)
+                                    <div>Extra charges: bill {{ number_format($record->extra_charges_total, 2) }} − lines {{ number_format($lineTotals['sum_extra_charges'], 2) }} = <span class="font-semibold">{{ number_format($lineTotals['extra_charges_diff'], 2) }}</span> unallocated.</div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                @endif
+            </div>
+        @endif
     </x-tallui-card>
     </div>
 </div>

@@ -21,6 +21,9 @@ New WAC = (Current Stock Value + New Purchase Value)
 
 WAC is stored in `inv_warehouse_products.wac_amount` (decimal, 18,4). WAC precision is controlled by `INVENTORY_WAC_PRECISION` (default 4 decimal places).
 
+Seeing a wrong COGS, an inflated margin, or a stale WAC after a correction? See
+[cogs-scenarios.md](cogs-scenarios.md) for a symptom-driven troubleshooting guide.
+
 ---
 
 ## Stock Dimensions

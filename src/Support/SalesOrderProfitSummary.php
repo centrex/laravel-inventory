@@ -26,17 +26,29 @@ final class SalesOrderProfitSummary
     public function summarize(Collection $orders): array
     {
         $revenue = (float) $orders->sum('total_amount');
-        $cogs = (float) $orders->sum('cogs_amount');
 
-        $invoiceIds = $orders->pluck('accounting_invoice_id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
+        // cogs_amount only gets populated by fulfillSaleOrder() — it's still 0 on a confirmed/
+        // processing order (nothing shipped yet) and only partially reflects a PARTIAL order's
+        // full total_amount. Status isn't a safe proxy for "has this been costed" either: SHIPPED
+        // is a parallel courier-tracking state that doesn't guarantee fulfillSaleOrder() has run
+        // (see SaleOrderStatus). Blending an order's full revenue against a $0/partial cost basis
+        // would overstate margin — sometimes drastically — so net_profit/net_margin_pct are
+        // computed only over the subset that's actually been costed. `revenue` above is
+        // deliberately left as every order in $orders (an "orders placed" figure), so it will not
+        // arithmetically reconcile against net_profit — that's intentional, not a bug.
+        $costedOrders = $orders->filter(static fn ($order): bool => (float) $order->cogs_amount > 0.0);
+        $costedRevenue = (float) $costedOrders->sum('total_amount');
+        $cogs = (float) $costedOrders->sum('cogs_amount');
+
+        $invoiceIds = $costedOrders->pluck('accounting_invoice_id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
         $deductions = $this->deductions($invoiceIds);
-        $netProfit = $revenue - $cogs - $deductions['discount'] - $deductions['charges'];
+        $netProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'];
 
         return [
             'orders_count'   => $orders->count(),
             'revenue'        => $revenue,
             'net_profit'     => $netProfit,
-            'net_margin_pct' => $revenue != 0.0 ? round($netProfit / $revenue * 100, 1) : null,
+            'net_margin_pct' => $costedRevenue != 0.0 ? round($netProfit / $costedRevenue * 100, 1) : null,
         ];
     }
 

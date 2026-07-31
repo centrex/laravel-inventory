@@ -592,7 +592,7 @@ class Inventory
      */
     private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
-        $model = new WarehouseProduct;
+        $model = new WarehouseProduct();
         $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
@@ -2308,10 +2308,20 @@ class Inventory
 
             $shippingCost = round($totalWeightKg * $rate, 4);
 
-            foreach ($createdBoxItems as $boxItem) {
-                $allocatedShipping = $totalWeightKg > 0
-                    ? round(($boxItem['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4)
-                    : 0.0;
+            // The last box item absorbs whatever's left of $shippingCost instead of its own
+            // independently rounded share, so Σshipping_allocated_amount reconciles exactly to
+            // $shippingCost instead of drifting off by a few hundredths from per-line rounding
+            // (same fix as buildShipmentBoxesAndItems()).
+            $lastBoxItemIndex = count($createdBoxItems) - 1;
+            $shippingRunningTotal = 0.0;
+
+            foreach ($createdBoxItems as $index => $boxItem) {
+                $allocatedShipping = match (true) {
+                    $totalWeightKg <= 0          => 0.0,
+                    $index === $lastBoxItemIndex => round($shippingCost - $shippingRunningTotal, 4),
+                    default                      => round(($boxItem['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4),
+                };
+                $shippingRunningTotal += $allocatedShipping;
                 $unitLanded = $boxItem['qty_sent'] > 0
                     ? round((($boxItem['source_unit_cost_amount'] * $boxItem['qty_sent']) + $allocatedShipping) / $boxItem['qty_sent'], 4)
                     : 0.0;
@@ -2322,14 +2332,21 @@ class Inventory
                 ]);
             }
 
-            foreach ($aggregates as $aggregate) {
+            $aggregateList = array_values($aggregates);
+            $lastAggregateIndex = count($aggregateList) - 1;
+            $shippingRunningTotal = 0.0;
+
+            foreach ($aggregateList as $index => $aggregate) {
                 $qtySent = round((float) $aggregate['qty_sent'], 4);
                 $unitCostSourceAmount = $qtySent > 0
                     ? round((float) $aggregate['source_cost_total'] / $qtySent, 4)
                     : 0.0;
-                $allocatedShipping = $totalWeightKg > 0
-                    ? round(((float) $aggregate['weight_kg_total'] / $totalWeightKg) * $shippingCost, 4)
-                    : 0.0;
+                $allocatedShipping = match (true) {
+                    $totalWeightKg <= 0            => 0.0,
+                    $index === $lastAggregateIndex => round($shippingCost - $shippingRunningTotal, 4),
+                    default                        => round(((float) $aggregate['weight_kg_total'] / $totalWeightKg) * $shippingCost, 4),
+                };
+                $shippingRunningTotal += $allocatedShipping;
                 $unitLanded = $qtySent > 0
                     ? round(((float) $aggregate['source_cost_total'] + $allocatedShipping) / $qtySent, 4)
                     : 0.0;
@@ -3016,13 +3033,29 @@ class Inventory
         // (set to zero/source-cost when created, above) now that $totalWeightKg and
         // $totalCostBasis — and therefore this shipment's total shipping cost and the pool
         // of extra charges to allocate by value — are finally known across all boxes.
-        foreach ($createdBoxItems as $entry) {
-            $boxShipping = $totalWeightKg > 0
-                ? round(($entry['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4)
-                : 0.0;
-            $boxExtraCharges = $totalCostBasis > 0
-                ? round(($entry['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4)
-                : 0.0;
+        // The last line absorbs whatever's left of each pool instead of its own independently
+        // rounded share, so Σshipping_allocated_amount and Σextra_charges_allocated_amount
+        // reconcile exactly to $shippingCost / $totalExtraCharges instead of drifting off by a
+        // few hundredths from per-line rounding.
+        $lastBoxItemIndex = count($createdBoxItems) - 1;
+        $shippingRunningTotal = 0.0;
+        $extraChargesRunningTotal = 0.0;
+
+        foreach ($createdBoxItems as $index => $entry) {
+            $boxShipping = match (true) {
+                $totalWeightKg <= 0          => 0.0,
+                $index === $lastBoxItemIndex => round($shippingCost - $shippingRunningTotal, 4),
+                default                      => round(($entry['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4),
+            };
+            $shippingRunningTotal += $boxShipping;
+
+            $boxExtraCharges = match (true) {
+                $totalCostBasis <= 0         => 0.0,
+                $index === $lastBoxItemIndex => round($totalExtraCharges - $extraChargesRunningTotal, 4),
+                default                      => round(($entry['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4),
+            };
+            $extraChargesRunningTotal += $boxExtraCharges;
+
             $boxLanded = $entry['qty_sent'] > 0
                 ? round($entry['source_unit_cost'] + (($boxShipping + $boxExtraCharges) / $entry['qty_sent']), 4)
                 : $entry['source_unit_cost'];
@@ -3034,11 +3067,26 @@ class Inventory
             ]);
         }
 
-        foreach ($aggregates as $aggregate) {
+        $aggregateList = array_values($aggregates);
+        $lastAggregateIndex = count($aggregateList) - 1;
+        $shippingRunningTotal = 0.0;
+        $extraChargesRunningTotal = 0.0;
+
+        foreach ($aggregateList as $index => $aggregate) {
             $qtySent = $aggregate['qty_sent'];
             $unitCost = $qtySent > 0 ? round($aggregate['cost_total'] / $qtySent, 4) : 0.0;
-            $allocatedShipping = $totalWeightKg > 0 ? round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4) : 0.0;
-            $allocatedExtraCharges = $totalCostBasis > 0 ? round(($aggregate['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4) : 0.0;
+            $allocatedShipping = match (true) {
+                $totalWeightKg <= 0            => 0.0,
+                $index === $lastAggregateIndex => round($shippingCost - $shippingRunningTotal, 4),
+                default                        => round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4),
+            };
+            $shippingRunningTotal += $allocatedShipping;
+            $allocatedExtraCharges = match (true) {
+                $totalCostBasis <= 0           => 0.0,
+                $index === $lastAggregateIndex => round($totalExtraCharges - $extraChargesRunningTotal, 4),
+                default                        => round(($aggregate['cost_total'] / $totalCostBasis) * $totalExtraCharges, 4),
+            };
+            $extraChargesRunningTotal += $allocatedExtraCharges;
             $unitLanded = $qtySent > 0 ? round(($aggregate['cost_total'] + $allocatedShipping + $allocatedExtraCharges) / $qtySent, 4) : 0.0;
 
             ShipmentItem::create([
@@ -3172,6 +3220,239 @@ class Inventory
             $shipment->update(['status' => $newStatus, 'received_at' => $fullyReceived ? now() : $shipment->received_at]);
 
             return $shipment->refresh();
+        });
+    }
+
+    /**
+     * Re-derive weight-based landed cost for an already-dispatched inter-warehouse shipment —
+     * e.g. after correcting a product/variant's weight_kg that was wrong when the shipment was
+     * built — and, for lines already received, re-blend the destination WAC those lines fed
+     * using the corrected landed cost.
+     *
+     * Box `measured_weight_kg` (a physical fact, not derived from product weight) and every
+     * line's `extra_charges_allocated_amount` / `unit_cost_source_amount` (value-based, not
+     * weight-based) are left untouched; only the weight-derived theoretical_weight_kg /
+     * allocated_weight_kg / weight_ratio / shipping_allocated_amount / unit_landed_cost_amount
+     * are re-derived, using the same allocation math as buildShipmentBoxesAndItems().
+     *
+     * A line's destination WAC is only re-blended when the stock_movements audit trail shows
+     * nothing has touched that warehouse/product/variant since this shipment's own TRANSFER_IN
+     * — i.e. it's still exactly the state that receipt left behind. If anything else moved
+     * qty_on_hand or wac_amount since (another receipt, a sale, an adjustment), a precise
+     * retroactive blend is no longer well-defined, so that line is skipped and reported rather
+     * than guessed at (the same principle voidStockReceipt() applies to WAC un-blending).
+     *
+     * @return array<int, array<string, mixed>> one row per shipment item summarizing what changed
+     */
+    public function recalculateShipmentLanding(int $shipmentId): array
+    {
+        $shipment = Shipment::with(['boxes.items.product', 'boxes.items.variant', 'items'])->findOrFail($shipmentId);
+
+        if (in_array($shipment->status, [ShipmentStatus::DRAFT, ShipmentStatus::CANCELLED], true)) {
+            throw new InvalidTransitionException("Shipment #{$shipmentId} must be dispatched before its landed cost can be recalculated (status: {$shipment->status->value}).");
+        }
+
+        return DB::transaction(function () use ($shipment): array {
+            $precision = (int) config('inventory.wac_precision', 4);
+            $totalWeightKg = (float) $shipment->total_weight_kg;
+            $shippingCost = (float) $shipment->shipping_cost_amount;
+
+            $aggregates = [];
+            $createdBoxItems = [];
+
+            foreach ($shipment->boxes as $box) {
+                $measuredWeight = (float) $box->measured_weight_kg;
+                $theoreticalWeightTotal = 0.0;
+                $fallbackQtyTotal = 0.0;
+                $prepared = [];
+
+                foreach ($box->items as $boxItem) {
+                    $unitWeightKg = $boxItem->variant?->weight_kg ?? $boxItem->product?->weight_kg;
+                    $qty = (float) $boxItem->qty_sent;
+                    $theoreticalWeight = $unitWeightKg !== null ? round($qty * (float) $unitWeightKg, 4) : 0.0;
+
+                    $prepared[] = ['boxItem' => $boxItem, 'qty' => $qty, 'theoretical_weight_kg' => $theoreticalWeight];
+                    $theoreticalWeightTotal += $theoreticalWeight;
+                    $fallbackQtyTotal += $qty;
+                }
+
+                foreach ($prepared as $p) {
+                    $basis = $theoreticalWeightTotal > 0 ? $p['theoretical_weight_kg'] : $p['qty'];
+                    $denominator = $theoreticalWeightTotal > 0 ? $theoreticalWeightTotal : $fallbackQtyTotal;
+                    $allocatedWeight = $denominator > 0 ? round($measuredWeight * $basis / $denominator, 4) : 0.0;
+                    $weightRatio = $denominator > 0 ? round($basis / $denominator, 8) : 0.0;
+
+                    $boxItem = $p['boxItem'];
+                    $key = $boxItem->product_id . ':' . (int) ($boxItem->variant_id ?? 0);
+                    $aggregates[$key] ??= [
+                        'product_id'   => $boxItem->product_id, 'variant_id' => $boxItem->variant_id,
+                        'weight_total' => 0.0,
+                    ];
+                    $aggregates[$key]['weight_total'] += $allocatedWeight;
+
+                    $createdBoxItems[] = [
+                        'model'                 => $boxItem,
+                        'qty_sent'              => $p['qty'],
+                        'allocated_weight_kg'   => $allocatedWeight,
+                        'weight_ratio'          => $weightRatio,
+                        'theoretical_weight_kg' => $p['theoretical_weight_kg'],
+                    ];
+                }
+            }
+
+            // Same last-line-absorbs-remainder rounding reconciliation as
+            // buildShipmentBoxesAndItems(), so Σshipping_allocated_amount still reconciles
+            // exactly to $shippingCost after the re-derived weight ratios shift each share.
+            $lastBoxItemIndex = count($createdBoxItems) - 1;
+            $shippingRunningTotal = 0.0;
+
+            foreach ($createdBoxItems as $index => $entry) {
+                $boxShipping = match (true) {
+                    $totalWeightKg <= 0          => 0.0,
+                    $index === $lastBoxItemIndex => round($shippingCost - $shippingRunningTotal, 4),
+                    default                      => round(($entry['allocated_weight_kg'] / $totalWeightKg) * $shippingCost, 4),
+                };
+                $shippingRunningTotal += $boxShipping;
+
+                $boxItem = $entry['model'];
+                $extraCharges = (float) $boxItem->extra_charges_allocated_amount;
+                $sourceUnitCost = (float) $boxItem->source_unit_cost_amount;
+                $boxLanded = $entry['qty_sent'] > 0
+                    ? round($sourceUnitCost + (($boxShipping + $extraCharges) / $entry['qty_sent']), 4)
+                    : $sourceUnitCost;
+
+                $boxItem->update([
+                    'theoretical_weight_kg'     => $entry['theoretical_weight_kg'],
+                    'allocated_weight_kg'       => $entry['allocated_weight_kg'],
+                    'weight_ratio'              => $entry['weight_ratio'],
+                    'shipping_allocated_amount' => $boxShipping,
+                    'unit_landed_cost_amount'   => $boxLanded,
+                ]);
+            }
+
+            $aggregateList = array_values($aggregates);
+            $lastAggregateIndex = count($aggregateList) - 1;
+            $shippingRunningTotal = 0.0;
+            $results = [];
+
+            foreach ($aggregateList as $index => $aggregate) {
+                $item = $shipment->items->first(
+                    fn (ShipmentItem $candidate): bool => $candidate->product_id === $aggregate['product_id']
+                        && (int) ($candidate->variant_id ?? 0) === (int) ($aggregate['variant_id'] ?? 0),
+                );
+
+                if (!$item) {
+                    continue;
+                }
+
+                $qtySent = (float) $item->qty_sent;
+                $allocatedShipping = match (true) {
+                    $totalWeightKg <= 0            => 0.0,
+                    $index === $lastAggregateIndex => round($shippingCost - $shippingRunningTotal, 4),
+                    default                        => round(($aggregate['weight_total'] / $totalWeightKg) * $shippingCost, 4),
+                };
+                $shippingRunningTotal += $allocatedShipping;
+
+                $extraCharges = (float) $item->extra_charges_allocated_amount;
+                $sourceCost = (float) $item->unit_cost_source_amount;
+                $newLandedCost = $qtySent > 0
+                    ? round($sourceCost + (($allocatedShipping + $extraCharges) / $qtySent), 4)
+                    : $sourceCost;
+                $oldLandedCost = (float) $item->unit_landed_cost_amount;
+
+                $row = [
+                    'product_id'      => $item->product_id,
+                    'variant_id'      => $item->variant_id,
+                    'old_shipping'    => (float) $item->shipping_allocated_amount,
+                    'new_shipping'    => $allocatedShipping,
+                    'old_landed_cost' => $oldLandedCost,
+                    'new_landed_cost' => $newLandedCost,
+                    'wac_corrected'   => false,
+                    'old_wac'         => null,
+                    'new_wac'         => null,
+                    'skipped_reason'  => null,
+                ];
+
+                $item->update([
+                    'weight_kg_total'           => round($aggregate['weight_total'], 4),
+                    'shipping_allocated_amount' => $allocatedShipping,
+                    'unit_landed_cost_amount'   => $newLandedCost,
+                ]);
+
+                $qtyReceived = (float) $item->qty_received;
+
+                if ($qtyReceived > 0) {
+                    $destWp = WarehouseProduct::query()
+                        ->where('warehouse_id', $shipment->to_warehouse_id)
+                        ->where('product_id', $item->product_id)
+                        ->where('variant_id', $item->variant_id)
+                        ->lockForUpdate()
+                        ->first();
+
+                    $lastReceiptMovement = StockMovement::query()
+                        ->where('warehouse_id', $shipment->to_warehouse_id)
+                        ->where('product_id', $item->product_id)
+                        ->where('variant_id', $item->variant_id)
+                        ->where('reference_type', Shipment::class)
+                        ->where('reference_id', $shipment->id)
+                        ->where('movement_type', MovementType::TRANSFER_IN)
+                        ->orderByDesc('id')
+                        ->first();
+
+                    $laterMovementExists = $lastReceiptMovement !== null && StockMovement::query()
+                        ->where('warehouse_id', $shipment->to_warehouse_id)
+                        ->where('product_id', $item->product_id)
+                        ->where('variant_id', $item->variant_id)
+                        ->where('id', '>', $lastReceiptMovement->id)
+                        ->exists();
+
+                    if ($destWp === null) {
+                        $row['skipped_reason'] = 'Destination warehouse-product row no longer exists.';
+                    } elseif ($lastReceiptMovement === null) {
+                        $row['skipped_reason'] = 'No TRANSFER_IN movement found for this line; cannot verify it is safe to correct.';
+                    } elseif ($laterMovementExists) {
+                        $row['skipped_reason'] = 'Other stock activity has touched this product/warehouse since it was received — skipped to avoid an ill-defined retroactive WAC blend.';
+                    } else {
+                        // Nothing has touched this bin since the receipt, so its current
+                        // qty_on_hand is exactly (qtyBefore + qtyReceived) and its current
+                        // wac_amount is exactly the blend that used $oldLandedCost — which means
+                        // the corrected blend can be derived without knowing qtyBefore at all:
+                        // newWac = oldWac + qtyReceived × (newLandedCost − oldLandedCost) / totalQty
+                        $totalQty = (float) $destWp->qty_on_hand;
+                        $oldWac = (float) $destWp->wac_amount;
+                        $correctedWac = $totalQty > 0
+                            ? round($oldWac + ($qtyReceived * ($newLandedCost - $oldLandedCost) / $totalQty), $precision)
+                            : round($newLandedCost, $precision);
+
+                        $row['old_wac'] = $oldWac;
+                        $row['new_wac'] = $correctedWac;
+                        $row['wac_corrected'] = abs($correctedWac - $oldWac) >= 0.0001;
+
+                        $destWp->update(['wac_amount' => $correctedWac]);
+                        $item->update(['wac_dest_after_amount' => $correctedWac]);
+
+                        $this->writeMovement(
+                            $shipment->to_warehouse_id,
+                            $item->product_id,
+                            $item->variant_id,
+                            MovementType::ADJUSTMENT_IN,
+                            0.0,
+                            $totalQty,
+                            $totalQty,
+                            $newLandedCost,
+                            $correctedWac,
+                            Shipment::class,
+                            $shipment->id,
+                            null,
+                            "WAC correction: shipment #{$shipment->shipment_number} landed cost recalculated after fixing product weight_kg (unit landed cost {$oldLandedCost} → {$newLandedCost}).",
+                        );
+                    }
+                }
+
+                $results[] = $row;
+            }
+
+            return $results;
         });
     }
 

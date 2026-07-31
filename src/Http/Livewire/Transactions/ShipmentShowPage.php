@@ -131,14 +131,41 @@ class ShipmentShowPage extends Component
 
     public function render(): View
     {
+        $record = $this->refreshRecord();
+
         return view('inventory::livewire.transactions.shipment-show', [
-            'record'          => $this->refreshRecord(),
+            'record'          => $record,
             'canDispatch'     => Gate::allows('inventory.transfers.dispatch'),
             'canReceive'      => Gate::allows('inventory.transfers.receive'),
             'financeDocument' => $this->financeDocument,
             'canCreateBill'   => $this->financeDocument === null,
             'suppliers'       => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
+            'lineTotals'      => $this->computeLineTotals($record),
         ]);
+    }
+
+    /**
+     * Reconciles the per-line shipping/extra-charge allocation (Σ ShipmentItem) against the
+     * shipment's own totals — the two are computed independently in
+     * Inventory::buildShipmentBoxesAndItems(), so this surfaces any drift for the operator
+     * instead of leaving it to silently under/over-state landed cost.
+     */
+    private function computeLineTotals(Shipment $record): array
+    {
+        $sumShipping = round((float) $record->items->sum('shipping_allocated_amount'), 4);
+        $sumExtraCharges = round((float) $record->items->sum('extra_charges_allocated_amount'), 4);
+        $sumSourceCost = round((float) $record->items->sum(fn ($item) => (float) $item->unit_cost_source_amount * (float) $item->qty_sent), 4);
+        $sumLandedCost = round((float) $record->items->sum(fn ($item) => (float) $item->unit_landed_cost_amount * (float) $item->qty_sent), 4);
+
+        return [
+            'sum_shipping'       => $sumShipping,
+            'sum_extra_charges'  => $sumExtraCharges,
+            'sum_source_cost'    => $sumSourceCost,
+            'sum_landed_cost'    => $sumLandedCost,
+            'shipping_diff'      => round((float) $record->shipping_cost_amount - $sumShipping, 4),
+            'extra_charges_diff' => round((float) $record->extra_charges_total - $sumExtraCharges, 4),
+            'landed_cost_diff'   => round(($sumSourceCost + (float) $record->shipping_cost_amount + (float) $record->extra_charges_total) - $sumLandedCost, 4),
+        ];
     }
 
     private function refreshRecord(): Shipment
