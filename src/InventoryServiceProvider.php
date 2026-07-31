@@ -381,8 +381,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory());
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
+        $this->app->singleton('inventory', fn () => new Inventory);
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(

@@ -36,7 +36,7 @@ it('exports the stock aging tab as its own .xlsx respecting the warehouse filter
     $product = Product::create(['sku' => 'SKU-ARE-1', 'name' => 'Aging Export Widget', 'unit' => 'pcs', 'is_stockable' => true]);
     WarehouseProduct::create(['warehouse_id' => $warehouse->id, 'product_id' => $product->id, 'qty_on_hand' => 50, 'wac_amount' => 10]);
 
-    $component = new InventoryStockAgingCard();
+    $component = new InventoryStockAgingCard;
     $component->mount();
     $component->warehouseId = $warehouse->id;
 
@@ -75,7 +75,7 @@ it('exports the due aging tab as its own .xlsx respecting the fromDate filter', 
     ]);
     $inventory->confirmSaleOrder($order->id);
 
-    $component = new InventoryDueAgingCard();
+    $component = new InventoryDueAgingCard;
     $component->mount();
 
     $response = $component->exportExcel();

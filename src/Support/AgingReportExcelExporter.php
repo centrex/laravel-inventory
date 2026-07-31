@@ -23,7 +23,7 @@ class AgingReportExcelExporter
      */
     public static function downloadStockAging(Collection $rows, string $filename): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         self::writeStockAgingSheet($spreadsheet, 0, $rows);
 
         return self::stream($spreadsheet, $filename);
@@ -34,7 +34,7 @@ class AgingReportExcelExporter
      */
     public static function downloadDueAging(Collection $rows, string $filename): StreamedResponse
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         self::writeDueAgingSheet($spreadsheet, 0, $rows);
 
         return self::stream($spreadsheet, $filename);

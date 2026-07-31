@@ -14,7 +14,7 @@ beforeEach(function (): void {
 });
 
 it('InventoryForecastCard computes a forecast and caches the result', function (): void {
-    $component = new InventoryForecastCard();
+    $component = new InventoryForecastCard;
     $component->mount();
 
     $forecast = $component->forecast();
@@ -34,7 +34,7 @@ it('InventoryForecastCard computes a forecast and caches the result', function (
 it('InventorySalesTargetCard reads inputs from the query string and caches the result', function (): void {
     request()->merge(['target_lookback_days' => 60, 'target_days' => 14]);
 
-    $component = new InventorySalesTargetCard();
+    $component = new InventorySalesTargetCard;
     $component->mount();
 
     expect($component->lookbackDays)->toBe(60)
@@ -55,7 +55,7 @@ it('InventorySalesTargetCard reads inputs from the query string and caches the r
 });
 
 it('InventorySalesTrendCard builds the this/prev-month trend and caches the result', function (): void {
-    $component = new InventorySalesTrendCard();
+    $component = new InventorySalesTrendCard;
     $component->mount();
 
     $trend = $component->trend();
@@ -73,7 +73,7 @@ it('InventorySalesTrendCard builds the this/prev-month trend and caches the resu
 });
 
 it('InventoryDraftSaleOrdersCard lists pending draft orders and caches the result', function (): void {
-    $component = new InventoryDraftSaleOrdersCard();
+    $component = new InventoryDraftSaleOrdersCard;
     $component->mount();
 
     $draftSaleOrders = $component->draftSaleOrders();
@@ -109,7 +109,7 @@ it('InventoryDraftSaleOrdersCard never caches SaleOrder models — only plain ar
         'items'        => [['product_id' => $product->id, 'qty_ordered' => 1, 'unit_price_local' => 150]],
     ]);
 
-    $component = new InventoryDraftSaleOrdersCard();
+    $component = new InventoryDraftSaleOrdersCard;
     $component->mount();
 
     $recent = $component->draftSaleOrders()['recent'];
@@ -124,7 +124,7 @@ it('InventoryDraftSaleOrdersCard never caches SaleOrder models — only plain ar
 });
 
 it('InventorySalesByPriceTierCard breaks down revenue by tier and caches the result', function (): void {
-    $component = new InventorySalesByPriceTierCard();
+    $component = new InventorySalesByPriceTierCard;
     $component->mount();
 
     expect($component->salesByPriceTier())->toBeArray();
@@ -140,7 +140,7 @@ it('InventorySalesByPriceTierCard breaks down revenue by tier and caches the res
 });
 
 it('InventorySalesByEmployeeCard breaks down revenue and net profit by employee and caches the result', function (): void {
-    $component = new InventorySalesByEmployeeCard();
+    $component = new InventorySalesByEmployeeCard;
     $component->mount();
 
     expect($component->salesByEmployee())->toBeArray();
@@ -156,7 +156,7 @@ it('InventorySalesByEmployeeCard breaks down revenue and net profit by employee 
 });
 
 it('InventoryWarehouseStockCard aggregates stock value/net saleable stock and caches the result', function (): void {
-    $component = new InventoryWarehouseStockCard();
+    $component = new InventoryWarehouseStockCard;
     $component->mount();
 
     $warehouseStock = $component->warehouseStock();
@@ -186,7 +186,7 @@ it('InventoryWarehouseStockCard never caches the warehouses Collection itself �
     $product = Product::create(['sku' => 'SKU-WSC-1', 'name' => 'Warehouse Stock Card Widget', 'unit' => 'pcs', 'is_stockable' => true]);
     WarehouseProduct::create(['warehouse_id' => $warehouse->id, 'product_id' => $product->id, 'qty_on_hand' => 50, 'wac_amount' => 10]);
 
-    $component = new InventoryWarehouseStockCard();
+    $component = new InventoryWarehouseStockCard;
     $component->mount();
 
     $warehouses = $component->warehouseStock()['warehouses'];

@@ -32,7 +32,7 @@ final class InventoryReportsExporter
      */
     public static function download(array $params, string $filename): StreamedResponse
     {
-        $spreadsheet = (new self())->build($params);
+        $spreadsheet = (new self)->build($params);
 
         return response()->streamDownload(
             static function () use ($spreadsheet): void {
@@ -72,7 +72,7 @@ final class InventoryReportsExporter
         $dueAging = $inventory->dueAgingReport(fromDate: $agingFromDate);
         $forecast = $inventory->salesForecast(lookbackDays: $forecastLookbackDays, forecastDays: $forecastDays);
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         $this->writeSummarySheet($spreadsheet, 0, [
             'sales'       => $salesOrders,

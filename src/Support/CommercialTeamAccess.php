@@ -268,7 +268,7 @@ final class CommercialTeamAccess
                 return;
             }
 
-            $customerModel = new Customer();
+            $customerModel = new Customer;
 
             // Skip subquery when models live on different database connections.
             if ($customerModel->getConnectionName() !== $orderConn) {
@@ -417,7 +417,7 @@ final class CommercialTeamAccess
 
     private static function tableReady(): bool
     {
-        $model = new CommercialTeamMember();
+        $model = new CommercialTeamMember;
 
         return Schema::connection($model->getConnectionName())->hasTable($model->getTable());
     }
