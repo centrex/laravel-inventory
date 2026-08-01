@@ -626,126 +626,6 @@ parameters:
 			path: src/Http/Controllers/Web/AsyncSelectController.php
 
 		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Account\\:\\:\\$code\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$currency\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$name\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$employee_id\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$orders_count\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$price_tier_code\\.$#"
-			count: 3
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Access to an undefined property Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:\\$revenue\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Cannot cast mixed to float\\.$#"
-			count: 6
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Cannot cast mixed to int\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Cannot cast mixed to string\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Controllers\\\\Web\\\\DashboardController\\:\\:buildDraftSaleOrders\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Controllers\\\\Web\\\\DashboardController\\:\\:buildSalesByEmployee\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Controllers\\\\Web\\\\DashboardController\\:\\:buildSalesByPriceTier\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Controllers\\\\Web\\\\DashboardController\\:\\:buildSalesTrend\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Controllers\\\\Web\\\\DashboardController\\:\\:summarizeOrders\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, 'chargeable_type' given\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'status' given\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, array\\<int, string\\> given\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:get\\(\\) expects array\\<int, model property of Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, array\\<int, string\\> given\\.$#"
-			count: 3
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Parameter \\#1 \\$groupBy of method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:groupBy\\(\\) expects array\\|\\(callable\\(Illuminate\\\\Database\\\\Eloquent\\\\Model, int\\|string\\)\\: int\\)\\|string, Closure\\(Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\)\\: \\(0\\|1\\|2\\|3\\|4\\|5\\|6\\|7\\|8\\|9\\|10\\|11\\|12\\|13\\|14\\|15\\|16\\|17\\|18\\|19\\|20\\|21\\|22\\|23\\|24\\|25\\|26\\|27\\|28\\|29\\|30\\|31\\) given\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Http\\\\Controllers\\\\Web\\\\DashboardController\\:\\:summarizeOrders\\(\\) expects Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>, Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Illuminate\\\\Database\\\\Eloquent\\\\Model\\> given\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
-			count: 1
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
-			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
-			count: 2
-			path: src/Http/Controllers/Web/DashboardController.php
-
-		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockReceipt\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockReceipt, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockReceipt\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockReceipt, 'status' given\\.$#"
 			count: 1
 			path: src/Http/Controllers/Web/LogisticsDashboardController.php
@@ -1291,46 +1171,6 @@ parameters:
 			path: src/Http/Livewire/Transactions/AdjustmentFormPage.php
 
 		-
-			message: "#^Cannot access offset 'customer' on mixed\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Cannot cast mixed to float\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Cannot cast mixed to string\\.$#"
-			count: 2
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{customer_id\\: int, customer\\: mixed, orders_count\\: int, oldest_days_overdue\\: mixed, buckets\\: non\\-empty\\-array\\<float\\>, total_due\\: float\\}\\>\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<int,mixed\\>\\:\\:filter\\(\\) expects \\(callable\\(mixed, int\\)\\: bool\\)\\|null, Closure\\(array\\)\\: bool given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
-			count: 2
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, array\\<int, string\\> given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryStockAgingCard.php
-
-		-
-			message: "#^Parameter \\#1 \\$rows of static method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:downloadStockAging\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryStockAgingCard.php
-
-		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\:\\:\\$created_at\\.$#"
 			count: 3
 			path: src/Http/Livewire/Transactions/DispatchTerminalPage.php
@@ -1604,6 +1444,451 @@ parameters:
 			message: "#^Using nullsafe property access on non\\-nullable type Centrex\\\\Inventory\\\\Enums\\\\SaleOrderStatus\\. Use \\-\\> instead\\.$#"
 			count: 6
 			path: src/Http/Livewire/Transactions/DispatchTerminalPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDraftSaleOrdersCard\\:\\:buildDraftSaleOrders\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDraftSaleOrdersCard\\:\\:draftSaleOrders\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:map\\(\\) expects callable\\(Illuminate\\\\Database\\\\Eloquent\\\\Model, int\\)\\: array\\{id\\: int, so_number\\: string, customer_name\\: mixed, ordered_at\\: string\\|null, total_amount\\: float\\}, Closure\\(Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\)\\: array\\{id\\: int, so_number\\: string, customer_name\\: mixed, ordered_at\\: non\\-falsy\\-string\\|null, total_amount\\: float\\} given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'status' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:get\\(\\) expects array\\<int, model property of Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
+
+		-
+			message: "#^Cannot access offset 'customer' on mixed\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Cannot cast mixed to string\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{customer_id\\: int, customer\\: mixed, orders_count\\: int, oldest_days_overdue\\: mixed, buckets\\: non\\-empty\\-array\\<float\\>, total_due\\: float\\}\\>\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<int,mixed\\>\\:\\:filter\\(\\) expects \\(callable\\(mixed, int\\)\\: bool\\)\\|null, Closure\\(array\\)\\: bool given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryForecastCard\\:\\:forecast\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryForecastCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryForecastCard\\:\\:forecastData\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryForecastCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryForecastGeoCard\\:\\:forecastData\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryForecastGeoCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryForecastProductCustomerCard\\:\\:forecastData\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryForecastProductCustomerCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryForecastSummaryCard\\:\\:forecastData\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryForecastSummaryCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryLowStockCard\\:\\:lowStockItems\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{product_name\\: string\\|null, product_sku\\: string\\|null, warehouse_name\\: mixed, qty_available\\: float, reorder_point\\: float\\}\\>\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),mixed\\>\\:\\:map\\(\\) expects callable\\(mixed, int\\|string\\)\\: array\\{product_name\\: string\\|null, product_sku\\: string\\|null, warehouse_name\\: mixed, qty_available\\: float, reorder_point\\: float\\}, Closure\\(Centrex\\\\Inventory\\\\Models\\\\WarehouseProduct\\)\\: array\\{product_name\\: string\\|null, product_sku\\: string\\|null, warehouse_name\\: mixed, qty_available\\: float, reorder_point\\: float\\} given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Return type of call to function collect contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Return type of call to method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryLowStockCard\\:\\:rememberCache\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),mixed\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryLowStockCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryRecentSaleOrdersCard\\:\\:recentOrders\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Collection does not specify its types\\: TKey, TModel$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryRecentSaleOrdersCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryRecentSaleOrdersCard\\:\\:scopedOrderIds\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryRecentSaleOrdersCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryRecentSaleOrdersCard\\:\\:scopedSalesQuery\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Builder does not specify its types\\: TModel$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryRecentSaleOrdersCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'product_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryRecentSaleOrdersCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesByEmployeeCard\\:\\:buildSalesByEmployee\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByEmployeeCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesByEmployeeCard\\:\\:salesByEmployee\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByEmployeeCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:get\\(\\) expects array\\<int, model property of Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByEmployeeCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$orders of static method Centrex\\\\Inventory\\\\Support\\\\SalesBreakdowns\\:\\:byEmployee\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>, Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Illuminate\\\\Database\\\\Eloquent\\\\Model\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByEmployeeCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesByPriceTierCard\\:\\:buildSalesByPriceTier\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByPriceTierCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesByPriceTierCard\\:\\:salesByPriceTier\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByPriceTierCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:get\\(\\) expects array\\<int, model property of Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByPriceTierCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$orders of static method Centrex\\\\Inventory\\\\Support\\\\SalesBreakdowns\\:\\:byPriceTier\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>, Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Illuminate\\\\Database\\\\Eloquent\\\\Model\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesByPriceTierCard.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Cannot cast mixed to int\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:buildSalesMetrics\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:buildSalesMetrics\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:distinctProductCount\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:invoiceSummary\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:invoiceSummary\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:scopedOrderIds\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:scopedSalesQuery\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Builder does not specify its types\\: TModel$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesStatisticsCard\\:\\:statistics\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 3
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'source_type' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, 'product_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'product_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrder, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesStatisticsCard.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 4
+			path: src/Http/Livewire/Transactions/InventorySalesTargetCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesTargetCard\\:\\:salesTarget\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTargetCard.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesTrendCard\\:\\:buildTrend\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesTrendCard\\:\\:trend\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'status' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:get\\(\\) expects array\\<int, model property of Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, array\\<int, string\\> given\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$groupBy of method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:groupBy\\(\\) expects array\\|\\(callable\\(Illuminate\\\\Database\\\\Eloquent\\\\Model, int\\|string\\)\\: int\\)\\|string, Closure\\(Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\)\\: \\(0\\|1\\|2\\|3\\|4\\|5\\|6\\|7\\|8\\|9\\|10\\|11\\|12\\|13\\|14\\|15\\|16\\|17\\|18\\|19\\|20\\|21\\|22\\|23\\|24\\|25\\|26\\|27\\|28\\|29\\|30\\|31\\) given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Support\\\\SalesOrderProfitSummary\\:\\:summarize\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>, Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Illuminate\\\\Database\\\\Eloquent\\\\Model\\> given\\.$#"
+			count: 2
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$cost_amount\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$fulfilled_revenue_amount\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$orders_count\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$product_id\\.$#"
+			count: 3
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$qty_sold\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$revenue_local\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$variant_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySoldProductsCard\\:\\:buildSoldProductsReport\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySoldProductsCard\\:\\:scopedOrderIds\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySoldProductsCard\\:\\:scopedSalesQuery\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Builder does not specify its types\\: TModel$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySoldProductsCard\\:\\:soldProducts\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, 'product_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'product_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySoldProductsCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryStockAgingCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$rows of static method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:downloadStockAging\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryStockAgingCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryStockValuationCard\\:\\:valuationRows\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, mixed\\>\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryStockValuationCard.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryStockValuationCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$currency\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryWarehouseStockCard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryWarehouseStockCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryWarehouseStockCard\\:\\:buildWarehouseStock\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryWarehouseStockCard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryWarehouseStockCard\\:\\:warehouseStock\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryWarehouseStockCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryWarehouseStockCard.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventoryWarehouseStockCard.php
 
 		-
 			message: "#^Call to method content\\(\\) on an unknown class Centrex\\\\Cart\\\\Cart\\.$#"
@@ -2596,6 +2881,11 @@ parameters:
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
 
 		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:resolveDispatchInfo\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
+
+		-
 			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:resolveFinanceDocument\\(\\) return type has no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
@@ -2626,22 +2916,17 @@ parameters:
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
 
 		-
+			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$dispatchInfo type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
+
+		-
 			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$financeDocument type has no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
 
 		-
 			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$linkedSaleOrder type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:resolveDispatchInfo\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
-
-		-
-			message: "#^Property Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SaleOrderShowPage\\:\\:\\$dispatchInfo type has no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/SaleOrderShowPage.php
 
@@ -2852,111 +3137,6 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$phone\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$orders_count\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$product_id\\.$#"
-			count: 3
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$qty_sold\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$revenue_local\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$variant_id\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Cannot cast mixed to float\\.$#"
-			count: 2
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Cannot cast mixed to int\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:buildSalesMetrics\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:buildSalesMetrics\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:buildSoldProductsReport\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:buildSoldProductsReport\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:distinctProductCount\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:invoiceSummary\\(\\) has parameter \\$orderIds with generic class Illuminate\\\\Support\\\\Collection but does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:invoiceSummary\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:scopedOrderIds\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\SalesReportPage\\:\\:scopedSalesQuery\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Builder does not specify its types\\: TModel$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'source_type' given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, 'product_id' given\\.$#"
-			count: 2
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'product_id' given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/SalesReportPage.php
-
-		-
-			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/SalesReportPage.php
 
@@ -3227,7 +3407,7 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$shipping_cost_amount\\.$#"
-			count: 1
+			count: 3
 			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
 
 		-
@@ -3242,6 +3422,16 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$qty_sent\\.$#"
+			count: 3
+			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$unit_cost_source_amount\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$unit_landed_cost_amount\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
 
@@ -3256,8 +3446,18 @@ parameters:
 			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
 
 		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 4
+			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
+
+		-
 			message: "#^Cannot cast mixed to int\\.$#"
 			count: 4
+			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\ShipmentShowPage\\:\\:computeLineTotals\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
 			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
 
 		-
@@ -3319,11 +3519,6 @@ parameters:
 			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/ShipmentShowPage.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, array\\<int, string\\> given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/StockReportPage.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Transfer\\:\\:\\$transfer_number\\.$#"
@@ -5041,18 +5236,63 @@ parameters:
 			path: src/Inventory.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$shipment_number\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$shipping_cost_amount\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$status\\.$#"
-			count: 5
+			count: 6
 			path: src/Inventory.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$to_warehouse_id\\.$#"
+			count: 6
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Shipment\\:\\:\\$total_weight_kg\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBox\\:\\:\\$measured_weight_kg\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$extra_charges_allocated_amount\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$product_id\\.$#"
 			count: 2
 			path: src/Inventory.php
 
 		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$extra_charges_allocated_amount\\.$#"
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$qty_sent\\.$#"
 			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$source_unit_cost_amount\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem\\:\\:\\$variant_id\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$extra_charges_allocated_amount\\.$#"
+			count: 2
 			path: src/Inventory.php
 
 		-
@@ -5062,17 +5302,17 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$product_id\\.$#"
-			count: 6
+			count: 12
 			path: src/Inventory.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$qty_received\\.$#"
-			count: 2
+			count: 3
 			path: src/Inventory.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$qty_sent\\.$#"
-			count: 11
+			count: 12
 			path: src/Inventory.php
 
 		-
@@ -5087,17 +5327,22 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$shipping_allocated_amount\\.$#"
+			count: 2
+			path: src/Inventory.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$unit_cost_source_amount\\.$#"
 			count: 1
 			path: src/Inventory.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$unit_landed_cost_amount\\.$#"
-			count: 2
+			count: 3
 			path: src/Inventory.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ShipmentItem\\:\\:\\$variant_id\\.$#"
-			count: 5
+			count: 10
 			path: src/Inventory.php
 
 		-
@@ -5507,7 +5752,7 @@ parameters:
 
 		-
 			message: "#^Cannot cast mixed to int\\.$#"
-			count: 13
+			count: 14
 			path: src/Inventory.php
 
 		-
@@ -6032,12 +6277,12 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentBoxItem, mixed\\>, array\\<string, float\\> given\\.$#"
-			count: 1
+			count: 2
 			path: src/Inventory.php
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\ShipmentItem, mixed\\>, array\\<string, float\\> given\\.$#"
-			count: 2
+			count: 4
 			path: src/Inventory.php
 
 		-
@@ -6371,8 +6616,33 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'warehouse_id' given\\.$#"
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'movement_type' given\\.$#"
 			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'product_id' given\\.$#"
+			count: 2
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'reference_id' given\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'reference_type' given\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'variant_id' given\\.$#"
+			count: 2
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'warehouse_id' given\\.$#"
+			count: 3
 			path: src/Inventory.php
 
 		-
@@ -6516,6 +6786,11 @@ parameters:
 			path: src/Inventory.php
 
 		-
+			message: "#^Return type of call to function array_values contains unresolvable type\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
 			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -6578,6 +6853,11 @@ parameters:
 		-
 			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int\\|string,array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
 			count: 2
+			path: src/Inventory.php
+
+		-
+			message: "#^Return type of call to static method Illuminate\\\\Database\\\\Connection\\:\\:transaction\\(\\) contains unresolvable type\\.$#"
+			count: 1
 			path: src/Inventory.php
 
 		-
@@ -8341,6 +8621,26 @@ parameters:
 			path: src/Observers/BillPaymentObserver.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Invoice\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:\\$id\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$account\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$chargeable_id\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$chargeable_type\\.$#"
+			count: 1
+			path: src/Observers/InvoiceDiscountObserver.php
+
+		-
 			message: "#^Access to an undefined property object\\:\\:\\$id\\.$#"
 			count: 1
 			path: src/Observers/InvoicePaymentObserver.php
@@ -8364,26 +8664,6 @@ parameters:
 			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),mixed\\>\\:\\:each\\(\\) expects callable\\(mixed, int\\|string\\)\\: mixed, Closure\\(int\\)\\: Illuminate\\\\Foundation\\\\Bus\\\\PendingDispatch given\\.$#"
 			count: 1
 			path: src/Observers/InvoicePaymentObserver.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Invoice\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:\\$id\\.$#"
-			count: 1
-			path: src/Observers/InvoiceDiscountObserver.php
-
-		-
-			message: "#^Access to an undefined property object\\:\\:\\$account\\.$#"
-			count: 1
-			path: src/Observers/InvoiceDiscountObserver.php
-
-		-
-			message: "#^Access to an undefined property object\\:\\:\\$chargeable_id\\.$#"
-			count: 1
-			path: src/Observers/InvoiceDiscountObserver.php
-
-		-
-			message: "#^Access to an undefined property object\\:\\:\\$chargeable_type\\.$#"
-			count: 1
-			path: src/Observers/InvoiceDiscountObserver.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\FiscalPeriod\\:\\:\\$end_date\\.$#"
@@ -8414,6 +8694,61 @@ parameters:
 			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
 			count: 1
 			path: src/Support/AccountingInventorySnapshotProvider.php
+
+		-
+			message: "#^Access to constant FILL_SOLID on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Style\\\\Fill\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Call to method createSheet\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Call to method getActiveSheet\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Call to method save\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Writer\\\\Xlsx\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Instantiated class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet not found\\.$#"
+			count: 2
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Instantiated class PhpOffice\\\\PhpSpreadsheet\\\\Writer\\\\Xlsx not found\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:writeSheet\\(\\) has invalid return type PhpOffice\\\\PhpSpreadsheet\\\\Worksheet\\\\Worksheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:stream\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:writeDueAgingSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:writeSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\AgingReportExcelExporter\\:\\:writeStockAgingSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/AgingReportExcelExporter.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CommercialTeamMember\\:\\:\\$manager_user_id\\.$#"
@@ -9206,6 +9541,246 @@ parameters:
 			path: src/Support/InventoryEntityRegistry.php
 
 		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$organization_name\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Supplier\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$name\\.$#"
+			count: 3
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Access to constant FILL_SOLID on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Style\\\\Fill\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Call to method createSheet\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Call to method getActiveSheet\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Call to method save\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Writer\\\\Xlsx\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Call to method setActiveSheetIndex\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset '0\\-30' on mixed\\.$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset '31\\-60' on mixed\\.$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset '61\\-90' on mixed\\.$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset '90\\+' on mixed\\.$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset 'qty' on mixed\\.$#"
+			count: 5
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset 'unknown' on mixed\\.$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot access offset 'value' on mixed\\.$#"
+			count: 5
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot call method format\\(\\) on mixed\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 14
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Instantiated class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet not found\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Instantiated class PhpOffice\\\\PhpSpreadsheet\\\\Writer\\\\Xlsx not found\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:build\\(\\) has invalid return type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:resolveProductRows\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{name\\: mixed, sku\\: mixed, qty\\: float, amount\\: float, orders_count\\: int\\}\\>\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:scopedPurchaseOrders\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\PurchaseOrder\\> but returns Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:scopedSalesOrders\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\> but returns Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeSheet\\(\\) has invalid return type PhpOffice\\\\PhpSpreadsheet\\\\Worksheet\\\\Worksheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$rows of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:resolveProductRows\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, object\\{product_id\\: int, variant_id\\: int\\|null, orders_count\\: int\\}\\>, Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\PurchaseOrderItem\\> given\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$rows of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:resolveProductRows\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, object\\{product_id\\: int, variant_id\\: int\\|null, orders_count\\: int\\}\\>, Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\> given\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$value of function collect expects Illuminate\\\\Contracts\\\\Support\\\\Arrayable\\<\\(int\\|string\\), mixed\\>\\|iterable\\<\\(int\\|string\\), mixed\\>\\|null, mixed given\\.$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\#3 \\$customers of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeForecastCustomersSheet\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\), mixed\\> given\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\#3 \\$products of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeForecastProductsSheet\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\), mixed\\> given\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeDueAgingSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeForecastCustomersSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeForecastProductsSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeLowStockSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writePurchaseProductsSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writePurchaseSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeSalesProductsSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeSalesSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeStockAgingSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeStockValuationSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\InventoryReportsExporter\\:\\:writeSummarySheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\PurchaseOrder\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\WarehouseProduct\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<int, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
+			count: 3
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Unable to resolve the template type TKey in call to function collect$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
+			message: "#^Unable to resolve the template type TValue in call to function collect$#"
+			count: 2
+			path: src/Support/InventoryReportsExporter.php
+
+		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Partner\\:\\:\\$allowed_warehouse_ids\\.$#"
 			count: 3
 			path: src/Support/PartnerScope.php
@@ -9239,6 +9814,36 @@ parameters:
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'modelable_type' given\\.$#"
 			count: 1
 			path: src/Support/PartnerScope.php
+
+		-
+			message: "#^Cannot cast mixed to string\\.$#"
+			count: 1
+			path: src/Support/SalesBreakdowns.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Account\\:\\:\\$code\\.$#"
+			count: 2
+			path: src/Support/SalesOrderProfitSummary.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 5
+			path: src/Support/SalesOrderProfitSummary.php
+
+		-
+			message: "#^Cannot cast mixed to int\\.$#"
+			count: 1
+			path: src/Support/SalesOrderProfitSummary.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, 'chargeable_type' given\\.$#"
+			count: 1
+			path: src/Support/SalesOrderProfitSummary.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Support/SalesOrderProfitSummary.php
 
 		-
 			message: "#^Call to an undefined method DateTimeInterface\\:\\:toDateString\\(\\)\\.$#"
@@ -9494,18 +10099,3 @@ parameters:
 			message: "#^Cannot cast mixed to string\\.$#"
 			count: 1
 			path: src/Support/WarehouseStockExporter.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryForecastCard\\:\\:forecast\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryForecastCard.php
-
-		-
-			message: "#^Cannot cast mixed to float\\.$#"
-			count: 4
-			path: src/Http/Livewire/Transactions/InventorySalesTargetCard.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventorySalesTargetCard\\:\\:salesTarget\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventorySalesTargetCard.php

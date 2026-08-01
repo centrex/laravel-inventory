@@ -381,8 +381,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory);
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
+        $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(
@@ -435,10 +435,18 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-shipment-show', Http\Livewire\Transactions\ShipmentShowPage::class);
         Livewire::component('inventory-reports-page', Http\Livewire\Transactions\InventoryReportsPage::class);
         Livewire::component('inventory-sales-report', Http\Livewire\Transactions\SalesReportPage::class);
+        Livewire::component('inventory-sales-statistics-card', Http\Livewire\Transactions\InventorySalesStatisticsCard::class);
+        Livewire::component('inventory-recent-sale-orders-card', Http\Livewire\Transactions\InventoryRecentSaleOrdersCard::class);
+        Livewire::component('inventory-sold-products-card', Http\Livewire\Transactions\InventorySoldProductsCard::class);
         Livewire::component('inventory-purchase-report', Http\Livewire\Transactions\PurchaseReportPage::class);
         Livewire::component('inventory-stock-report', Http\Livewire\Transactions\StockReportPage::class);
+        Livewire::component('inventory-low-stock-card', Http\Livewire\Transactions\InventoryLowStockCard::class);
+        Livewire::component('inventory-stock-valuation-card', Http\Livewire\Transactions\InventoryStockValuationCard::class);
         Livewire::component('inventory-forecast-report', Http\Livewire\Transactions\ForecastReportPage::class);
         Livewire::component('inventory-forecast-card', Http\Livewire\Transactions\InventoryForecastCard::class);
+        Livewire::component('inventory-forecast-summary-card', Http\Livewire\Transactions\InventoryForecastSummaryCard::class);
+        Livewire::component('inventory-forecast-product-customer-card', Http\Livewire\Transactions\InventoryForecastProductCustomerCard::class);
+        Livewire::component('inventory-forecast-geo-card', Http\Livewire\Transactions\InventoryForecastGeoCard::class);
         Livewire::component('inventory-sales-target-card', Http\Livewire\Transactions\InventorySalesTargetCard::class);
         Livewire::component('inventory-sales-trend-card', Http\Livewire\Transactions\InventorySalesTrendCard::class);
         Livewire::component('inventory-draft-sale-orders-card', Http\Livewire\Transactions\InventoryDraftSaleOrdersCard::class);

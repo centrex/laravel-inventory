@@ -6,10 +6,9 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Models\SaleOrder;
-use Centrex\Inventory\Support\{CommercialTeamAccess, SalesOrderProfitSummary};
+use Centrex\Inventory\Support\{CommercialTeamAccess, SalesBreakdowns};
 use Centrex\TallUi\Concerns\CachesData;
 use Illuminate\Contracts\View\View;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\{Blade, Gate};
 use Livewire\Component;
 
@@ -73,27 +72,6 @@ class InventorySalesByEmployeeCard extends Component
             ->whereNotIn('status', $excluded)
             ->get(['id', 'sales_executive_id', 'created_by', 'total_amount', 'cogs_amount', 'accounting_invoice_id']);
 
-        $groups = $orders->groupBy(fn (SaleOrder $order): int|string => $order->sales_executive_id ?? $order->created_by ?? 'unassigned');
-
-        $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
-        $employeeIds = $groups->keys()->filter(fn ($key): bool => $key !== 'unassigned')->values();
-        $users = $employeeIds->isNotEmpty()
-            ? $userModel::query()->whereIn('id', $employeeIds)->get(['id', 'name'])->keyBy('id')
-            : collect();
-
-        $summarizer = app(SalesOrderProfitSummary::class);
-
-        return $groups->map(function (Collection $group, int|string $employeeId) use ($users, $summarizer): array {
-            $summary = $summarizer->summarize($group);
-
-            return [
-                'employee_id'    => $employeeId === 'unassigned' ? null : (int) $employeeId,
-                'name'           => $employeeId === 'unassigned' ? 'Unassigned' : ($users[$employeeId]->name ?? "User #{$employeeId}"),
-                'orders_count'   => $summary['orders_count'],
-                'revenue'        => $summary['revenue'],
-                'net_profit'     => $summary['net_profit'],
-                'net_margin_pct' => $summary['net_margin_pct'],
-            ];
-        })->sortByDesc('revenue')->values()->all();
+        return SalesBreakdowns::byEmployee($orders);
     }
 }

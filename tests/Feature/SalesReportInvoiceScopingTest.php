@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Http\Livewire\Transactions\SalesReportPage;
+use Centrex\Inventory\Http\Livewire\Transactions\InventorySalesStatisticsCard;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, Warehouse, WarehouseProduct};
 use Illuminate\Support\Facades\Queue;
@@ -13,13 +13,14 @@ use Illuminate\Support\Facades\Queue;
  * customer/product filter, so they never changed when a filter was applied —
  * unlike the rest of the report, which is scoped via scopedOrderIds().
  *
- * Invokes buildSalesMetrics() directly via reflection rather than through
- * Livewire::test()->render(), since the full page view pulls in Blade Icons
- * components whose manifest isn't bound in this package's isolated test env
- * (only the consuming app registers that) — reflection exercises the exact
- * logic under test without that unrelated dependency.
+ * This logic now lives on InventorySalesStatisticsCard (the Sales Report's "Sale
+ * Statistics" tab, split out of SalesReportPage). Invokes buildSalesMetrics() directly via
+ * reflection rather than through Livewire::test()->render(), since the full component view
+ * pulls in Blade Icons components whose manifest isn't bound in this package's isolated
+ * test env (only the consuming app registers that) — reflection exercises the exact logic
+ * under test without that unrelated dependency.
  */
-function buildSalesMetricsFor(SalesReportPage $component): array
+function buildSalesMetricsFor(InventorySalesStatisticsCard $component): array
 {
     $method = new ReflectionMethod($component, 'buildSalesMetrics');
     $method->setAccessible(true);
@@ -27,7 +28,7 @@ function buildSalesMetricsFor(SalesReportPage $component): array
     return $method->invoke($component);
 }
 
-function distinctProductCountFor(SalesReportPage $component): int
+function distinctProductCountFor(InventorySalesStatisticsCard $component): int
 {
     $method = new ReflectionMethod($component, 'distinctProductCount');
     $method->setAccessible(true);
@@ -107,7 +108,7 @@ it('scopes invoice paid/due totals to the selected customer, not every invoice i
         'account_code' => '1000',
     ]);
 
-    $componentForA = new SalesReportPage;
+    $componentForA = new InventorySalesStatisticsCard();
     $componentForA->startDate = now()->subDay()->toDateString();
     $componentForA->endDate = now()->addDay()->toDateString();
     $componentForA->customerId = $customerA->id;
@@ -117,7 +118,7 @@ it('scopes invoice paid/due totals to the selected customer, not every invoice i
     expect($metricsForA['invoice_paid'])->toBeGreaterThan(0)
         ->and($metricsForA['invoice_due'])->toBe(0.0);
 
-    $componentForB = new SalesReportPage;
+    $componentForB = new InventorySalesStatisticsCard();
     $componentForB->startDate = now()->subDay()->toDateString();
     $componentForB->endDate = now()->addDay()->toDateString();
     $componentForB->customerId = $customerB->id;
@@ -157,14 +158,14 @@ it('narrows the distinct-products count when a product filter is applied', funct
     ]);
     $inventory->confirmSaleOrder($order->id);
 
-    $unfiltered = new SalesReportPage;
+    $unfiltered = new InventorySalesStatisticsCard();
     $unfiltered->startDate = now()->subDay()->toDateString();
     $unfiltered->endDate = now()->addDay()->toDateString();
     $unfiltered->customerId = $customer->id;
 
     expect(distinctProductCountFor($unfiltered))->toBe(2);
 
-    $filteredToA = new SalesReportPage;
+    $filteredToA = new InventorySalesStatisticsCard();
     $filteredToA->startDate = now()->subDay()->toDateString();
     $filteredToA->endDate = now()->addDay()->toDateString();
     $filteredToA->customerId = $customer->id;

@@ -22,6 +22,8 @@
                             <th>Tier</th>
                             <th class="text-right">Orders</th>
                             <th class="text-right">Revenue</th>
+                            <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Net Profit</th>
+                            <th class="text-right" title="Computed over fulfilled orders only; unfulfilled order revenue isn't included in this ratio">Margin %</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -30,6 +32,8 @@
                                 <td>{{ $tier['label'] }}</td>
                                 <td class="text-right">{{ number_format($tier['orders_count']) }}</td>
                                 <td class="text-right font-medium">{{ number_format($tier['revenue'], 2) }}</td>
+                                <td class="text-right font-medium">{{ number_format($tier['net_profit'], 2) }}</td>
+                                <td class="text-right">{{ $tier['net_margin_pct'] !== null ? number_format($tier['net_margin_pct'], 1) . '%' : '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

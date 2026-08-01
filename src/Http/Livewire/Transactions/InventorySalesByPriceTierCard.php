@@ -4,9 +4,9 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
+use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Models\SaleOrder;
-use Centrex\Inventory\Support\CommercialTeamAccess;
+use Centrex\Inventory\Support\{CommercialTeamAccess, SalesBreakdowns};
 use Centrex\TallUi\Concerns\CachesData;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\{Blade, Gate};
@@ -65,19 +65,11 @@ class InventorySalesByPriceTierCard extends Component
     {
         $excluded = [SaleOrderStatus::DRAFT->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
 
-        $rows = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
+        $orders = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
             ->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfDay()])
             ->whereNotIn('status', $excluded)
-            ->selectRaw('price_tier_code, COUNT(*) as orders_count, SUM(total_amount) as revenue')
-            ->groupBy('price_tier_code')
-            ->orderByDesc('revenue')
-            ->get();
+            ->get(['id', 'price_tier_code', 'total_amount', 'cogs_amount', 'accounting_invoice_id']);
 
-        return $rows->map(fn ($row): array => [
-            'code'         => $row->price_tier_code,
-            'label'        => PriceTierCode::labelFor($row->price_tier_code) ?? $row->price_tier_code,
-            'orders_count' => (int) $row->orders_count,
-            'revenue'      => (float) $row->revenue,
-        ])->all();
+        return SalesBreakdowns::byPriceTier($orders);
     }
 }

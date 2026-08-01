@@ -4,10 +4,9 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Inventory;
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\CachesSalesForecast;
 use Centrex\TallUi\Concerns\CachesData;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{Blade, Gate};
 use Livewire\Component;
 
@@ -19,10 +18,15 @@ use Livewire\Component;
  * component once the Forecast tab is actually opened (see dashboard.blade.php's
  * `<template x-if="activeTab === 'forecast'">` wrapper) — `lazy` alone isn't enough here
  * since the tab content is otherwise still present (just hidden) in the initial DOM.
+ *
+ * Uses the default 90/90 lookback/horizon, same cache key namespace as the Forecast Report
+ * page's own cards (see CachesSalesForecast) — whichever loads first for that combination
+ * populates the cache for the other.
  */
 class InventoryForecastCard extends Component
 {
     use CachesData;
+    use CachesSalesForecast;
 
     public function mount(): void
     {
@@ -32,34 +36,7 @@ class InventoryForecastCard extends Component
 
     public function forecast(): array
     {
-        return $this->rememberCache(
-            $this->cacheKey('inventory', 'forecast-card'),
-            fn (): array => $this->sanitizeForCache(app(Inventory::class)->salesForecast()),
-        );
-    }
-
-    /**
-     * salesForecast()'s 'products'/'customers'/'zones'/'areas'/'demographics' entries are
-     * Collection instances (fine for its other, uncached callers) — the cache store
-     * serializes this whole array with PHP's native serialize(), and a Collection
-     * surviving into that blob comes back as __PHP_Incomplete_Class if its class isn't
-     * autoloaded yet on the next request, so a later ->count()/iteration throws deep
-     * inside the view. Flatten to plain arrays so only cache-safe data crosses that
-     * boundary — every consumer here (this card's Blade view) already wraps these with
-     * collect()/foreach, both of which work identically on a plain array.
-     *
-     * @param  array<string, mixed>  $forecast
-     * @return array<string, mixed>
-     */
-    private function sanitizeForCache(array $forecast): array
-    {
-        foreach (['products', 'customers', 'zones', 'areas', 'demographics'] as $key) {
-            if ($forecast[$key] instanceof Collection) {
-                $forecast[$key] = $forecast[$key]->all();
-            }
-        }
-
-        return $forecast;
+        return $this->forecastData(90, 90);
     }
 
     public function placeholder(): string
