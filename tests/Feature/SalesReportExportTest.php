@@ -11,7 +11,7 @@ beforeEach(function (): void {
 });
 
 it('exports the sales report as one workbook with a tab per sale report section', function (): void {
-    $page = new SalesReportPage();
+    $page = new SalesReportPage;
     $page->mount();
 
     $response = $page->exportExcel();

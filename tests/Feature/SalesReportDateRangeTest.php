@@ -16,7 +16,7 @@ afterEach(function (): void {
 });
 
 it('defaults to month-to-date on mount', function (): void {
-    $page = new SalesReportPage();
+    $page = new SalesReportPage;
     $page->mount();
 
     expect($page->dateRange)->toBe('this_month')
@@ -25,7 +25,7 @@ it('defaults to month-to-date on mount', function (): void {
 });
 
 it('switches to the full prior calendar month', function (): void {
-    $page = new SalesReportPage();
+    $page = new SalesReportPage;
     $page->mount();
 
     $page->dateRange = 'last_month';
@@ -36,7 +36,7 @@ it('switches to the full prior calendar month', function (): void {
 });
 
 it('switches to quarter-to-date', function (): void {
-    $page = new SalesReportPage();
+    $page = new SalesReportPage;
     $page->mount();
 
     $page->dateRange = 'this_quarter';
@@ -47,7 +47,7 @@ it('switches to quarter-to-date', function (): void {
 });
 
 it('switches to the full prior calendar quarter', function (): void {
-    $page = new SalesReportPage();
+    $page = new SalesReportPage;
     $page->mount();
 
     $page->dateRange = 'last_quarter';

@@ -30,7 +30,7 @@ final class SalesReportExcelExporter
 
     public static function download(string $startDate, string $endDate, ?int $customerId, ?int $productId, string $filename): StreamedResponse
     {
-        $exporter = new self();
+        $exporter = new self;
         $exporter->startDate = $startDate;
         $exporter->endDate = $endDate;
         $exporter->customerId = $customerId;
@@ -52,7 +52,7 @@ final class SalesReportExcelExporter
 
     private function build(): Spreadsheet
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         $this->writeStatisticsSheet($spreadsheet, 0);
         $this->writeRecentSalesSheet($spreadsheet, 1);
@@ -72,7 +72,7 @@ final class SalesReportExcelExporter
      */
     private function writeStatisticsSheet(Spreadsheet $spreadsheet, int $index): void
     {
-        $card = new InventorySalesStatisticsCard();
+        $card = new InventorySalesStatisticsCard;
         $card->startDate = $this->startDate;
         $card->endDate = $this->endDate;
         $card->customerId = $this->customerId;
