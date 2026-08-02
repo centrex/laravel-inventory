@@ -53,12 +53,19 @@
                     @endif
                 </div>
             </div>
+            <select wire:model.live="dateRange" wire:loading.attr="disabled" wire:target="dateRange" class="select select-bordered select-sm">
+                <option value="this_month">This Month</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_quarter">This Quarter</option>
+                <option value="last_quarter">Last Quarter</option>
+            </select>
             <x-tallui-input type="date" wire:model.live="startDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId" class="input-sm" />
             <x-tallui-input type="date" wire:model.live="endDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId" class="input-sm" />
-            <span wire:loading wire:target="startDate,endDate,customerId,productId" class="flex items-center gap-1 text-xs text-base-content/60">
+            <span wire:loading wire:target="dateRange,startDate,endDate,customerId,productId" class="flex items-center gap-1 text-xs text-base-content/60">
                 <span class="loading loading-spinner loading-xs"></span>
                 Updating…
             </span>
+            <x-tallui-button label="Export Excel" icon="o-arrow-down-tray" wire:click="exportExcel" spinner="exportExcel" class="btn-outline btn-sm" />
         </div>
     </x-slot:actions>
 </x-tallui-page-header>

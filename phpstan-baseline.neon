@@ -1491,11 +1491,6 @@ parameters:
 			path: src/Http/Livewire/Transactions/InventoryDraftSaleOrdersCard.php
 
 		-
-			message: "#^Cannot access offset 'customer' on mixed\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
 			message: "#^Cannot cast mixed to float\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
@@ -1506,18 +1501,8 @@ parameters:
 			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{customer_id\\: int, customer\\: mixed, orders_count\\: int, oldest_days_overdue\\: mixed, buckets\\: non\\-empty\\-array\\<float\\>, total_due\\: float\\}\\>\\.$#"
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) should return Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\> but returns Illuminate\\\\Support\\\\Collection\\<int, array\\{customer_id\\: int, customer\\: mixed, orders_count\\: int, oldest_days_overdue\\: mixed, so_numbers\\: string, buckets\\: non\\-empty\\-array\\<float\\>, total_due\\: float\\}\\>\\.$#"
 			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<int,mixed\\>\\:\\:filter\\(\\) expects \\(callable\\(mixed, int\\)\\: bool\\)\\|null, Closure\\(array\\)\\: bool given\\.$#"
-			count: 1
-			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
-
-		-
-			message: "#^Parameter \\#1 \\$orders of method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\InventoryDueAgingCard\\:\\:groupDueAgingByCustomer\\(\\) expects Illuminate\\\\Support\\\\Collection\\<int, array\\<string, mixed\\>\\>, Illuminate\\\\Support\\\\Collection\\<int, mixed\\> given\\.$#"
-			count: 2
 			path: src/Http/Livewire/Transactions/InventoryDueAgingCard.php
 
 		-
@@ -9844,6 +9829,166 @@ parameters:
 			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, array\\<int, string\\> given\\.$#"
 			count: 1
 			path: src/Support/SalesOrderProfitSummary.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$organization_name\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$cost_amount\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$fulfilled_revenue_amount\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$orders_count\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$product_id\\.$#"
+			count: 2
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$qty_sold\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$revenue_local\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\:\\:\\$variant_id\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Warehouse\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Access to constant FILL_SOLID on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Style\\\\Fill\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Call to method createSheet\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Call to method getActiveSheet\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Call to method save\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Writer\\\\Xlsx\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Call to method setActiveSheetIndex\\(\\) on an unknown class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Cannot cast mixed to string\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Instantiated class PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet not found\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Instantiated class PhpOffice\\\\PhpSpreadsheet\\\\Writer\\\\Xlsx not found\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:build\\(\\) has invalid return type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:scopedOrderIds\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:scopedSalesQuery\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Builder does not specify its types\\: TModel$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:writeSheet\\(\\) has invalid return type PhpOffice\\\\PhpSpreadsheet\\\\Worksheet\\\\Worksheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:map\\(\\) expects callable\\(Illuminate\\\\Database\\\\Eloquent\\\\Model, int\\)\\: array\\{string, string\\|null, mixed, mixed, string, float, float, float, float, float\\}, Closure\\(Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\)\\: array\\{string, non\\-falsy\\-string\\|null, mixed, mixed, 'cancelled'\\|'completed'\\|'confirmed'\\|'draft'\\|'fulfilled'\\|'partial'\\|'processing'\\|'returned'\\|'shipped', float, float, float, float, float\\} given\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\SaleOrderItem, 'product_id' given\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Illuminate\\\\Database\\\\Eloquent\\\\Model, 'product_id' given\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:writeRecentSalesSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:writeSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:writeSoldProductsSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Parameter \\$spreadsheet of method Centrex\\\\Inventory\\\\Support\\\\SalesReportExcelExporter\\:\\:writeStatisticsSheet\\(\\) has invalid type PhpOffice\\\\PhpSpreadsheet\\\\Spreadsheet\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Illuminate\\\\Database\\\\Eloquent\\\\Model\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int,array\\<int, mixed\\>\\>\\:\\:all\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Support/SalesReportExcelExporter.php
 
 		-
 			message: "#^Call to an undefined method DateTimeInterface\\:\\:toDateString\\(\\)\\.$#"

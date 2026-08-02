@@ -102,17 +102,40 @@ class InventoryDueAgingCard extends Component
      * out so render()/exportExcel()/groupDueAgingByCustomer() keep working with a
      * Collection as before.
      *
-     * @return Collection<int, mixed>
+     * Same hazard applies one level down: dueAgingReport() rows carry a raw Carbon
+     * `ordered_at`, which is exactly as unsafe to leave inside the cached blob as the
+     * outer Collection was (this is what actually broke in production — the row survived
+     * as a plain array, but its `ordered_at` object didn't). Stringified before caching,
+     * parsed back to Carbon on the way out so render()'s `$row['ordered_at']?->format(...)`
+     * keeps working unchanged.
+     *
+     * @return Collection<int, non-empty-array<string, mixed>>
      */
     private function dueAgingOrders(): Collection
     {
-        return collect($this->rememberCache(
+        $rows = $this->rememberCache(
             $this->cacheKey('inventory', 'due-aging-card', $this->fromDate),
             fn (): array => app(Inventory::class)->dueAgingReport(fromDate: $this->fromDate ?: null)
                 ->sortByDesc('days_overdue')
                 ->values()
+                ->map(function (mixed $row): array {
+                    /** @var array<string, mixed> $row */
+                    $orderedAt = $row['ordered_at'] ?? null;
+
+                    return [...$row, 'ordered_at' => $orderedAt instanceof \DateTimeInterface ? $orderedAt->format(DATE_ATOM) : $orderedAt];
+                })
                 ->all(),
-        ));
+        );
+
+        return collect($rows)->map(function (mixed $row): array {
+            /** @var array<string, mixed> $row */
+            $orderedAt = $row['ordered_at'] ?? null;
+
+            return [
+                ...$row,
+                'ordered_at' => is_string($orderedAt) ? \Illuminate\Support\Carbon::parse($orderedAt) : null,
+            ];
+        });
     }
 
     /**
@@ -120,7 +143,7 @@ class InventoryDueAgingCard extends Component
      * table — one row per customer with their bucket breakdown and total due, sorted by
      * total due descending, instead of one row per order.
      *
-     * @param  Collection<int, array<string, mixed>>  $orders
+     * @param  Collection<int, non-empty-array<string, mixed>>  $orders
      * @return Collection<int, array<string, mixed>>
      */
     private function groupDueAgingByCustomer(Collection $orders): Collection
@@ -140,6 +163,7 @@ class InventoryDueAgingCard extends Component
                     'customer'            => $customerOrders->first()['customer'] ?? ('Customer #' . $customerId),
                     'orders_count'        => $customerOrders->count(),
                     'oldest_days_overdue' => $customerOrders->max('days_overdue'),
+                    'so_numbers'          => $customerOrders->pluck('so_number')->implode(', '),
                     'buckets'             => $buckets,
                     'total_due'           => round((float) $customerOrders->sum('due_amount'), 2),
                 ];

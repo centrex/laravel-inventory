@@ -91,12 +91,12 @@ class AgingReportExcelExporter
 
             return [
                 $row['customer'], $row['orders_count'], $row['oldest_days_overdue'],
-                $buckets['0-30'], $buckets['31-60'], $buckets['61-90'], $buckets['90+'], $row['total_due'],
+                $buckets['0-30'], $buckets['31-60'], $buckets['61-90'], $buckets['90+'], $row['total_due'], $row['so_numbers'] ?? '',
             ];
         })->all();
 
         self::writeSheet($spreadsheet, $index, 'Due Aging', [
-            'Customer', 'Orders', 'Oldest Days Overdue', '0-30', '31-60', '61-90', '90+', 'Total Due',
+            'Customer', 'Orders', 'Oldest Days Overdue', '0-30', '31-60', '61-90', '90+', 'Total Due', 'SO Numbers',
         ], $sheetRows);
     }
 

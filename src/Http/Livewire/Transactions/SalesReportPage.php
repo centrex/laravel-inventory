@@ -5,10 +5,12 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Models\{Customer, Product};
+use Centrex\Inventory\Support\SalesReportExcelExporter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\{Gate, Route};
 use Livewire\Attributes\{Layout, Url};
 use Livewire\Component;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Thin shell: page header + date/customer/product filters + tab bar. The actual report
@@ -23,6 +25,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class SalesReportPage extends Component
 {
+    public string $dateRange = 'this_month';
+
     public string $startDate = '';
 
     public string $endDate = '';
@@ -36,8 +40,35 @@ class SalesReportPage extends Component
     public function mount(): void
     {
         Gate::authorize('inventory.reports.view');
-        $this->endDate = now()->toDateString();
-        $this->startDate = now()->startOfMonth()->toDateString();
+        $this->updateDateRange();
+    }
+
+    public function updatedDateRange(): void
+    {
+        $this->updateDateRange();
+    }
+
+    /** 'this_month'/'this_quarter' are month-/quarter-to-date (through today), matching this page's pre-existing default range; 'last_month'/'last_quarter' are the full prior calendar month/quarter. */
+    private function updateDateRange(): void
+    {
+        match ($this->dateRange) {
+            'this_month'   => [$this->startDate = now()->startOfMonth()->toDateString(), $this->endDate = now()->toDateString()],
+            'last_month'   => [$this->startDate = now()->subMonthNoOverflow()->startOfMonth()->toDateString(), $this->endDate = now()->subMonthNoOverflow()->endOfMonth()->toDateString()],
+            'this_quarter' => [$this->startDate = now()->startOfQuarter()->toDateString(), $this->endDate = now()->toDateString()],
+            'last_quarter' => [$this->startDate = now()->subQuarterNoOverflow()->startOfQuarter()->toDateString(), $this->endDate = now()->subQuarterNoOverflow()->endOfQuarter()->toDateString()],
+            default        => null,
+        };
+    }
+
+    public function exportExcel(): StreamedResponse
+    {
+        return SalesReportExcelExporter::download(
+            $this->startDate,
+            $this->endDate,
+            $this->customerId,
+            $this->productId,
+            'sales-report-' . now()->format('Ymd-His') . '.xlsx',
+        );
     }
 
     public function render(): View
