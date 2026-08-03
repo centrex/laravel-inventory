@@ -109,8 +109,9 @@ class SaleOrderShowPage extends Component
             $so = app(Inventory::class)->confirmSaleOrder((int) $this->record->getKey());
             $this->refreshRecord();
 
-            // confirmSaleOrder() auto-reserves stock by default (see inventory.auto_reserve_on_confirm),
-            // so it can surface the same shortage warnings reserveStock() does.
+            // confirmSaleOrder() auto-reserves stock for auto-reserving tiers (see
+            // inventory.auto_reserve_price_tiers, b2c_ecom by default), so it can surface the
+            // same shortage warnings reserveStock() does.
             if (!empty($so->shortageWarnings)) {
                 $lines = implode('; ', $so->shortageWarnings);
                 $this->dispatch('notify', type: 'warning', message: "Confirmed with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");

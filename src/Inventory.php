@@ -1780,11 +1780,12 @@ class Inventory
     }
 
     /**
-     * Confirms a draft sale order. When inventory.auto_reserve_on_confirm is enabled (the
-     * default), this also reserves stock in the same call — the order goes straight from draft
-     * to processing, skipping the separate manual "Reserve" step. Any shortages are surfaced via
-     * $order->shortageWarnings rather than blocking confirmation, matching reserveStock()'s own
-     * behavior when called standalone.
+     * Confirms a draft sale order. When the order's price tier is auto-reserving (see
+     * shouldAutoReserveOnConfirm() — inventory.auto_reserve_price_tiers, b2c_ecom by default, or
+     * inventory.auto_reserve_on_confirm=true for every tier), this also reserves stock in the
+     * same call — the order goes straight from draft to processing, skipping the separate manual
+     * "Reserve" step. Any shortages are surfaced via $order->shortageWarnings rather than
+     * blocking confirmation, matching reserveStock()'s own behavior when called standalone.
      */
     public function confirmSaleOrder(int $soId): SaleOrder
     {
@@ -1797,7 +1798,7 @@ class Inventory
             $this->assertHighValueConfirmAuthorized($so);
             $so->update(['status' => SaleOrderStatus::CONFIRMED]);
 
-            if (config('inventory.auto_reserve_on_confirm', true)) {
+            if ($this->shouldAutoReserveOnConfirm($so)) {
                 $shortages = $this->reserveStockItems($so);
                 $so->update(['status' => SaleOrderStatus::PROCESSING]);
             }
@@ -1810,6 +1811,25 @@ class Inventory
         }
 
         return $so;
+    }
+
+    /**
+     * inventory.auto_reserve_on_confirm=true auto-reserves every tier (legacy global switch,
+     * defaults to false). Otherwise, only price tiers listed in
+     * inventory.auto_reserve_price_tiers (b2c_ecom by default) auto-reserve — everything else
+     * keeps the two-step confirm-then-reserve workflow, or gets reserved explicitly by the
+     * caller (e.g. the POS terminal checkout, which always passes reserve=true to
+     * CartCheckoutService regardless of this setting).
+     */
+    private function shouldAutoReserveOnConfirm(SaleOrder $so): bool
+    {
+        if (config('inventory.auto_reserve_on_confirm', false)) {
+            return true;
+        }
+
+        $tiers = (array) config('inventory.auto_reserve_price_tiers', []);
+
+        return in_array($so->price_tier_code, $tiers, true);
     }
 
     /**

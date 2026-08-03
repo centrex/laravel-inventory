@@ -325,8 +325,9 @@ class DispatchTerminalPage extends Component
         try {
             $saleOrder = app(Inventory::class)->confirmSaleOrder($saleOrderId);
 
-            // confirmSaleOrder() auto-reserves stock by default (see inventory.auto_reserve_on_confirm),
-            // so it can surface the same shortage warnings reserveSaleOrderFlow() does below.
+            // confirmSaleOrder() auto-reserves stock for auto-reserving tiers (see
+            // inventory.auto_reserve_price_tiers, b2c_ecom by default), so it can surface the
+            // same shortage warnings reserveSaleOrderFlow() does below.
             if (!empty($saleOrder->shortageWarnings)) {
                 $lines = implode('; ', $saleOrder->shortageWarnings);
                 $this->dispatch('notify', type: 'success', message: "{$saleOrder->so_number} confirmed with stock shortage — {$lines}. Post a GRN to cover before fulfillment.");

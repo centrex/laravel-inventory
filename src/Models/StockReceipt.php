@@ -30,11 +30,13 @@ class StockReceipt extends Model implements Auditable
     protected $fillable = [
         'grn_number', 'purchase_order_id', 'warehouse_id',
         'received_at', 'notes', 'status', 'created_by', 'accounting_journal_entry_id',
+        'bill_offset_amount',
     ];
 
     protected $casts = [
-        'status'      => StockReceiptStatus::class,
-        'received_at' => 'datetime',
+        'status'              => StockReceiptStatus::class,
+        'received_at'         => 'datetime',
+        'bill_offset_amount'  => 'decimal:4',
     ];
 
     public function purchaseOrder(): BelongsTo

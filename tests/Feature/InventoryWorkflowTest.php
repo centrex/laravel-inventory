@@ -1160,10 +1160,8 @@ it('reconciles a sale return credit memo once its invoice is posted after the re
         ]],
     ]);
 
-    // inventory.auto_reserve_on_confirm defaults to true, so confirmSaleOrder() already
-    // reserves stock and moves the order straight to PROCESSING — an explicit reserveStock()
-    // call here would find it already reserved and throw.
     $inventory->confirmSaleOrder($saleOrder->id);
+    $inventory->reserveStock($saleOrder->id);
     $inventory->fulfillSaleOrder($saleOrder->id);
 
     // Invoice stays draft — nothing posted against it yet.

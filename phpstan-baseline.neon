@@ -81,6 +81,11 @@ parameters:
 			path: database/migrations/2026_07_29_000001_add_extra_charges_to_shipments.php
 
 		-
+			message: "#^Parameter \\#1 \\$name of static method Illuminate\\\\Support\\\\Facades\\\\Schema\\:\\:connection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 2
+			path: database/migrations/2026_08_03_000001_add_bill_offset_amount_to_stock_receipts.php
+
+		-
 			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>, array\\<string, Centrex\\\\Inventory\\\\Enums\\\\MovementType\\:\\:OPENING_STOCK\\|float\\|Illuminate\\\\Support\\\\Carbon\\|int\\|string\\|null\\> given\\.$#"
 			count: 1
 			path: src/Commands/BackfillStockMovementsCommand.php
@@ -8952,11 +8957,31 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Bill\\:\\:\\$journal_entry_id\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/ErpIntegration.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Invoice\\:\\:\\$journal_entry_id\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\HasOneOrMany\\<Centrex\\\\Accounting\\\\Models\\\\BillItem,Centrex\\\\Accounting\\\\Models\\\\Bill,Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Accounting\\\\Models\\\\BillItem\\>\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Accounting\\\\Models\\\\BillItem, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine, 'journal_entry_id' given\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine, 'account_id' given\\.$#"
+			count: 1
+			path: src/Support/ErpIntegration.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\JournalEntryLine, 'type' given\\.$#"
 			count: 1
 			path: src/Support/ErpIntegration.php
 
@@ -9372,12 +9397,12 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockReceipt\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockReceipt, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockReceipt\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockReceipt, 'purchase_order_id' given\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/ErpIntegration.php
 
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockReceipt\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockReceipt, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockReceipt\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockReceipt, 'status' given\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/ErpIntegration.php
 
 		-

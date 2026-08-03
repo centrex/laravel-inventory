@@ -248,15 +248,7 @@ class ErpIntegration
             return null;
         }
 
-        $billClass = \Centrex\Accounting\Models\Bill::class;
-        $bill = $purchaseOrder->accounting_bill_id
-            ? $billClass::find($purchaseOrder->accounting_bill_id)
-            : $billClass::query()
-                ->where(fn ($query) => $query
-                    ->where('source_type', PurchaseOrder::class)
-                    ->where('source_id', $purchaseOrder->id))
-                ->orWhere('inventory_purchase_order_id', $purchaseOrder->id)
-                ->first();
+        $bill = $this->findLinkedBillFor($purchaseOrder);
 
         $billDate = $purchaseOrder->ordered_at?->toDateString() ?? now()->toDateString();
         $dueDate = $purchaseOrder->expected_at?->toDateString() ?? now()->addDays(30)->toDateString();
@@ -299,6 +291,7 @@ class ErpIntegration
             $bill->fill($billData);
             $bill->save();
         } else {
+            $billClass = \Centrex\Accounting\Models\Bill::class;
             $bill = $billClass::create($billData);
         }
 
@@ -462,10 +455,36 @@ class ErpIntegration
             return $stockReceipt->accounting_journal_entry_id ? (int) $stockReceipt->accounting_journal_entry_id : null;
         }
 
-        $stockReceipt->loadMissing('items');
+        $stockReceipt->loadMissing(['items', 'purchaseOrder']);
         $amount = round((float) $stockReceipt->items->sum(fn ($item) => (float) $item->qty_received * (float) $item->unit_cost_amount), 2);
 
         if ($amount <= 0) {
+            return null;
+        }
+
+        // If this PO's bill was already posted before this receipt existed, part or all of this
+        // receipt's value may already be capitalized to Inventory Asset via that bill's own JE
+        // (grni_clearing_amount was 0 at bill-post time, since nothing had been received yet).
+        // Only capitalize whatever's left, so the same goods aren't debited to Inventory twice.
+        $billOffset = 0.0;
+
+        if ($stockReceipt->purchaseOrder) {
+            $alreadyCapitalized = $this->alreadyCapitalizedByPostedBillFor($stockReceipt->purchaseOrder);
+
+            if ($alreadyCapitalized > 0) {
+                $remainingPool = max(0.0, round($alreadyCapitalized - $this->priorGrnBillOffsetsFor($stockReceipt->purchaseOrder, $stockReceipt->id), 2));
+                $billOffset = min($remainingPool, $amount);
+            }
+        }
+
+        if ($billOffset > 0) {
+            $stockReceipt->forceFill(['bill_offset_amount' => $billOffset])->saveQuietly();
+        }
+
+        $netAmount = round($amount - $billOffset, 2);
+
+        if ($netAmount <= 0) {
+            // Fully covered by an already-posted bill — nothing left to capitalize for this receipt.
             return null;
         }
 
@@ -484,13 +503,13 @@ class ErpIntegration
                 [
                     'account_id'  => $this->accountId('inventory_asset'),
                     'type'        => 'debit',
-                    'amount'      => $amount,
+                    'amount'      => $netAmount,
                     'description' => 'Inventory capitalization',
                 ],
                 [
                     'account_id'  => $this->accountId('goods_received_clear'),
                     'type'        => 'credit',
-                    'amount'      => $amount,
+                    'amount'      => $netAmount,
                     'description' => 'Goods received not invoiced',
                 ],
             ],
@@ -977,6 +996,63 @@ class ErpIntegration
             ->sum(fn (StockReceipt $grn) => $grn->items->sum(
                 fn ($item) => (float) $item->qty_received * (float) $item->unit_cost_amount,
             ));
+
+        return round((float) $amount, 2);
+    }
+
+    /** The vendor Bill linked to this PO, however that link survived (see syncPurchaseOrderDocument()). */
+    private function findLinkedBillFor(PurchaseOrder $purchaseOrder): ?\Centrex\Accounting\Models\Bill
+    {
+        $billClass = \Centrex\Accounting\Models\Bill::class;
+
+        return $purchaseOrder->accounting_bill_id
+            ? $billClass::find($purchaseOrder->accounting_bill_id)
+            : $billClass::query()
+                ->where(fn ($query) => $query
+                    ->where('source_type', PurchaseOrder::class)
+                    ->where('source_id', $purchaseOrder->id))
+                ->orWhere('inventory_purchase_order_id', $purchaseOrder->id)
+                ->first();
+    }
+
+    /**
+     * Mirror of grniClearingAmountFor(), read the other direction: how much of this PO's value is
+     * already debited to Inventory Asset via an *already-posted* bill's own JE. If the bill posted
+     * before any goods were received, grni_clearing_amount was 0 at that time (nothing to clear),
+     * so the bill capitalized the full amount to Inventory directly — postStockReceipt() must not
+     * capitalize that same value again when the goods actually arrive. Read from the bill's own
+     * posted JE lines rather than re-deriving the formula, so this can't drift from what was
+     * actually posted.
+     */
+    private function alreadyCapitalizedByPostedBillFor(PurchaseOrder $purchaseOrder): float
+    {
+        $bill = $this->findLinkedBillFor($purchaseOrder);
+
+        if (!$bill || !$bill->journal_entry_id) {
+            return 0.0;
+        }
+
+        $amount = \Centrex\Accounting\Models\JournalEntryLine::query()
+            ->where('journal_entry_id', $bill->journal_entry_id)
+            ->where('account_id', $this->accountId('inventory_asset'))
+            ->where('type', 'debit')
+            ->sum('amount');
+
+        return round((float) $amount, 2);
+    }
+
+    /**
+     * How much of alreadyCapitalizedByPostedBillFor()'s pool other posted GRNs for this PO have
+     * already consumed — so a second (or third) GRN against the same bill-covered PO doesn't
+     * re-offset value another GRN already claimed.
+     */
+    private function priorGrnBillOffsetsFor(PurchaseOrder $purchaseOrder, int $excludeStockReceiptId): float
+    {
+        $amount = StockReceipt::query()
+            ->where('purchase_order_id', $purchaseOrder->id)
+            ->where('id', '!=', $excludeStockReceiptId)
+            ->where('status', StockReceiptStatus::POSTED)
+            ->sum('bill_offset_amount');
 
         return round((float) $amount, 2);
     }
