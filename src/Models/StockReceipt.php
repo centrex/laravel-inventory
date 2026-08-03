@@ -34,9 +34,9 @@ class StockReceipt extends Model implements Auditable
     ];
 
     protected $casts = [
-        'status'              => StockReceiptStatus::class,
-        'received_at'         => 'datetime',
-        'bill_offset_amount'  => 'decimal:4',
+        'status'             => StockReceiptStatus::class,
+        'received_at'        => 'datetime',
+        'bill_offset_amount' => 'decimal:4',
     ];
 
     public function purchaseOrder(): BelongsTo
