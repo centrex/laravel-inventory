@@ -40,9 +40,9 @@ it('computes margin only over orders that have actually been costed', function (
     expect($summary['orders_count'])->toBe(2)
         // Revenue is intentionally the full "orders placed" total, unfulfilled included.
         ->and($summary['revenue'])->toBe(2000.0)
-        // But net_profit/net_margin_pct are computed only over the costed order.
-        ->and($summary['net_profit'])->toBe(300.0)
-        ->and($summary['net_margin_pct'])->toBe(30.0);
+        // But gross_profit/gross_margin_pct are computed only over the costed order.
+        ->and($summary['gross_profit'])->toBe(300.0)
+        ->and($summary['gross_margin_pct'])->toBe(30.0);
 });
 
 it('returns a null margin when no order in the set has been costed yet', function (): void {
@@ -52,8 +52,8 @@ it('returns a null margin when no order in the set has been costed yet', functio
     $summary = app(SalesOrderProfitSummary::class)->summarize(SaleOrder::all());
 
     expect($summary['revenue'])->toBe(1000.0)
-        ->and($summary['net_profit'])->toBe(0.0)
-        ->and($summary['net_margin_pct'])->toBeNull();
+        ->and($summary['gross_profit'])->toBe(0.0)
+        ->and($summary['gross_margin_pct'])->toBeNull();
 });
 
 it('still includes a partially fulfilled order once any cogs_amount has posted', function (): void {
@@ -65,5 +65,5 @@ it('still includes a partially fulfilled order once any cogs_amount has posted',
     $summary = app(SalesOrderProfitSummary::class)->summarize(SaleOrder::all());
 
     expect($summary['revenue'])->toBe(1000.0)
-        ->and($summary['net_profit'])->toBe(650.0);
+        ->and($summary['gross_profit'])->toBe(650.0);
 });

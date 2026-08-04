@@ -27,7 +27,7 @@
 </x-tallui-card>
 
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-    <x-tallui-card title="Sales by Employee" subtitle="Revenue, order count, and net profit for the selected period." icon="o-user-group" :shadow="true">
+    <x-tallui-card title="Sales by Employee" subtitle="Revenue, order count, and gross profit for the selected period." icon="o-user-group" :shadow="true">
         @if (!empty($salesByEmployee))
             <div class="overflow-x-auto">
                 <table class="table table-sm w-full">
@@ -36,7 +36,7 @@
                             <th>Employee</th>
                             <th class="text-right">Orders</th>
                             <th class="text-right">Revenue</th>
-                            <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Net Profit</th>
+                            <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Gross Profit</th>
                             <th class="text-right" title="Computed over fulfilled orders only; unfulfilled order revenue isn't included in this ratio">Margin %</th>
                         </tr>
                     </thead>
@@ -46,8 +46,8 @@
                                 <td>{{ $employee['name'] }}</td>
                                 <td class="text-right">{{ number_format($employee['orders_count']) }}</td>
                                 <td class="text-right font-medium">{{ number_format($employee['revenue'], 2) }}</td>
-                                <td class="text-right font-medium">{{ number_format($employee['net_profit'], 2) }}</td>
-                                <td class="text-right">{{ $employee['net_margin_pct'] !== null ? number_format($employee['net_margin_pct'], 1) . '%' : '—' }}</td>
+                                <td class="text-right font-medium">{{ number_format($employee['gross_profit'], 2) }}</td>
+                                <td class="text-right">{{ $employee['gross_margin_pct'] !== null ? number_format($employee['gross_margin_pct'], 1) . '%' : '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -58,7 +58,7 @@
         @endif
     </x-tallui-card>
 
-    <x-tallui-card title="Sales by Price Tier" subtitle="Revenue, order count, and net profit for the selected period." icon="o-tag" :shadow="true">
+    <x-tallui-card title="Sales by Price Tier" subtitle="Revenue, order count, and gross profit for the selected period." icon="o-tag" :shadow="true">
         @if (!empty($salesByPriceTier))
             <div class="overflow-x-auto">
                 <table class="table table-sm w-full">
@@ -67,7 +67,7 @@
                             <th>Tier</th>
                             <th class="text-right">Orders</th>
                             <th class="text-right">Revenue</th>
-                            <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Net Profit</th>
+                            <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Gross Profit</th>
                             <th class="text-right" title="Computed over fulfilled orders only; unfulfilled order revenue isn't included in this ratio">Margin %</th>
                         </tr>
                     </thead>
@@ -77,8 +77,8 @@
                                 <td>{{ $tier['label'] }}</td>
                                 <td class="text-right">{{ number_format($tier['orders_count']) }}</td>
                                 <td class="text-right font-medium">{{ number_format($tier['revenue'], 2) }}</td>
-                                <td class="text-right font-medium">{{ number_format($tier['net_profit'], 2) }}</td>
-                                <td class="text-right">{{ $tier['net_margin_pct'] !== null ? number_format($tier['net_margin_pct'], 1) . '%' : '—' }}</td>
+                                <td class="text-right font-medium">{{ number_format($tier['gross_profit'], 2) }}</td>
+                                <td class="text-right">{{ $tier['gross_margin_pct'] !== null ? number_format($tier['gross_margin_pct'], 1) . '%' : '—' }}</td>
                             </tr>
                         @endforeach
                     </tbody>

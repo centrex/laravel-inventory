@@ -19,7 +19,7 @@ final class SalesBreakdowns
     /**
      * @param  Collection<int, SaleOrder>  $orders  must include id, sales_executive_id,
      *                                              created_by, total_amount, cogs_amount, accounting_invoice_id
-     * @return array<int, array{employee_id: ?int, name: string, orders_count: int, revenue: float, net_profit: float, net_margin_pct: ?float}>
+     * @return array<int, array{employee_id: ?int, name: string, orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float}>
      */
     public static function byEmployee(Collection $orders): array
     {
@@ -37,12 +37,12 @@ final class SalesBreakdowns
             $summary = $summarizer->summarize($group);
 
             return [
-                'employee_id'    => $employeeId === 'unassigned' ? null : (int) $employeeId,
-                'name'           => $employeeId === 'unassigned' ? 'Unassigned' : ($users[$employeeId]->name ?? "User #{$employeeId}"),
-                'orders_count'   => $summary['orders_count'],
-                'revenue'        => $summary['revenue'],
-                'net_profit'     => $summary['net_profit'],
-                'net_margin_pct' => $summary['net_margin_pct'],
+                'employee_id'      => $employeeId === 'unassigned' ? null : (int) $employeeId,
+                'name'             => $employeeId === 'unassigned' ? 'Unassigned' : ($users[$employeeId]->name ?? "User #{$employeeId}"),
+                'orders_count'     => $summary['orders_count'],
+                'revenue'          => $summary['revenue'],
+                'gross_profit'     => $summary['gross_profit'],
+                'gross_margin_pct' => $summary['gross_margin_pct'],
             ];
         })->sortByDesc('revenue')->values()->all();
     }
@@ -50,7 +50,7 @@ final class SalesBreakdowns
     /**
      * @param  Collection<int, SaleOrder>  $orders  must include id, price_tier_code,
      *                                              total_amount, cogs_amount, accounting_invoice_id
-     * @return array<int, array{code: ?string, label: string, orders_count: int, revenue: float, net_profit: float, net_margin_pct: ?float}>
+     * @return array<int, array{code: ?string, label: string, orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float}>
      */
     public static function byPriceTier(Collection $orders): array
     {
@@ -61,12 +61,12 @@ final class SalesBreakdowns
                 $summary = $summarizer->summarize($group);
 
                 return [
-                    'code'           => $code,
-                    'label'          => PriceTierCode::labelFor($code) ?? ($code ?: 'Unassigned'),
-                    'orders_count'   => $summary['orders_count'],
-                    'revenue'        => $summary['revenue'],
-                    'net_profit'     => $summary['net_profit'],
-                    'net_margin_pct' => $summary['net_margin_pct'],
+                    'code'             => $code,
+                    'label'            => PriceTierCode::labelFor($code) ?? ($code ?: 'Unassigned'),
+                    'orders_count'     => $summary['orders_count'],
+                    'revenue'          => $summary['revenue'],
+                    'gross_profit'     => $summary['gross_profit'],
+                    'gross_margin_pct' => $summary['gross_margin_pct'],
                 ];
             })
             ->sortByDesc('revenue')

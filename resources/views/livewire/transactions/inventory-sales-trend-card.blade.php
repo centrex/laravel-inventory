@@ -11,7 +11,7 @@
             $trendMetrics = [
                 ['key' => 'orders_count', 'label' => 'Orders',  'format' => 'int'],
                 ['key' => 'revenue',      'label' => 'Revenue', 'format' => 'currency'],
-                ['key' => 'net_profit',   'label' => 'Net Profit', 'format' => 'currency'],
+                ['key' => 'gross_profit',   'label' => 'Gross Profit', 'format' => 'currency'],
             ];
         @endphp
         @foreach ($trendMetrics as $metric)
@@ -35,11 +35,11 @@
                         <div class="text-xs text-base-content/50 mt-0.5">{{ $salesTrend['prev_month']['label'] }}</div>
                     </div>
                 </div>
-                @if ($metric['key'] === 'net_profit')
+                @if ($metric['key'] === 'gross_profit')
                     <div class="mt-1 text-xs text-base-content/50">
-                        Margin {{ $salesTrend['this_month']['net_margin_pct'] !== null ? number_format((float) $salesTrend['this_month']['net_margin_pct'], 1) . '%' : '—' }}
-                        vs {{ $salesTrend['prev_month']['net_margin_pct'] !== null ? number_format((float) $salesTrend['prev_month']['net_margin_pct'], 1) . '%' : '—' }}
-                        · net of COGS, discounts &amp; delivery charges, fulfilled orders only
+                        Margin {{ $salesTrend['this_month']['gross_margin_pct'] !== null ? number_format((float) $salesTrend['this_month']['gross_margin_pct'], 1) . '%' : '—' }}
+                        vs {{ $salesTrend['prev_month']['gross_margin_pct'] !== null ? number_format((float) $salesTrend['prev_month']['gross_margin_pct'], 1) . '%' : '—' }}
+                        · gross of COGS, discounts &amp; delivery charges, fulfilled orders only
                     </div>
                 @endif
                 @if ($chg !== null)

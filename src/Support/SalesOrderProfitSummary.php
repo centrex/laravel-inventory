@@ -12,16 +12,16 @@ use Illuminate\Support\Collection;
  * volume/promotional discount), and delivery/return charges (accounts 6310/6320/6330/6340)
  * recorded against each order's posted invoice — the same figures the invoice detail
  * "Record Charge/Discount" actions write via laravel-accounting. Falls back to 0 for both
- * when accounting isn't installed.
+ * when accounting isn't installed. Exposed as gross_profit/gross_margin_pct for display.
  *
  * Shared by the dashboard's Sales Order Trend and Sales by Employee cards so both reduce
- * revenue/COGS/discounts/charges to net_profit the same way.
+ * revenue/COGS/discounts/charges to gross_profit the same way.
  */
 final class SalesOrderProfitSummary
 {
     /**
      * @param  Collection<int, \Centrex\Inventory\Models\SaleOrder>  $orders
-     * @return array{orders_count: int, revenue: float, net_profit: float, net_margin_pct: ?float}
+     * @return array{orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float}
      */
     public function summarize(Collection $orders): array
     {
@@ -32,23 +32,23 @@ final class SalesOrderProfitSummary
         // full total_amount. Status isn't a safe proxy for "has this been costed" either: SHIPPED
         // is a parallel courier-tracking state that doesn't guarantee fulfillSaleOrder() has run
         // (see SaleOrderStatus). Blending an order's full revenue against a $0/partial cost basis
-        // would overstate margin — sometimes drastically — so net_profit/net_margin_pct are
+        // would overstate margin — sometimes drastically — so gross_profit/gross_margin_pct are
         // computed only over the subset that's actually been costed. `revenue` above is
         // deliberately left as every order in $orders (an "orders placed" figure), so it will not
-        // arithmetically reconcile against net_profit — that's intentional, not a bug.
+        // arithmetically reconcile against gross_profit — that's intentional, not a bug.
         $costedOrders = $orders->filter(static fn ($order): bool => (float) $order->cogs_amount > 0.0);
         $costedRevenue = (float) $costedOrders->sum('total_amount');
         $cogs = (float) $costedOrders->sum('cogs_amount');
 
         $invoiceIds = $costedOrders->pluck('accounting_invoice_id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
         $deductions = $this->deductions($invoiceIds);
-        $netProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'];
+        $grossProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'];
 
         return [
-            'orders_count'   => $orders->count(),
-            'revenue'        => $revenue,
-            'net_profit'     => $netProfit,
-            'net_margin_pct' => $costedRevenue != 0.0 ? round($netProfit / $costedRevenue * 100, 1) : null,
+            'orders_count'     => $orders->count(),
+            'revenue'          => $revenue,
+            'gross_profit'     => $grossProfit,
+            'gross_margin_pct' => $costedRevenue != 0.0 ? round($grossProfit / $costedRevenue * 100, 1) : null,
         ];
     }
 

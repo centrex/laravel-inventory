@@ -139,7 +139,7 @@ it('InventorySalesByPriceTierCard breaks down revenue by tier and caches the res
     expect($queryCount)->toBe(0);
 });
 
-it('InventorySalesByEmployeeCard breaks down revenue and net profit by employee and caches the result', function (): void {
+it('InventorySalesByEmployeeCard breaks down revenue and gross profit by employee and caches the result', function (): void {
     $component = new InventorySalesByEmployeeCard;
     $component->mount();
 

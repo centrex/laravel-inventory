@@ -14,7 +14,7 @@
                         <th>Employee</th>
                         <th class="text-right">Orders</th>
                         <th class="text-right">Revenue</th>
-                        <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Net Profit</th>
+                        <th class="text-right" title="Net of COGS, discounts &amp; delivery charges — fulfilled orders only">Gross Profit</th>
                         <th class="text-right" title="Computed over fulfilled orders only; unfulfilled order revenue isn't included in this ratio">Margin %</th>
                     </tr>
                 </thead>
@@ -24,8 +24,8 @@
                             <td>{{ $employee['name'] }}</td>
                             <td class="text-right">{{ number_format($employee['orders_count']) }}</td>
                             <td class="text-right font-medium">{{ number_format($employee['revenue'], 2) }}</td>
-                            <td class="text-right font-medium">{{ number_format($employee['net_profit'], 2) }}</td>
-                            <td class="text-right">{{ $employee['net_margin_pct'] !== null ? number_format($employee['net_margin_pct'], 1) . '%' : '—' }}</td>
+                            <td class="text-right font-medium">{{ number_format($employee['gross_profit'], 2) }}</td>
+                            <td class="text-right">{{ $employee['gross_margin_pct'] !== null ? number_format($employee['gross_margin_pct'], 1) . '%' : '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
