@@ -121,23 +121,23 @@ class InventorySalesTrendCard extends Component
         return [
             'scope_label' => CommercialTeamAccess::scopeLabel('sales'),
             'this_month'  => [
-                'label'          => now()->format('M Y'),
-                'orders_count'   => $thisSummary['orders_count'],
-                'revenue'        => $thisSummary['revenue'],
-                'gross_profit'   => $thisSummary['gross_profit'],
+                'label'            => now()->format('M Y'),
+                'orders_count'     => $thisSummary['orders_count'],
+                'revenue'          => $thisSummary['revenue'],
+                'gross_profit'     => $thisSummary['gross_profit'],
                 'gross_margin_pct' => $thisSummary['gross_margin_pct'],
             ],
             'prev_month' => [
-                'label'          => now()->subMonthNoOverflow()->format('M Y'),
-                'orders_count'   => $prevSummary['orders_count'],
-                'revenue'        => $prevSummary['revenue'],
-                'gross_profit'   => $prevSummary['gross_profit'],
+                'label'            => now()->subMonthNoOverflow()->format('M Y'),
+                'orders_count'     => $prevSummary['orders_count'],
+                'revenue'          => $prevSummary['revenue'],
+                'gross_profit'     => $prevSummary['gross_profit'],
                 'gross_margin_pct' => $prevSummary['gross_margin_pct'],
             ],
             'change' => [
                 'orders_count' => $pctChange($thisSummary['orders_count'], $prevSummary['orders_count']),
                 'revenue'      => $pctChange($thisSummary['revenue'], $prevSummary['revenue']),
-                'gross_profit'   => $pctChange($thisSummary['gross_profit'], $prevSummary['gross_profit']),
+                'gross_profit' => $pctChange($thisSummary['gross_profit'], $prevSummary['gross_profit']),
             ],
             'dispatched_count' => $dispatchedCount,
             'chart'            => [
