@@ -21,6 +21,7 @@ class SaleReturnTable extends DataTable
         return [
             Column::make('Number', 'return_number')->searchable()->sortable()
                 ->view('inventory::livewire.partials.sale-return-table.number'),
+            Column::make('Date', 'returned_at')->sortable()->format('date'),
             Column::make('Customer', 'customer.name')->relation('customer')->searchable()
                 ->view('inventory::livewire.partials.sale-return-table.customer'),
             Column::make('Sale Order', 'saleOrder.so_number')->relation('saleOrder')->searchable()

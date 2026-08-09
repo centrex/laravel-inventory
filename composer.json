@@ -117,6 +117,13 @@
             "options": {
                 "symlink": true
             }
+        },
+        {
+            "type": "path",
+            "url": "../tallui",
+            "options": {
+                "symlink": true
+            }
         }
     ],
     "extra": {
