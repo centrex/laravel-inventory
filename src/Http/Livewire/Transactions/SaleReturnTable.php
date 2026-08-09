@@ -21,9 +21,14 @@ class SaleReturnTable extends DataTable
         return [
             Column::make('Number', 'return_number')->searchable()->sortable()
                 ->view('inventory::livewire.partials.sale-return-table.number'),
-            Column::make('Customer', 'customer.name')->relation('customer'),
+            Column::make('Customer', 'customer.name')->relation('customer')->searchable()
+                ->view('inventory::livewire.partials.sale-return-table.customer'),
+            Column::make('Sale Order', 'saleOrder.so_number')->relation('saleOrder')->searchable()
+                ->view('inventory::livewire.partials.sale-return-table.sale-order'),
             Column::make('Warehouse', 'warehouse.name')->relation('warehouse'),
             Column::make('Status', 'status')->badge('neutral', StatusBadge::colors()),
+            Column::make('Refundable', 'creditMemo.status')->relation('creditMemo')
+                ->view('inventory::livewire.partials.sale-return-table.refundable'),
             Column::make('Action')
                 ->view('inventory::livewire.partials.sale-return-table.actions'),
         ];
@@ -31,6 +36,6 @@ class SaleReturnTable extends DataTable
 
     public function query(): Builder
     {
-        return SaleReturn::query()->with(['customer', 'warehouse', 'saleOrder']);
+        return SaleReturn::query()->with(['customer', 'warehouse', 'saleOrder', 'creditMemo']);
     }
 }

@@ -4,9 +4,10 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
+use Centrex\Accounting\Models\CreditMemo;
 use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany, MorphOne};
 use OwenIt\Auditing\Auditable as AuditableTrait;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -61,5 +62,11 @@ class SaleReturn extends Model implements Auditable
     public function items(): HasMany
     {
         return $this->hasMany(SaleReturnItem::class);
+    }
+
+    /** The AR credit memo raised for this return (see ErpIntegration::issueSaleReturnCreditMemo()). */
+    public function creditMemo(): MorphOne
+    {
+        return $this->morphOne(CreditMemo::class, 'source');
     }
 }
