@@ -7,7 +7,6 @@ namespace Centrex\Inventory\Http\Livewire\Entities;
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Livewire\Component;
 
 class ManageAddresses extends Component
@@ -132,9 +131,10 @@ class ManageAddresses extends Component
             $this->findAddress($this->editId)->update($data);
             $this->dispatch('notify', type: 'success', message: 'Address updated.');
         } else {
-            $this->ownerModel()->addresses()->create(
-                array_merge($data, ['uuid' => (string) Str::uuid()]),
-            );
+            // Address::boot()'s `creating` listener generates the uuid itself (direct property
+            // assignment, not mass assignment) when the column exists — passing it here would be
+            // redundant and throws MassAssignmentException, since `uuid` isn't in $fillable.
+            $this->ownerModel()->addresses()->create($data);
             $this->dispatch('notify', type: 'success', message: 'Address added.');
         }
 
