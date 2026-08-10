@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, PurchaseOrder, PurchaseReturnItem, Supplier, Warehouse};
 use Illuminate\Contracts\View\View;
@@ -13,6 +14,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class PurchaseReturnFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public ?int $purchase_order_id = null;
 
     public ?int $warehouse_id = null;
@@ -27,6 +30,7 @@ class PurchaseReturnFormPage extends Component
 
     public function mount(): void
     {
+        $this->initializeFormToken();
         $this->returned_at = now()->toDateString();
         $this->items = [$this->blankItem()];
     }
@@ -59,18 +63,20 @@ class PurchaseReturnFormPage extends Component
             'items.*.notes'                  => ['nullable', 'string'],
         ]);
 
-        try {
-            $purchaseReturn = app(Inventory::class)->createPurchaseReturn($validated);
-            app(Inventory::class)->postPurchaseReturn((int) $purchaseReturn->getKey());
-        } catch (\Illuminate\Validation\ValidationException $exception) {
-            $this->setErrorBag($exception->validator->getMessageBag());
+        return $this->onceForThisSubmission('inventory.purchase-return.create', function () use ($validated) {
+            try {
+                $purchaseReturn = app(Inventory::class)->createPurchaseReturn($validated);
+                app(Inventory::class)->postPurchaseReturn((int) $purchaseReturn->getKey());
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                $this->setErrorBag($exception->validator->getMessageBag());
 
-            return null;
-        }
+                return null;
+            }
 
-        $this->dispatch('notify', type: 'success', message: "Purchase return {$purchaseReturn->return_number} posted.");
+            $this->dispatch('notify', type: 'success', message: "Purchase return {$purchaseReturn->return_number} posted.");
 
-        return redirect()->route('inventory.purchase-returns.show', ['recordId' => $purchaseReturn->getKey()]);
+            return redirect()->route('inventory.purchase-returns.show', ['recordId' => $purchaseReturn->getKey()]);
+        });
     }
 
     public function render(): View

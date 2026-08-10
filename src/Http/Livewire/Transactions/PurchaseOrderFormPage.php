@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{Currency, PriceTierCode, PurchaseOrderStatus};
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, Supplier, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
@@ -16,6 +17,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class PurchaseOrderFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public string $documentType = 'order';
 
     public ?int $recordId = null;
@@ -50,6 +53,7 @@ class PurchaseOrderFormPage extends Component
 
         Gate::authorize($recordId === null ? 'inventory.purchase-orders.create' : 'inventory.purchase-orders.edit');
 
+        $this->initializeFormToken();
         $this->documentType = $documentType === 'requisition' ? 'requisition' : 'order';
         $this->items = [$this->blankItem()];
 
@@ -132,10 +136,12 @@ class PurchaseOrderFormPage extends Component
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $purchaseOrder->getKey()]);
         }
 
-        $purchaseOrder = app(Inventory::class)->createPurchaseOrder($validated);
-        $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$purchaseOrder->po_number} created.");
+        return $this->onceForThisSubmission('inventory.purchase-order.create', function () use ($validated) {
+            $purchaseOrder = app(Inventory::class)->createPurchaseOrder($validated);
+            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$purchaseOrder->po_number} created.");
 
-        return redirect()->route($this->routeBase() . '.show', ['recordId' => $purchaseOrder->getKey()]);
+            return redirect()->route($this->routeBase() . '.show', ['recordId' => $purchaseOrder->getKey()]);
+        });
     }
 
     public function render(): View

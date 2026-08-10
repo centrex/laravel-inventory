@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\ShipmentStatus;
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, Shipment, ShipmentBox, ShipmentBoxItem, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
@@ -15,6 +16,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class ShipmentFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public ?int $recordId = null;
 
     public ?int $from_warehouse_id = null;
@@ -37,6 +40,7 @@ class ShipmentFormPage extends Component
 
     public function mount(?int $recordId = null): void
     {
+        $this->initializeFormToken();
         $this->recordId = $recordId;
 
         if ($recordId === null) {
@@ -127,15 +131,20 @@ class ShipmentFormPage extends Component
         $this->assertStockAvailability($validated['boxes']);
 
         $inventory = app(Inventory::class);
-        $shipment = $this->recordId
-            ? $inventory->updateInterWarehouseShipment($this->recordId, $validated)
-            : $inventory->createInterWarehouseShipment($validated);
 
-        $this->dispatch('notify', type: 'success', message: $this->recordId
-            ? "Shipment {$shipment->shipment_number} updated."
-            : "Shipment {$shipment->shipment_number} created.");
+        if ($this->recordId) {
+            $shipment = $inventory->updateInterWarehouseShipment($this->recordId, $validated);
+            $this->dispatch('notify', type: 'success', message: "Shipment {$shipment->shipment_number} updated.");
 
-        return redirect()->route('inventory.shipments.show', ['recordId' => $shipment->getKey()]);
+            return redirect()->route('inventory.shipments.show', ['recordId' => $shipment->getKey()]);
+        }
+
+        return $this->onceForThisSubmission('inventory.shipment.create', function () use ($inventory, $validated) {
+            $shipment = $inventory->createInterWarehouseShipment($validated);
+            $this->dispatch('notify', type: 'success', message: "Shipment {$shipment->shipment_number} created.");
+
+            return redirect()->route('inventory.shipments.show', ['recordId' => $shipment->getKey()]);
+        });
     }
 
     public function render(): View

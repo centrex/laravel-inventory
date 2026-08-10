@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\AdjustmentReason;
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, Warehouse};
 use Illuminate\Contracts\View\View;
@@ -14,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class AdjustmentFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public ?int $warehouse_id = null;
 
     public string $reason = 'cycle_count';
@@ -26,6 +29,7 @@ class AdjustmentFormPage extends Component
 
     public function mount(): void
     {
+        $this->initializeFormToken();
         $this->reason = AdjustmentReason::CYCLE_COUNT->value;
         $this->adjusted_at = now()->toDateString();
         $this->items = [$this->blankItem()];
@@ -56,10 +60,12 @@ class AdjustmentFormPage extends Component
             'items.*.notes'      => ['nullable', 'string'],
         ]);
 
-        $adjustment = app(Inventory::class)->createAdjustment($validated);
-        $this->dispatch('notify', type: 'success', message: "Adjustment {$adjustment->adjustment_number} created.");
+        return $this->onceForThisSubmission('inventory.adjustment.create', function () use ($validated) {
+            $adjustment = app(Inventory::class)->createAdjustment($validated);
+            $this->dispatch('notify', type: 'success', message: "Adjustment {$adjustment->adjustment_number} created.");
 
-        return redirect()->route('inventory.adjustments.create');
+            return redirect()->route('inventory.adjustments.create');
+        });
     }
 
     /** Clear the previously selected variant whenever the product for a row changes. */

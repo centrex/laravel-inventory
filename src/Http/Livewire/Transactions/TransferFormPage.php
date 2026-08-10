@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Product, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Contracts\View\View;
@@ -14,6 +15,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class TransferFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public ?int $from_warehouse_id = null;
 
     public ?int $to_warehouse_id = null;
@@ -28,6 +31,7 @@ class TransferFormPage extends Component
 
     public function mount(): void
     {
+        $this->initializeFormToken();
         $this->boxes = [$this->blankBox()];
     }
 
@@ -79,10 +83,12 @@ class TransferFormPage extends Component
 
         $this->assertStockAvailability($validated['boxes']);
 
-        $transfer = app(Inventory::class)->createTransfer($validated);
-        $this->dispatch('notify', type: 'success', message: "Transfer {$transfer->transfer_number} created.");
+        return $this->onceForThisSubmission('inventory.transfer.create', function () use ($validated) {
+            $transfer = app(Inventory::class)->createTransfer($validated);
+            $this->dispatch('notify', type: 'success', message: "Transfer {$transfer->transfer_number} created.");
 
-        return redirect()->route('inventory.transfers.show', ['recordId' => $transfer->getKey()]);
+            return redirect()->route('inventory.transfers.show', ['recordId' => $transfer->getKey()]);
+        });
     }
 
     public function render(): View

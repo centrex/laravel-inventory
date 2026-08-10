@@ -6,6 +6,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
 use Centrex\Inventory\Exceptions\PriceNotFoundException;
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, ProductPrice, ProductVariant, SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
@@ -18,6 +19,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class SaleOrderFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public string $documentType = 'order';
 
     public ?int $recordId = null;
@@ -70,6 +73,7 @@ class SaleOrderFormPage extends Component
                 : ['sales.orders.manage', 'inventory.sale-orders.edit'],
         );
 
+        $this->initializeFormToken();
         $this->can_approve_credit = Gate::allows('inventory.sale-orders.approve-credit');
         $this->documentType = $documentType === 'quotation' ? 'quotation' : 'order';
         $this->price_tier_code = PriceTierCode::B2B_RETAIL->value;
@@ -183,15 +187,17 @@ class SaleOrderFormPage extends Component
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
         }
 
-        $saleOrder = app(Inventory::class)->createSaleOrder($validated);
+        return $this->onceForThisSubmission('inventory.sale-order.create', function () use ($validated) {
+            $saleOrder = app(Inventory::class)->createSaleOrder($validated);
 
-        if ($saleOrder->credit_override_required) {
-            $this->dispatch('notify', type: 'warning', message: "{$this->documentLabel()} {$saleOrder->so_number} created. Customer has exceeded their credit limit — the order has been flagged for credit review.");
-        } else {
-            $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
-        }
+            if ($saleOrder->credit_override_required) {
+                $this->dispatch('notify', type: 'warning', message: "{$this->documentLabel()} {$saleOrder->so_number} created. Customer has exceeded their credit limit — the order has been flagged for credit review.");
+            } else {
+                $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
+            }
 
-        return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
+            return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
+        });
     }
 
     public function render(): View

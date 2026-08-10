@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, SaleOrder, SaleReturnItem, Warehouse};
 use Illuminate\Contracts\View\View;
@@ -13,6 +14,8 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class SaleReturnFormPage extends Component
 {
+    use GuardsAgainstDuplicateSubmission;
+
     public ?int $sale_order_id = null;
 
     public ?int $warehouse_id = null;
@@ -27,6 +30,7 @@ class SaleReturnFormPage extends Component
 
     public function mount(): void
     {
+        $this->initializeFormToken();
         $this->returned_at = now()->toDateString();
         $this->items = [$this->blankItem()];
     }
@@ -74,18 +78,20 @@ class SaleReturnFormPage extends Component
             })
             ->all();
 
-        try {
-            $saleReturn = app(Inventory::class)->createSaleReturn($validated);
-            app(Inventory::class)->postSaleReturn((int) $saleReturn->getKey());
-        } catch (\Illuminate\Validation\ValidationException $exception) {
-            $this->setErrorBag($exception->validator->getMessageBag());
+        return $this->onceForThisSubmission('inventory.sale-return.create', function () use ($validated) {
+            try {
+                $saleReturn = app(Inventory::class)->createSaleReturn($validated);
+                app(Inventory::class)->postSaleReturn((int) $saleReturn->getKey());
+            } catch (\Illuminate\Validation\ValidationException $exception) {
+                $this->setErrorBag($exception->validator->getMessageBag());
 
-            return null;
-        }
+                return null;
+            }
 
-        $this->dispatch('notify', type: 'success', message: "Sale return {$saleReturn->return_number} posted.");
+            $this->dispatch('notify', type: 'success', message: "Sale return {$saleReturn->return_number} posted.");
 
-        return redirect()->route('inventory.sale-returns.show', ['recordId' => $saleReturn->getKey()]);
+            return redirect()->route('inventory.sale-returns.show', ['recordId' => $saleReturn->getKey()]);
+        });
     }
 
     public function render(): View

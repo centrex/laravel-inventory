@@ -81,6 +81,11 @@ class TestCase extends Orchestra
         // to INSERT into a nonexistent table instead of just running inline.
         config()->set('queue.default', 'sync');
 
+        // Livewire signs component snapshots with the app key — needed by any test that does a
+        // full Livewire::test(...) round-trip (mount + render + update) rather than instantiating
+        // the component class directly, or rendering throws MissingAppKeyException.
+        config()->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
+
         config()->set('database.default', 'testing');
         config()->set('database.connections.testing', [
             'driver'   => 'sqlite',
