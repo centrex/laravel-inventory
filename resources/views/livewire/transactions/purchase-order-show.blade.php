@@ -25,7 +25,7 @@
         @endif
         @if ($canReceive)
             <x-tallui-button label="Receive Partial" icon="o-inbox-arrow-down" class="btn-success btn-sm" wire:click="openReceiveModal" />
-            <x-tallui-button label="Receive All" icon="o-check-circle" class="btn-success btn-outline btn-sm" wire:click="receive" wire:confirm="Receive all remaining quantities for this purchase order?" />
+            <x-tallui-button label="Receive All" icon="o-check-circle" class="btn-success btn-outline btn-sm" wire:click="receive" wire:confirm="Receive all remaining quantities for this purchase order?" :spinner="'receive'" />
         @endif
         @if ($canCancel)
             <x-tallui-button label="Cancel" icon="o-x-circle" class="btn-error btn-sm" wire:click="cancel" wire:confirm="Cancel this {{ strtolower($documentLabel) }}?" />

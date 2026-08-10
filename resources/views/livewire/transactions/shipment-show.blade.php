@@ -17,7 +17,7 @@
         @endif
         @if (in_array($record->status?->value, ['in_transit', 'partial'], true) && $canReceive)
             <x-tallui-button label="Receive Partial" icon="o-inbox-arrow-down" class="btn-ghost btn-sm" wire:click="openReceiveModal" />
-            <x-tallui-button label="Receive All" icon="o-inbox-arrow-down" class="btn-success btn-sm" wire:click="receiveAll" wire:confirm="Mark all remaining items as received?" />
+            <x-tallui-button label="Receive All" icon="o-inbox-arrow-down" class="btn-success btn-sm" wire:click="receiveAll" wire:confirm="Mark all remaining items as received?" :spinner="'receiveAll'" />
         @endif
     </x-slot:actions>
 </x-tallui-page-header>

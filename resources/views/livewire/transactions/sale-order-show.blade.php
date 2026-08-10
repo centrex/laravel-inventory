@@ -25,7 +25,7 @@
             <x-tallui-button label="Reserve Stock" icon="o-archive-box-arrow-down" class="btn-warning btn-sm" wire:click="reserve" wire:confirm="Reserve stock for this sale order?" />
         @endif
         @if ($canFulfill)
-            <x-tallui-button label="Fulfill Remaining" icon="o-truck" class="btn-success btn-sm" wire:click="fulfill" wire:confirm="Fulfill all remaining quantities for this sale order?" />
+            <x-tallui-button label="Fulfill Remaining" icon="o-truck" class="btn-success btn-sm" wire:click="fulfill" wire:confirm="Fulfill all remaining quantities for this sale order?" :spinner="'fulfill'" />
         @endif
         @if ($canCancel)
             <x-tallui-button label="Cancel" icon="o-x-circle" class="btn-error btn-sm" wire:click="cancel" wire:confirm="Cancel this {{ strtolower($documentLabel) }}?" />
