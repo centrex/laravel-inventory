@@ -31,7 +31,8 @@ class PartnerApiController extends Controller
             abort(401, 'Missing API key.');
         }
 
-        $partner = Partner::where('api_key', $apiKey)->where('is_active', true)->first();
+        $partner = Partner::findByApiKey($apiKey);
+        $partner = $partner?->is_active ? $partner : null;
 
         if (!$partner) {
             abort(401, 'Invalid or inactive API key.');

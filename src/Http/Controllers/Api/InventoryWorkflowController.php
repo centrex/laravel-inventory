@@ -648,8 +648,8 @@ class InventoryWorkflowController extends Controller
 
         $partner = $this->inventory->createPartner($validated);
 
-        // Make api_key visible only on creation
-        return response()->json($partner->makeVisible('api_key'), 201);
+        // Only the hash is persisted — the plaintext key is shown exactly once, here.
+        return response()->json([...$partner->toArray(), 'api_key' => $partner->getPlainApiKey()], 201);
     }
 
     public function updatePartner(Request $request, int $partnerId): JsonResponse
@@ -677,6 +677,9 @@ class InventoryWorkflowController extends Controller
     {
         Gate::authorize('inventory.partners.manage');
 
-        return response()->json($this->inventory->rotatePartnerApiKey($partnerId));
+        $partner = $this->inventory->rotatePartnerApiKey($partnerId);
+
+        // Only the hash is persisted — the plaintext key is shown exactly once, here.
+        return response()->json([...$partner->toArray(), 'api_key' => $partner->getPlainApiKey()]);
     }
 }

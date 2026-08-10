@@ -5517,14 +5517,16 @@ class Inventory
         return $partner->refresh();
     }
 
-    /** Rotate the API key for a partner. Returns the partner with the new key. */
+    /**
+     * Rotate the API key for a partner. Only the hash is persisted — the returned model's
+     * getPlainApiKey() holds the new plaintext key for exactly this one response.
+     */
     public function rotatePartnerApiKey(int $partnerId): Partner
     {
         $partner = Partner::findOrFail($partnerId);
         $partner->update(['api_key' => Partner::generateApiKey()]);
 
-        // Temporarily un-hide api_key for the response
-        return $partner->makeVisible('api_key')->refresh();
+        return $partner;
     }
 
     public function listPartners(bool $activeOnly = true): Collection
