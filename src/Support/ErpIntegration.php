@@ -576,6 +576,38 @@ class ErpIntegration
         return (int) $entry->id;
     }
 
+    /**
+     * Sync the sale order's accounting invoice and post it immediately (DR AR / CR Sales
+     * Revenue) — fulfillment is the trigger for revenue recognition here, so a fulfilled order
+     * never sits with an unposted (draft) invoice. Idempotent: a second call after the invoice
+     * is already posted, void, or settled just returns its id without re-posting.
+     */
+    public function postSaleOrderInvoice(SaleOrder $saleOrder): ?int
+    {
+        if (!$this->enabled()) {
+            return null;
+        }
+
+        $invoiceId = $this->syncSaleOrderDocument($saleOrder);
+
+        if (!$invoiceId) {
+            return null;
+        }
+
+        $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
+        $invoice = $invoiceClass::find($invoiceId);
+        $status = $invoice?->status instanceof \BackedEnum ? $invoice->status->value : (string) $invoice?->status;
+
+        if (!$invoice || $invoice->journal_entry_id !== null || in_array($status, ['void', 'settled'], true)) {
+            return $invoiceId;
+        }
+
+        app('accounting')->postInvoice($invoice);
+        $this->resyncSaleOrderDueAmount($saleOrder, $invoice->fresh());
+
+        return $invoiceId;
+    }
+
     public function postAdjustment(Adjustment $adjustment): ?int
     {
         if (!$this->enabled() || $adjustment->accounting_journal_entry_id) {

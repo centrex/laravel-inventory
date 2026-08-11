@@ -161,19 +161,14 @@ class SaleOrderShowPage extends Component
         try {
             app(Inventory::class)->fulfillSaleOrder((int) $this->record->getKey());
             $this->refreshRecord();
-            $this->dispatch('notify', type: 'success', message: "{$this->record->so_number} fulfilled.");
 
-            if ($this->financeDocument === null && Gate::allows('accounting.invoice.create')) {
-                $erp = app(ErpIntegration::class);
-
-                if ($erp->enabled()) {
-                    $invoiceId = $erp->syncSaleOrderDocument($this->record);
-
-                    if ($invoiceId) {
-                        $this->refreshRecord();
-                        $this->dispatch('notify', type: 'success', message: "Invoice created for {$this->record->so_number}.");
-                    }
-                }
+            // fulfillSaleOrder() syncs and posts the accounting invoice itself (see
+            // ErpIntegration::postSaleOrderInvoice()), so $this->financeDocument already
+            // reflects the posted invoice by the time refreshRecord() re-resolves it above.
+            if ($this->financeDocument !== null && $this->financeDocument['status_raw'] === 'issued') {
+                $this->dispatch('notify', type: 'success', message: "{$this->record->so_number} fulfilled and invoice {$this->financeDocument['number']} posted.");
+            } else {
+                $this->dispatch('notify', type: 'success', message: "{$this->record->so_number} fulfilled.");
             }
         } catch (\Throwable $exception) {
             $this->dispatch('notify', type: 'error', message: $exception->getMessage());

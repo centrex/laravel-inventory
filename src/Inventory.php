@@ -2133,6 +2133,7 @@ class Inventory
         });
 
         $this->erp()->postSaleFulfillment($so, $totalCogs);
+        $this->erp()->postSaleOrderInvoice($so);
 
         return $so;
     }
