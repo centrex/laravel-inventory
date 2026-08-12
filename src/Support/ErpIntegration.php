@@ -1007,7 +1007,13 @@ class ErpIntegration
         // discounts (accounts 6130-6133) and issued credit memos (Invoice::getBalanceAttribute()),
         // which total-paid_amount alone ignores — without this, posting a sale-return credit memo
         // never moved the sale order's due_amount, since nothing here read the credit at all.
-        $due = round(max(0.0, (float) $invoice->balance), 4);
+        //
+        // Deliberately NOT clamped to 0: a credit memo issued against an already fully-paid
+        // order drives the balance negative (the business now owes the customer a refund), and
+        // clamping here silently threw that away — the accounting side showed the credit
+        // (Invoice::balance, CreditMemo::refundable_amount) while the sale order's due_amount
+        // stayed stuck at 0 as if nothing happened.
+        $due = round((float) $invoice->balance, 4);
         $paid = round(max(0.0, (float) $invoice->paid_amount), 4);
 
         $saleOrder->forceFill([
