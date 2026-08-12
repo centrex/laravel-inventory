@@ -22,16 +22,16 @@ it('returns the existing order on a content-identical partner API retry instead 
     ]);
 
     $partner = Partner::create([
-        'name'                  => 'Test Partner',
-        'type'                  => 'ecom-partner',
-        'api_key'               => 'inv_test_' . Str::random(40),
-        'customer_id'           => $customer->id,
-        'default_warehouse_id'  => $warehouse->id,
-        'default_price_tier'    => 'b2c_ecom',
-        'can_view_stock'        => true,
-        'can_view_prices'       => true,
-        'can_create_orders'     => true,
-        'is_active'             => true,
+        'name'                 => 'Test Partner',
+        'type'                 => 'ecom-partner',
+        'api_key'              => 'inv_test_' . Str::random(40),
+        'customer_id'          => $customer->id,
+        'default_warehouse_id' => $warehouse->id,
+        'default_price_tier'   => 'b2c_ecom',
+        'can_view_stock'       => true,
+        'can_view_prices'      => true,
+        'can_create_orders'    => true,
+        'is_active'            => true,
     ]);
     $apiKey = $partner->getPlainApiKey();
 
