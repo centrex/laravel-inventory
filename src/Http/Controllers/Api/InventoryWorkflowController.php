@@ -8,6 +8,7 @@ use Centrex\Inventory\Enums\PriceTierCode;
 use Centrex\Inventory\Http\Resources\{AdjustmentResource, PurchaseOrderResource, SaleOrderResource, StockReceiptResource, TransferResource};
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\SaleOrder;
+use Centrex\Inventory\Support\DuplicateSaleOrderDetector;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Gate;
@@ -350,6 +351,29 @@ class InventoryWorkflowController extends Controller
         ]);
 
         $validated['price_tier_code'] ??= PriceTierCode::B2B_RETAIL->value;
+        $validated['document_type'] ??= 'order';
+
+        // Makes retries idempotent: a client that times out waiting on a slow response (e.g.
+        // the synchronous accounting sync inside createSaleOrder()) and retries the identical
+        // request gets the order it already created back, at 200, instead of a second order at
+        // 201. No caller-side change required — unlike an Idempotency-Key header, this needs
+        // nothing from the client, but only catches *content-identical* retries, not a
+        // deliberate second order with the same items placed shortly after the first.
+        $userId = auth()->id();
+
+        if ($userId !== null) {
+            $duplicate = app(DuplicateSaleOrderDetector::class)->find(
+                warehouseId: (int) $validated['warehouse_id'],
+                customerId: $validated['customer_id'] ?? null,
+                documentType: $validated['document_type'],
+                items: $validated['items'],
+                createdBy: $userId,
+            );
+
+            if ($duplicate) {
+                return (new SaleOrderResource($duplicate->load('items.product')))->response();
+            }
+        }
 
         $so = $this->inventory->createSaleOrder($validated);
 

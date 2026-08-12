@@ -9,7 +9,7 @@ use Centrex\Inventory\Exceptions\PriceNotFoundException;
 use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, ProductPrice, ProductVariant, SaleOrder, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
+use Centrex\Inventory\Support\{CommercialTeamAccess, DuplicateSaleOrderDetector, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\{DB, Gate};
 use Illuminate\Validation\ValidationException;
@@ -62,6 +62,18 @@ class SaleOrderFormPage extends Component
     public bool $can_approve_credit = false;
 
     public array $items = [];
+
+    /**
+     * Set by save() when a likely-duplicate order is found (see findLikelyDuplicateSaleOrder()).
+     * Populated with the existing order's summary so the Blade view can render a warning banner;
+     * null once dismissed or once the user has confirmed via confirmDuplicateAndSave().
+     *
+     * @var array{so_number: string, id: int, created_at: string}|null
+     */
+    public ?array $duplicateOrderWarning = null;
+
+    /** True once the user has explicitly confirmed past a duplicateOrderWarning. */
+    public bool $confirmDuplicateOrder = false;
 
     public function mount(int|string|null $recordId = null, string $documentType = 'order'): void
     {
@@ -187,6 +199,22 @@ class SaleOrderFormPage extends Component
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
         }
 
+        $this->duplicateOrderWarning = null;
+
+        if (!$this->confirmDuplicateOrder) {
+            $duplicate = $this->findLikelyDuplicateSaleOrder($validated);
+
+            if ($duplicate) {
+                $this->duplicateOrderWarning = [
+                    'id'         => $duplicate->getKey(),
+                    'so_number'  => $duplicate->so_number,
+                    'created_at' => $duplicate->created_at?->diffForHumans() ?? '',
+                ];
+
+                return null;
+            }
+        }
+
         return $this->onceForThisSubmission('inventory.sale-order.create', function () use ($validated) {
             $saleOrder = app(Inventory::class)->createSaleOrder($validated);
 
@@ -198,6 +226,46 @@ class SaleOrderFormPage extends Component
 
             return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
         });
+    }
+
+    /** Bound to the "Create Anyway" action on the duplicate-order warning banner. */
+    public function confirmDuplicateAndSave()
+    {
+        $this->confirmDuplicateOrder = true;
+
+        return $this->save();
+    }
+
+    public function dismissDuplicateWarning(): void
+    {
+        $this->duplicateOrderWarning = null;
+    }
+
+    /**
+     * A resubmitted form (e.g. after a reload because the first attempt looked stuck) mints a
+     * fresh form_token, so GuardsAgainstDuplicateSubmission's in-flight lock never sees it —
+     * that guard only catches two requests racing from the *same* page load. This catches the
+     * "minutes later, different request" case instead: same staff member, same warehouse/
+     * customer/document type, and the exact same set of items, created within the last few
+     * minutes. Content-based rather than request-identity-based, so it survives a reload.
+     * Shared with the API controllers (DuplicateSaleOrderDetector) — same problem, different
+     * caller.
+     */
+    private function findLikelyDuplicateSaleOrder(array $validated): ?SaleOrder
+    {
+        $userId = auth()->id();
+
+        if (!$userId) {
+            return null;
+        }
+
+        return app(DuplicateSaleOrderDetector::class)->find(
+            warehouseId: $validated['warehouse_id'],
+            customerId: $validated['customer_id'] ?? null,
+            documentType: $validated['document_type'],
+            items: $validated['items'],
+            createdBy: $userId,
+        );
     }
 
     public function render(): View
@@ -535,7 +603,7 @@ class SaleOrderFormPage extends Component
             ->get()
             ->keyBy(fn (WarehouseProduct $stock): string => $this->stockKey((int) $stock->product_id, $stock->variant_id !== null ? (int) $stock->variant_id : null));
 
-        foreach ($items as $item) {
+        foreach ($items as $index => $item) {
             $productId = (int) $item['product_id'];
             $variantId = $item['variant_id'] !== null ? (int) $item['variant_id'] : null;
             $available = (float) ($stockByProduct->get($this->stockKey($productId, $variantId))?->qtyAvailable() ?? 0);
@@ -546,8 +614,15 @@ class SaleOrderFormPage extends Component
                     ? (ProductVariant::query()->with('product')->find($variantId)?->display_name ?? ('#' . $variantId))
                     : (Product::query()->find($productId)?->name ?? ('#' . $productId));
 
+                $message = "Only available stock can be sold. {$productName} has {$available} available.";
+
+                // Both keys carry the same message: the indexed key highlights the offending
+                // row's qty field inline, the bare 'items' key drives the form-level error
+                // banner — without it, this exception aborted the submit with nothing visible
+                // anywhere in the UI (no field on the form reads $errors->first('items')).
                 throw ValidationException::withMessages([
-                    'items' => "Only available stock can be sold. {$productName} has {$available} available.",
+                    "items.{$index}.qty_ordered" => $message,
+                    'items'                      => $message,
                 ]);
             }
         }

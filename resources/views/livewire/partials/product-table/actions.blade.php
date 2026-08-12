@@ -19,6 +19,8 @@
         label="Edit"
         :responsive="true"
     />
+    @endcan
+    @can('inventory.products.delete')
     <x-tallui-button
         icon="o-trash"
         class="btn-ghost btn-xs text-error"

@@ -6,6 +6,7 @@ namespace Centrex\Inventory\Http\Controllers\Api;
 
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Partner, Product, WarehouseProduct};
+use Centrex\Inventory\Support\DuplicateSaleOrderDetector;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Routing\Controller;
 
@@ -169,6 +170,22 @@ class PartnerApiController extends Controller
                 'product_id'      => $productId,
                 'price_tier_code' => $partner->default_price_tier,
             ]);
+        }
+
+        // Makes retries idempotent: a partner integration that times out waiting on a slow
+        // response and retries the identical request gets the order it already created back,
+        // at 200, instead of a second order at 201. Scoped by the partner's own customer_id
+        // (one per partner) + warehouse + items — no created_by to key on here since partner
+        // auth is an API key, not a Laravel user.
+        $duplicate = app(DuplicateSaleOrderDetector::class)->find(
+            warehouseId: (int) $warehouseId,
+            customerId: $partner->customer_id,
+            documentType: 'order',
+            items: $resolvedItems,
+        );
+
+        if ($duplicate) {
+            return response()->json($duplicate->load('items'));
         }
 
         $so = $this->inventory->createSaleOrder([

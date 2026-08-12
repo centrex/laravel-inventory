@@ -54,6 +54,32 @@
 
 <form wire:submit="save" wire:key="sale-order-form-{{ $warehouse_id ?? 'none' }}-{{ $form_refresh_key }}" class="space-y-4">
 
+    {{-- Catches errors keyed to something no field on this form displays inline (e.g. the
+         generic 'items' stock-availability check) — without this, a blocked submit could
+         fail silently with no visible explanation anywhere on the page. --}}
+    @if ($errors->has('items'))
+        <x-tallui-alert type="error" title="Can't submit this order">
+            {{ $errors->first('items') }}
+        </x-tallui-alert>
+    @endif
+
+    @if ($duplicateOrderWarning)
+        <div class="rounded-2xl border border-warning/40 bg-warning/10 p-4 flex flex-col sm:flex-row sm:items-center gap-3" role="alert">
+            <x-tallui-icon name="o-exclamation-triangle" class="w-5 h-5 shrink-0 text-warning" />
+            <div class="flex-1 text-sm">
+                <p class="font-semibold">Possible duplicate order</p>
+                <p class="text-base-content/70 mt-0.5">
+                    You created {{ $duplicateOrderWarning['so_number'] }} with the same customer, warehouse, and items {{ $duplicateOrderWarning['created_at'] }}. Submit again only if this is meant to be a separate order.
+                </p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+                <x-tallui-button label="View {{ $duplicateOrderWarning['so_number'] }}" :link="route($routeBase . '.edit', ['recordId' => $duplicateOrderWarning['id']])" class="btn-ghost btn-sm" />
+                <x-tallui-button label="Cancel" wire:click="dismissDuplicateWarning" type="button" class="btn-ghost btn-sm" />
+                <x-tallui-button label="Create Anyway" wire:click="confirmDuplicateAndSave" type="button" :spinner="'confirmDuplicateAndSave'" class="btn-warning btn-sm" />
+            </div>
+        </div>
+    @endif
+
     {{-- Header --}}
     <x-tallui-card title="Order Details" subtitle="Customer, default price tier, and order adjustments." icon="o-banknotes" :shadow="true">
         <x-slot:actions>
@@ -280,7 +306,7 @@
                                 />
                             </td>
                             <td class="py-2">
-                                <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="1" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" />
+                                <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="1" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" :error="$errors->first('items.' . $index . '.qty_ordered')" />
                             </td>
                             <td class="py-2 text-sm text-base-content/70">
                                 {{ number_format((float) ($availableStock->get(($item['product_id'] ?? 0) . ':' . (int) ($item['variant_id'] ?? 0))?->qtyAvailable() ?? 0), 4) }}

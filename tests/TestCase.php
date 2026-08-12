@@ -29,6 +29,17 @@ class TestCase extends Orchestra
         );
 
         $this->artisan('migrate', ['--database' => 'testing'])->run();
+
+        // Spatie's media table migration is shipped as a stub meant for `vendor:publish`, not
+        // auto-discovered — without it, any model using HasPrimaryImage (Product, Customer, ...)
+        // 500s the moment it's actually serialized (its 'primary_image_url' append queries this
+        // table). A real app publishes this via composer/artisan; the package test suite has to
+        // load it itself.
+        $mediaMigrationStub = __DIR__ . '/../vendor/spatie/laravel-medialibrary/database/migrations/create_media_table.php.stub';
+
+        if (file_exists($mediaMigrationStub) && !\Illuminate\Support\Facades\Schema::hasTable('media')) {
+            (require $mediaMigrationStub)->up();
+        }
     }
 
     protected function getPackageProviders($app)
@@ -67,6 +78,16 @@ class TestCase extends Orchestra
 
         if (class_exists(BladeHeroiconsServiceProvider::class)) {
             $providers[] = BladeHeroiconsServiceProvider::class;
+        }
+
+        // Product/Customer/etc. use HasPrimaryImage (Spatie InteractsWithMedia) — without this,
+        // any test that fully serializes one of those models (e.g. a raw JSON API response
+        // rather than a Resource that hand-picks fields) hits getMediaModel() reading an
+        // unregistered 'media-library.media_model' config key and throws a TypeError. A real
+        // app has this auto-discovered via composer, so it's a test-harness gap, not a
+        // production one.
+        if (class_exists(\Spatie\MediaLibrary\MediaLibraryServiceProvider::class)) {
+            $providers[] = \Spatie\MediaLibrary\MediaLibraryServiceProvider::class;
         }
 
         return $providers;
