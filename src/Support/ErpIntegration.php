@@ -546,8 +546,12 @@ class ErpIntegration
             ->where('source_action', 'sale_fulfillment')
             ->count() + 1;
 
+        // Date COGS recognition to match the revenue journal's date basis (order date, see
+        // syncSaleOrderDocument's $invoiceDate), not the moment fulfillment code happens to run —
+        // otherwise revenue and its matching cost land in different accounting periods whenever
+        // fulfillment lags the order by a day or more, distorting gross profit for both periods.
         $entry = $this->createPostedJournalEntry([
-            'date'          => now()->toDateString(),
+            'date'          => $saleOrder->ordered_at?->toDateString() ?? now()->toDateString(),
             'reference'     => sprintf('%s-FUL-%02d', $saleOrder->so_number, $sequence),
             'type'          => 'inventory',
             'description'   => "COGS recognition for {$saleOrder->so_number}",
