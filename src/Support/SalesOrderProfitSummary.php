@@ -4,18 +4,21 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
+use Centrex\Inventory\Models\{SaleReturn, SaleReturnItem};
 use Illuminate\Support\Collection;
 
 /**
  * Real, net-of-charges profit for a set of sale orders: revenue minus cost of goods,
  * sales discounts (Invoice::AR_REDUCING_ACCOUNT_CODES — 6130-6133: sales/early-payment/
- * volume/promotional discount), and delivery/return charges (accounts 6310/6320/6330/6340)
- * recorded against each order's posted invoice — the same figures the invoice detail
- * "Record Charge/Discount" actions write via laravel-accounting. Falls back to 0 for both
- * when accounting isn't installed. Exposed as gross_profit/gross_margin_pct for display.
+ * volume/promotional discount), delivery/return charges (accounts 6310/6320/6330/6340)
+ * recorded against each order's posted invoice, and posted customer returns against those
+ * orders (SaleReturn/SaleReturnItem — the same qty*price/qty*cost basis ErpIntegration uses
+ * to reverse COGS and issue the AR credit memo). Falls back to 0 for accounting-sourced
+ * deductions when accounting isn't installed. Exposed as gross_profit/gross_margin_pct for
+ * display.
  *
  * Shared by the dashboard's Sales Order Trend and Sales by Employee cards so both reduce
- * revenue/COGS/discounts/charges to gross_profit the same way.
+ * revenue/COGS/discounts/charges/returns to gross_profit the same way.
  */
 final class SalesOrderProfitSummary
 {
@@ -42,7 +45,11 @@ final class SalesOrderProfitSummary
 
         $invoiceIds = $costedOrders->pluck('accounting_invoice_id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
         $deductions = $this->deductions($invoiceIds);
-        $grossProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'];
+
+        $orderIds = $costedOrders->pluck('id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
+        $returns = $this->returnAdjustments($orderIds);
+
+        $grossProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'] - $returns['revenue'] + $returns['cost'];
 
         return [
             'orders_count'     => $orders->count(),
@@ -80,6 +87,42 @@ final class SalesOrderProfitSummary
         return [
             'discount' => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $discountCodes, true))->sum('total'),
             'charges'  => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $chargeCodes, true))->sum('total'),
+        ];
+    }
+
+    /**
+     * Revenue and cost taken back out by posted customer returns against these orders, on the
+     * same qty*unit_price / qty*unit_cost basis ErpIntegration::postSaleReturn()/
+     * issueSaleReturnCreditMemo() use — so an order whose units came back reduces gross_profit
+     * by the margin that was originally recognized on those units, regardless of which month
+     * the return itself was processed in.
+     *
+     * @param  array<int, int>  $orderIds
+     * @return array{revenue: float, cost: float}
+     */
+    private function returnAdjustments(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return ['revenue' => 0.0, 'cost' => 0.0];
+        }
+
+        $returnIds = SaleReturn::query()
+            ->where('status', 'posted')
+            ->whereIn('sale_order_id', $orderIds)
+            ->pluck('id');
+
+        if ($returnIds->isEmpty()) {
+            return ['revenue' => 0.0, 'cost' => 0.0];
+        }
+
+        $totals = SaleReturnItem::query()
+            ->whereIn('sale_return_id', $returnIds)
+            ->selectRaw('SUM(qty_returned * unit_price_amount) as revenue, SUM(qty_returned * unit_cost_amount) as cost')
+            ->first();
+
+        return [
+            'revenue' => (float) ($totals->revenue ?? 0),
+            'cost'    => (float) ($totals->cost ?? 0),
         ];
     }
 }

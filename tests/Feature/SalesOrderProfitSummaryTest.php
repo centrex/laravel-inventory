@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-use Centrex\Inventory\Models\{Customer, SaleOrder, Warehouse};
+use Centrex\Inventory\Models\{Customer, SaleOrder, SaleReturn, SaleReturnItem, Warehouse};
 use Centrex\Inventory\Support\SalesOrderProfitSummary;
 
 function makeProfitSummaryOrder(string $suffix, float $totalAmount, float $cogsAmount, string $status): SaleOrder
@@ -66,4 +66,56 @@ it('still includes a partially fulfilled order once any cogs_amount has posted',
 
     expect($summary['revenue'])->toBe(1000.0)
         ->and($summary['gross_profit'])->toBe(650.0);
+});
+
+it('nets out the margin on posted customer returns against the same order', function (): void {
+    // Fulfilled: revenue 1000, cogs 700 -> 300 margin before any return.
+    $order = makeProfitSummaryOrder('F', 1000, 700, 'fulfilled');
+
+    // Half the units come back: qty 1 @ price 500 / cost 350 -> 150 margin returned.
+    $saleReturn = SaleReturn::create([
+        'return_number' => 'SRT-PS-F',
+        'sale_order_id' => $order->id,
+        'warehouse_id'  => $order->warehouse_id,
+        'customer_id'   => $order->customer_id,
+        'status'        => 'posted',
+        'returned_at'   => today(),
+    ]);
+    SaleReturnItem::create([
+        'sale_return_id'    => $saleReturn->id,
+        'product_id'        => 1,
+        'qty_returned'      => 1,
+        'unit_price_amount' => 500,
+        'unit_cost_amount'  => 350,
+        'line_total_amount' => 500,
+    ]);
+
+    $summary = app(SalesOrderProfitSummary::class)->summarize(SaleOrder::all());
+
+    expect($summary['gross_profit'])->toBe(150.0);
+});
+
+it('ignores a draft (not yet posted) customer return', function (): void {
+    $order = makeProfitSummaryOrder('G', 1000, 700, 'fulfilled');
+
+    $saleReturn = SaleReturn::create([
+        'return_number' => 'SRT-PS-G',
+        'sale_order_id' => $order->id,
+        'warehouse_id'  => $order->warehouse_id,
+        'customer_id'   => $order->customer_id,
+        'status'        => 'draft',
+        'returned_at'   => today(),
+    ]);
+    SaleReturnItem::create([
+        'sale_return_id'    => $saleReturn->id,
+        'product_id'        => 1,
+        'qty_returned'      => 1,
+        'unit_price_amount' => 500,
+        'unit_cost_amount'  => 350,
+        'line_total_amount' => 500,
+    ]);
+
+    $summary = app(SalesOrderProfitSummary::class)->summarize(SaleOrder::all());
+
+    expect($summary['gross_profit'])->toBe(300.0);
 });
