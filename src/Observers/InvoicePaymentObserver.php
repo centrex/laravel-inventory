@@ -6,6 +6,7 @@ namespace Centrex\Inventory\Observers;
 
 use Centrex\Inventory\Jobs\RecalculateCustomerCreditExposureJob;
 use Centrex\Inventory\Models\SaleOrder;
+use Centrex\Inventory\Support\ErpIntegration;
 
 class InvoicePaymentObserver
 {
@@ -15,7 +16,7 @@ class InvoicePaymentObserver
             return;
         }
 
-        $saleOrders = SaleOrder::where('accounting_invoice_id', $invoice->id)->get(['id', 'customer_id']);
+        $saleOrders = SaleOrder::where('accounting_invoice_id', $invoice->id)->get(['id', 'customer_id', 'status']);
 
         if ($saleOrders->isEmpty()) {
             return;
@@ -26,11 +27,13 @@ class InvoicePaymentObserver
         // no rate conversion needed here (multiplying by exchange_rate again double-converts).
         $paid = round(max(0.0, (float) $invoice->paid_amount), 4);
         $due = round(max(0.0, (float) $invoice->total - (float) $invoice->paid_amount), 4);
+        $erp = app(ErpIntegration::class);
 
         foreach ($saleOrders as $saleOrder) {
             $saleOrder->updateQuietly([
                 'paid_amount' => $paid,
                 'due_amount'  => $due,
+                ...$erp->saleOrderCompletionAttributes($saleOrder, $due),
             ]);
         }
 

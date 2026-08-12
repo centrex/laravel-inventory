@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
-use Centrex\Inventory\Enums\StockReceiptStatus;
+use Centrex\Inventory\Enums\{SaleOrderStatus, StockReceiptStatus};
 use Centrex\Inventory\Models\{Adjustment, Customer as InventoryCustomer, Product, PurchaseOrder, PurchaseReturn, SaleOrder, SaleReturn, Shipment, StockReceipt, Supplier as InventorySupplier, Transfer};
 use Illuminate\Support\Facades\DB;
 
@@ -1009,7 +1009,31 @@ class ErpIntegration
         // never moved the sale order's due_amount, since nothing here read the credit at all.
         $due = round(max(0.0, (float) $invoice->balance), 4);
         $paid = round(max(0.0, (float) $invoice->paid_amount), 4);
-        $saleOrder->forceFill(['due_amount' => $due, 'paid_amount' => $paid])->saveQuietly();
+
+        $saleOrder->forceFill([
+            'due_amount'  => $due,
+            'paid_amount' => $paid,
+            ...$this->saleOrderCompletionAttributes($saleOrder, $due),
+        ])->saveQuietly();
+    }
+
+    /**
+     * Attributes to merge into a sale order update once its due_amount clears to zero —
+     * auto-completes the order rather than leaving it sitting at Fulfilled forever. Guarded by
+     * SaleOrderStatus::canTransitionTo() so this only ever fires from FULFILLED (the only state
+     * the enum allows to advance to COMPLETED): Processing/Partial/Shipped orders stay put even
+     * if a deposit happens to zero out the running due_amount before fulfillment, and
+     * Cancelled/Returned/already-Completed orders are left alone entirely.
+     *
+     * @return array<string, SaleOrderStatus>
+     */
+    public function saleOrderCompletionAttributes(SaleOrder $saleOrder, float $due): array
+    {
+        if ($due > 0.0 || !$saleOrder->status?->canTransitionTo(SaleOrderStatus::COMPLETED)) {
+            return [];
+        }
+
+        return ['status' => SaleOrderStatus::COMPLETED];
     }
 
     /**

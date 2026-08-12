@@ -2135,6 +2135,16 @@ class Inventory
         $this->erp()->postSaleFulfillment($so, $totalCogs);
         $this->erp()->postSaleOrderInvoice($so);
 
+        // postSaleOrderInvoice() may have just resynced due_amount from a freshly-posted
+        // invoice (mutating $so in place); re-check completion against whatever due_amount
+        // ended up as — covers both the ERP-enabled path (invoice posted above, still owing)
+        // and the no-invoice fallback in the transaction above (due_amount forced to 0).
+        $completionAttributes = $this->erp()->saleOrderCompletionAttributes($so, (float) $so->due_amount);
+
+        if ($completionAttributes !== []) {
+            $so->forceFill($completionAttributes)->saveQuietly();
+        }
+
         return $so;
     }
 
@@ -4319,7 +4329,7 @@ class Inventory
             ->with(['customer', 'warehouse', 'items.product'])
             ->where('document_type', 'sale')
             ->when($status, fn ($q) => $q->where('status', $status))
-            ->when($excludeTerminal, fn ($q) => $q->whereNotIn('status', [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]))
+            ->when($excludeTerminal, fn ($q) => $q->whereNotIn('status', [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::COMPLETED->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]))
             ->when($from, fn ($q) => $q->whereDate('ordered_at', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('ordered_at', '<=', $to))
             ->latest('ordered_at')
@@ -4403,6 +4413,7 @@ class Inventory
                 SaleOrderStatus::PROCESSING->value,
                 SaleOrderStatus::PARTIAL->value,
                 SaleOrderStatus::FULFILLED->value,
+                SaleOrderStatus::COMPLETED->value,
             ])
             ->whereBetween('ordered_at', [$historyStart, $historyEnd]);
 

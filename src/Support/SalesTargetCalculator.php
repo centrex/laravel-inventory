@@ -104,6 +104,7 @@ final class SalesTargetCalculator
                 SaleOrderStatus::PROCESSING->value,
                 SaleOrderStatus::PARTIAL->value,
                 SaleOrderStatus::FULFILLED->value,
+                SaleOrderStatus::COMPLETED->value,
             ])
             ->whereBetween('ordered_at', [$historyStart, $historyEnd]);
 
