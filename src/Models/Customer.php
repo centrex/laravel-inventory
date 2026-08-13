@@ -53,6 +53,12 @@ class Customer extends Model implements Auditable, HasMedia
         return $this->hasMany(SaleOrder::class);
     }
 
+    /** The sales agent this customer is assigned to, when is_agent is false. */
+    public function agent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'agent_id');
+    }
+
     public function salesManager(): BelongsTo
     {
         return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'sales_manager_id');

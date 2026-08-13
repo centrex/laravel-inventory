@@ -3,6 +3,7 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
+use Centrex\Inventory\Http\Livewire\Agents\{AgentCustomerCreatePage, AgentCustomersPage, AgentDashboard, AgentFormPage, AgentIndexPage, AgentInvoicesPage, AgentSaleOrderFormPage, ProAnalyticsDashboard};
 use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseStockIndexPage};
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ForecastReportPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
@@ -85,4 +86,15 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/reports/aging', AgingReportPage::class)->name('reports.aging');
         Route::get('/reports/forecast', ForecastReportPage::class)->name('reports.forecast');
         Route::get('/reports/customer-heatmap', CustomerHeatMapPage::class)->name('reports.customer-heatmap');
+
+        // Sales agents (paired B2C/B2B orders)
+        Route::get('/pro-analytics', ProAnalyticsDashboard::class)->name('pro-analytics');
+        Route::get('/agents', AgentIndexPage::class)->name('agents.index');
+        Route::get('/agents/create', AgentFormPage::class)->name('agents.create');
+        Route::get('/agents/{agentId}', AgentDashboard::class)->name('agents.show');
+        Route::get('/agents/{agentId}/edit', AgentFormPage::class)->name('agents.edit');
+        Route::get('/agents/{agentId}/customers', AgentCustomersPage::class)->name('agents.customers');
+        Route::get('/agents/{agentId}/customers/create', AgentCustomerCreatePage::class)->name('agents.customers.create');
+        Route::get('/agents/{agentId}/invoices', AgentInvoicesPage::class)->name('agents.invoices');
+        Route::get('/agent-orders/create', AgentSaleOrderFormPage::class)->name('agent-orders.create');
     });

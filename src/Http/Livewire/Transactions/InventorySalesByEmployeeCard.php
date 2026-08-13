@@ -70,7 +70,7 @@ class InventorySalesByEmployeeCard extends Component
         $orders = CommercialTeamAccess::applySalesScope(SaleOrder::query()->where('document_type', 'order'))
             ->whereBetween('ordered_at', [now()->startOfMonth(), now()->endOfDay()])
             ->whereNotIn('status', $excluded)
-            ->get(['id', 'sales_executive_id', 'created_by', 'total_amount', 'cogs_amount', 'accounting_invoice_id']);
+            ->get(['id', 'sales_executive_id', 'created_by', 'price_tier_code', 'total_amount', 'cogs_amount', 'accounting_invoice_id']);
 
         return SalesBreakdowns::byEmployee($orders);
     }

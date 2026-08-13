@@ -6,8 +6,8 @@ namespace Centrex\Inventory;
 
 use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand, SyncExchangeRatesCommand};
 use Centrex\Inventory\Listeners\ReconcileSaleReturnCreditMemos;
-use Centrex\Inventory\Models\{Customer, Supplier};
-use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, InvoiceDiscountObserver, InvoicePaymentObserver, SupplierObserver};
+use Centrex\Inventory\Models\{Customer, SaleOrder, Supplier};
+use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, InvoiceDiscountObserver, InvoicePaymentObserver, PairedOrderObserver, SupplierObserver};
 use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
 use Illuminate\Support\Facades\{Blade, Event, Gate};
 use Illuminate\Support\ServiceProvider;
@@ -33,6 +33,10 @@ class InventoryServiceProvider extends ServiceProvider
             $this->registerLivewireComponents();
         });
         $this->registerGates();
+
+        // Mirrors B2B agent-order status onto its paired B2C order — independent of the
+        // accounting integration toggle above, since it only touches inv_sale_orders.
+        SaleOrder::observe(PairedOrderObserver::class);
 
         if ((bool) config('inventory.erp.accounting.enabled', false)) {
             Customer::observe(CustomerObserver::class);
@@ -161,6 +165,13 @@ class InventoryServiceProvider extends ServiceProvider
             // Pick-Pack-Ship
             'inventory.pick-lists.view',
             'inventory.shipments.view',
+
+            // Sales agents (paired B2C/B2B orders)
+            'inventory.agents.view',
+            'inventory.agents.manage',
+            'inventory.customers.view',
+            'inventory.invoices.view',
+            'inventory.agent-orders.create',
         ];
 
         // Partner back-office gates: granted to users with a partner role.
@@ -381,8 +392,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory);
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
+        $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(
@@ -459,5 +470,15 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
         Livewire::component('inventory-dispatch-terminal', Http\Livewire\Transactions\DispatchTerminalPage::class);
+
+        // Sales agents (paired B2C/B2B orders)
+        Livewire::component('inventory-agent-index', Http\Livewire\Agents\AgentIndexPage::class);
+        Livewire::component('inventory-agent-form', Http\Livewire\Agents\AgentFormPage::class);
+        Livewire::component('inventory-agent-dashboard', Http\Livewire\Agents\AgentDashboard::class);
+        Livewire::component('inventory-agent-customers', Http\Livewire\Agents\AgentCustomersPage::class);
+        Livewire::component('inventory-agent-customer-create', Http\Livewire\Agents\AgentCustomerCreatePage::class);
+        Livewire::component('inventory-agent-invoices', Http\Livewire\Agents\AgentInvoicesPage::class);
+        Livewire::component('inventory-agent-sale-order-form', Http\Livewire\Agents\AgentSaleOrderFormPage::class);
+        Livewire::component('inventory-pro-analytics-dashboard', Http\Livewire\Agents\ProAnalyticsDashboard::class);
     }
 }

@@ -202,6 +202,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sales Agents
+    |--------------------------------------------------------------------------
+    | default_b2c_tier  — price tier used when an agent creates a customer order
+    | default_b2b_tier  — price tier used for the mirrored agent cost order
+    | invoice_due_days  — payment due date offset for the auto-generated accounting invoices
+    */
+    'agent' => [
+        'default_b2c_tier' => env('INVENTORY_AGENT_DEFAULT_B2C_TIER', 'b2c_retail'),
+        'default_b2b_tier' => env('INVENTORY_AGENT_DEFAULT_B2B_TIER', 'b2b_wholesale'),
+        'invoice_due_days' => env('INVENTORY_AGENT_INVOICE_DUE_DAYS', 30),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | ERP Integration
     |--------------------------------------------------------------------------
     */

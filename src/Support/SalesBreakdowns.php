@@ -18,8 +18,9 @@ final class SalesBreakdowns
 {
     /**
      * @param  Collection<int, SaleOrder>  $orders  must include id, sales_executive_id,
-     *                                              created_by, total_amount, cogs_amount, accounting_invoice_id
-     * @return array<int, array{employee_id: ?int, name: string, orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float}>
+     *                                              created_by, price_tier_code, total_amount,
+     *                                              cogs_amount, accounting_invoice_id
+     * @return array<int, array{employee_id: ?int, name: string, orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float, by_price_tier: array<int, array{code: ?string, label: string, orders_count: int, revenue: float}>}>
      */
     public static function byEmployee(Collection $orders): array
     {
@@ -43,8 +44,32 @@ final class SalesBreakdowns
                 'revenue'          => $summary['revenue'],
                 'gross_profit'     => $summary['gross_profit'],
                 'gross_margin_pct' => $summary['gross_margin_pct'],
+                'by_price_tier'    => self::tierCounts($group),
             ];
         })->sortByDesc('revenue')->values()->all();
+    }
+
+    /**
+     * Order count + revenue per price tier within an already-scoped group of orders (e.g. one
+     * employee's orders). Deliberately lighter than byPriceTier()/SalesOrderProfitSummary — no
+     * COGS/discount/return queries — since this runs once per employee and only count+value are
+     * needed here, not a full profit breakdown.
+     *
+     * @param  Collection<int, SaleOrder>  $orders  must include price_tier_code, total_amount
+     * @return array<int, array{code: ?string, label: string, orders_count: int, revenue: float}>
+     */
+    private static function tierCounts(Collection $orders): array
+    {
+        return $orders->groupBy('price_tier_code')
+            ->map(fn (Collection $group, ?string $code): array => [
+                'code'         => $code,
+                'label'        => PriceTierCode::labelFor($code) ?? ($code ?: 'Unassigned'),
+                'orders_count' => $group->count(),
+                'revenue'      => (float) $group->sum('total_amount'),
+            ])
+            ->sortByDesc('revenue')
+            ->values()
+            ->all();
     }
 
     /**

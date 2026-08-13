@@ -10269,3 +10269,403 @@ parameters:
 			message: "#^Cannot cast mixed to string\\.$#"
 			count: 1
 			path: src/Support/WarehouseStockExporter.php
+
+		-
+			message: "#^Method class@anonymous/database/migrations/2026_08_13_000001_add_sales_agent_support\\.php\\:15\\:\\:prefix\\(\\) should return string but returns mixed\\.$#"
+			count: 1
+			path: database/migrations/2026_08_13_000001_add_sales_agent_support.php
+
+		-
+			message: "#^Parameter \\#1 \\$middleware of static method Illuminate\\\\Support\\\\Facades\\\\Route\\:\\:middleware\\(\\) expects array\\|string\\|null, mixed given\\.$#"
+			count: 1
+			path: routes/web.php
+
+		-
+			message: "#^Parameter \\#1 \\$prefix of method Illuminate\\\\Routing\\\\RouteRegistrar\\:\\:prefix\\(\\) expects string, mixed given\\.$#"
+			count: 1
+			path: routes/web.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>, array\\<string, bool\\|float\\|int\\|string\\|null\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentCustomerCreatePage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'code' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentCustomersPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'email' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentCustomersPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'phone' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentCustomersPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'name' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentCustomersPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:\\$customer_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentDashboard.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$b2c_revenue\\.$#"
+			count: 2
+			path: src/Http/Livewire/Agents/AgentDashboard.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$margin\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentDashboard.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:\\$customer_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:\\$is_active\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>, array\\<string, bool\\|float\\|int\\|string\\|null\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>, array\\<string, bool\\|float\\|int\\|string\\|null\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'customer_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'is_active' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, 'code' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentIndexPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, 'email' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentIndexPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, 'zone' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentIndexPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, 'name' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentIndexPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:orWhere\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'source_reference' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentInvoicesPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'invoice_number' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentInvoicesPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'source_id' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentInvoicesPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'source_type' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentInvoicesPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, 'status' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentInvoicesPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\:\\:\\$price_amount\\.$#"
+			count: 2
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Cannot cast mixed to int\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Offset 'b2b_price' on array\\{product_id\\: int\\|null, variant_id\\: int\\|null, qty\\: float, b2c_price\\: float, b2b_price\\: float\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Offset 'b2c_price' on array\\{product_id\\: int\\|null, variant_id\\: int\\|null, qty\\: float, b2c_price\\: float, b2b_price\\: float\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Offset 'qty' on array\\{product_id\\: int\\|null, variant_id\\: int\\|null, qty\\: float, b2c_price\\: float, b2b_price\\: float\\} on left side of \\?\\? always exists and is not nullable\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$callback of method Illuminate\\\\Support\\\\Collection\\<int,array\\<string, float\\|int\\|null\\>\\>\\:\\:filter\\(\\) expects \\(callable\\(array\\{product_id\\: int\\|null, variant_id\\: int\\|null, qty\\: float, b2c_price\\: float, b2b_price\\: float\\}, int\\)\\: bool\\)\\|null, Closure\\(mixed\\)\\: \\(int\\|null\\) given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Agent\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Agent, 'is_active' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Customer\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Customer, 'is_active' given\\.$#"
+			count: 2
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, 'is_active' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Warehouse\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Warehouse, 'is_default' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\#2 \\$tierCode of static method Centrex\\\\Inventory\\\\Inventory\\:\\:resolvePrice\\(\\) expects string, mixed given\\.$#"
+			count: 2
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\$agentId of method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:createPairedOrders\\(\\) expects int, int\\|null given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Parameter \\$b2cData of method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:createPairedOrders\\(\\) expects array\\{warehouse_id\\: int, customer_id\\: int, currency\\?\\: string, notes\\?\\: string, ordered_at\\?\\: string, items\\: array\\<int, array\\{product_id\\: int, variant_id\\?\\: int\\|null, qty_ordered\\: float, unit_price_local\\?\\: float\\}\\>\\}, array\\{warehouse_id\\: int\\|null, customer_id\\: int\\|null, currency\\: string, notes\\: non\\-falsy\\-string\\|null, ordered_at\\: Illuminate\\\\Support\\\\Carbon, items\\: array\\} given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/AgentSaleOrderFormPage.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 2
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:agentRows\\(\\) has parameter \\$excluded with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:agentRows\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:agentSummary\\(\\) has parameter \\$excluded with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:agentSummary\\(\\) should return object but returns object\\|null\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:fetchAnalytics\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:monthlyTrend\\(\\) has parameter \\$excluded with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:monthlyTrend\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:revenueByRole\\(\\) has parameter \\$excluded with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:revenueByRole\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:revenueByTier\\(\\) has parameter \\$excluded with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:revenueByTier\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:summary\\(\\) has parameter \\$excluded with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Agents\\\\ProAnalyticsDashboard\\:\\:summary\\(\\) should return object but returns object\\|null\\.$#"
+			count: 1
+			path: src/Http/Livewire/Agents/ProAnalyticsDashboard.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:__construct\\(\\) has parameter \\$attributes with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Models/Agent.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:b2bOrders\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\HasMany does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Agent.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:customer\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Agent.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:customers\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsToMany does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Agent.php
+
+		-
+			message: "#^Parameter \\#1 \\$name of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:setConnection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 1
+			path: src/Models/Agent.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\AgentCustomer\\:\\:__construct\\(\\) has parameter \\$attributes with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Models/AgentCustomer.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\AgentCustomer\\:\\:agent\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/AgentCustomer.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\AgentCustomer\\:\\:customer\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/AgentCustomer.php
+
+		-
+			message: "#^Parameter \\#1 \\$name of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:setConnection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 1
+			path: src/Models/AgentCustomer.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:agent\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Customer.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\:\\:agentCustomer\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/SaleOrder.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\:\\:pairedSaleOrder\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/SaleOrder.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:\\$name\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Agent\\:\\:\\$price_tier_code\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Customer\\:\\:\\$accounting_customer_id\\.$#"
+			count: 2
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\:\\:\\$price_amount\\.$#"
+			count: 2
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 2
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Cannot cast mixed to int\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:maybePostAccountingInvoices\\(\\) has parameter \\$b2cData with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:maybePostAccountingInvoices\\(\\) has parameter \\$resolvedItems with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:resolveItemPrices\\(\\) has parameter \\$items with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:resolveItemPrices\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 2
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Parameter \\#3 \\$b2cTier of method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:resolveItemPrices\\(\\) expects string, mixed given\\.$#"
+			count: 1
+			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 1
+			path: src/Support/SalesBreakdowns.php

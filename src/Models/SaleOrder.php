@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Models;
 
 use Centrex\Inventory\Concerns\AddTablePrefix;
-use Centrex\Inventory\Enums\{PriceTierCode, SaleOrderStatus};
+use Centrex\Inventory\Enums\{OrderRole, PriceTierCode, SaleOrderStatus};
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
 use OwenIt\Auditing\Auditable as AuditableTrait;
@@ -60,6 +60,9 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property string|null $notes
  * @property int|null $created_by
  * @property int|null $accounting_invoice_id FK to laravel-accounting Invoice
+ * @property OrderRole $order_role
+ * @property int|null $paired_sale_order_id For agent orders: links the B2C and B2B pair together
+ * @property int|null $agent_customer_id The inv_customers record of the agent (set on both sides of the pair)
  */
 class SaleOrder extends Model implements Auditable
 {
@@ -94,6 +97,7 @@ class SaleOrder extends Model implements Auditable
         'cogs_amount', 'status', 'ordered_at', 'notes', 'created_by',
         'sales_manager_id', 'sales_assistant_manager_id', 'sales_executive_id',
         'accounting_invoice_id',
+        'order_role', 'paired_sale_order_id', 'agent_customer_id',
     ];
 
     protected $casts = [
@@ -122,6 +126,7 @@ class SaleOrder extends Model implements Auditable
         'credit_override_approved_at'   => 'datetime',
         'cogs_amount'                   => 'decimal:4',
         'ordered_at'                    => 'datetime',
+        'order_role'                    => OrderRole::class,
     ];
 
     public function warehouse(): BelongsTo
@@ -137,6 +142,18 @@ class SaleOrder extends Model implements Auditable
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo((string) config('auth.providers.users.model', 'App\\Models\\User'), 'created_by');
+    }
+
+    /** For agent orders: the other order in the B2C/B2B pair. */
+    public function pairedSaleOrder(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'paired_sale_order_id');
+    }
+
+    /** For agent orders: the inv_customers record of the agent. */
+    public function agentCustomer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'agent_customer_id');
     }
 
     public function salesManager(): BelongsTo
