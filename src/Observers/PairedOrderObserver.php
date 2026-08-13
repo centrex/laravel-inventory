@@ -52,7 +52,7 @@ class PairedOrderObserver
 
         // Use a direct DB update with suppressEvents to avoid recursive observer calls
         SaleOrder::withoutTimestamps(function () use ($pairedId, $b2cStatus): void {
-            DB::table((new SaleOrder())->getTable())
+            DB::table((new SaleOrder)->getTable())
                 ->where('id', $pairedId)
                 ->update(['status' => $b2cStatus, 'updated_at' => now()]);
         });

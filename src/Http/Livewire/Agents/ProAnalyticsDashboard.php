@@ -49,8 +49,8 @@ class ProAnalyticsDashboard extends Component
     {
         [$from, $to] = $this->dateRange();
 
-        $soTable = (new SaleOrder())->getTable();
-        $custTable = (new Customer())->getTable();
+        $soTable = (new SaleOrder)->getTable();
+        $custTable = (new Customer)->getTable();
         $excluded = [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value];
 
         return [
@@ -96,7 +96,7 @@ class ProAnalyticsDashboard extends Component
 
     private function agentRows(string $soTable, string $custTable, mixed $from, mixed $to, array $excluded): \Illuminate\Support\Collection
     {
-        $agentTable = (new Agent())->getTable();
+        $agentTable = (new Agent)->getTable();
 
         return DB::table("{$soTable} as b2c")
             ->join("{$soTable} as b2b", 'b2b.id', '=', 'b2c.paired_sale_order_id')

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Schema;
  * order is the customer-facing reference. OrderRole::AGENT_B2C/AGENT_B2B already exist on
  * the base enum — this migration adds the columns/tables that give them somewhere to live.
  */
-return new class() extends Migration
+return new class extends Migration
 {
     private function prefix(): string
     {

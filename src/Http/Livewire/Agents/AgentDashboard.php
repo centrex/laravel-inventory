@@ -31,7 +31,7 @@ class AgentDashboard extends Component
         $recentOrders = collect();
 
         if ($agent->customer_id) {
-            $soTable = (new SaleOrder())->getTable();
+            $soTable = (new SaleOrder)->getTable();
 
             $orderStats = DB::table("{$soTable} as b2c")
                 ->leftJoin("{$soTable} as b2b", 'b2b.id', '=', 'b2c.paired_sale_order_id')
