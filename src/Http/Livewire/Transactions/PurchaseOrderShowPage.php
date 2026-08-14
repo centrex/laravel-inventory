@@ -295,11 +295,11 @@ class PurchaseOrderShowPage extends Component
 
     private function documentMetadata(): array
     {
-        if (!class_exists(\Centrex\ModelData\Data::class)) {
+        if (!class_exists(\Centrex\ModelData\Models\Data::class)) {
             return [];
         }
 
-        $record = \Centrex\ModelData\Data::query()
+        $record = \Centrex\ModelData\Models\Data::query()
             ->forModel($this->record)
             ->first();
 

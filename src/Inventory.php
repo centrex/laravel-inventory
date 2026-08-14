@@ -12,7 +12,7 @@ use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, Cust
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, InventoryEntityRegistry, SalesTargetCalculator};
 use Centrex\LaravelOpenExchangeRates\Client as OpenExchangeRatesClient;
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
-use Centrex\ModelData\Data;
+use Centrex\ModelData\Models\Data;
 use DateTimeInterface;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\{Model, SoftDeletes};
