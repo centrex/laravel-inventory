@@ -19,7 +19,7 @@ use Centrex\Inventory\Models\{Customer, SaleOrder, Warehouse};
  */
 function resolveSaleOrderDispatchInfo(SaleOrder $saleOrder, ?array $metadata = null): ?array
 {
-    $component = new SaleOrderShowPage;
+    $component = new SaleOrderShowPage();
     $component->record = $saleOrder;
 
     $ref = new ReflectionClass($component);
@@ -68,6 +68,18 @@ it('returns null when nothing has been dispatched yet', function (): void {
     $saleOrder = makeShowPageSaleOrder();
 
     expect(resolveSaleOrderDispatchInfo($saleOrder))->toBeNull();
+});
+
+it('surfaces the card even when only the carrier has been saved, with no tracking number or parcel status yet', function (): void {
+    $saleOrder = makeShowPageSaleOrder();
+
+    $info = resolveSaleOrderDispatchInfo($saleOrder, [
+        'carrier' => 'Pathao',
+    ]);
+
+    expect($info)->not->toBeNull()
+        ->and($info['carrier'])->toBe('Pathao')
+        ->and($info['tracking_number'])->toBeNull();
 });
 
 it('surfaces the same carrier/tracking metadata the Dispatch Terminal writes', function (): void {

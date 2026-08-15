@@ -256,7 +256,27 @@
 
         @if ($routeBase === 'inventory.sale-orders')
         <x-tallui-card title="Shipping & Tracking" subtitle="Carrier, tracking number, and delivery status." icon="o-truck" :shadow="true">
-            @if ($dispatchInfo)
+            @if ($canEdit && !$editingDispatch)
+                <x-slot:actions>
+                    <x-tallui-button label="Edit" icon="o-pencil-square" wire:click="editDispatchInfo" class="btn-ghost btn-xs" />
+                </x-slot:actions>
+            @endif
+
+            @if ($editingDispatch)
+                @unless ($modelDataReady)
+                    <div class="mb-3 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+                        Model data storage is not ready, so tracking info cannot be saved yet.
+                    </div>
+                @endunless
+                <form wire:submit="saveDispatchInfo" class="space-y-3">
+                    <x-tallui-form-input name="dispatchForm.tracking_number" label="Tracking number" placeholder="e.g. CTRX-250100001" wire:model="dispatchForm.tracking_number" :error="$errors->first('dispatchForm.tracking_number')" />
+                    <x-tallui-form-input name="dispatchForm.carrier" label="Carrier / Vendor" placeholder="e.g. Connect Courier" wire:model="dispatchForm.carrier" :error="$errors->first('dispatchForm.carrier')" />
+                    <div class="flex justify-end gap-2 pt-1">
+                        <x-tallui-button label="Cancel" wire:click="cancelEditDispatchInfo" class="btn-ghost btn-sm" type="button" />
+                        <x-tallui-button label="Save" icon="o-check" class="btn-primary btn-sm" type="submit" :spinner="'saveDispatchInfo'" />
+                    </div>
+                </form>
+            @elseif ($dispatchInfo)
                 <div class="space-y-1.5 text-sm">
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-base-content/50">Status</span>

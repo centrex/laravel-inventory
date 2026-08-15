@@ -26,6 +26,11 @@ class SaleOrderShowPage extends Component
 
     public ?array $dispatchInfo = null;
 
+    public bool $editingDispatch = false;
+
+    /** @var array<string, string> */
+    public array $dispatchForm = ['carrier' => '', 'tracking_number' => ''];
+
     private ?array $metadataCache = null;
 
     public function mount(int $recordId, string $documentType = 'order'): void
@@ -73,6 +78,7 @@ class SaleOrderShowPage extends Component
             'saleFlowSteps'   => $this->saleFlowSteps(),
             'saleFlowCurrent' => $this->saleFlowCurrentStep(),
             'saleFlowHalted'  => in_array($this->record->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
+            'modelDataReady'  => $this->modelDataReady(),
         ]);
     }
 
@@ -94,10 +100,10 @@ class SaleOrderShowPage extends Component
     private function saleFlowCurrentStep(): int
     {
         return match ($this->record->status) {
-            SaleOrderStatus::CONFIRMED                                                       => 2,
-            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL                            => 3,
+            SaleOrderStatus::CONFIRMED => 2,
+            SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL => 3,
             SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
-            default                                                                          => 1,
+            default => 1,
         };
     }
 
@@ -229,6 +235,73 @@ class SaleOrderShowPage extends Component
         }
     }
 
+    /**
+     * Sets the form up from the current metadata (not the possibly-null $dispatchInfo, so
+     * a carrier saved without a tracking number — see resolveDispatchInfo() — still round-trips).
+     */
+    public function editDispatchInfo(): void
+    {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.edit']);
+
+        $data = $this->documentMetadata();
+
+        $this->dispatchForm = [
+            'carrier'         => $data['carrier'] ?? '',
+            'tracking_number' => $data['tracking_number'] ?? '',
+        ];
+        $this->editingDispatch = true;
+    }
+
+    public function cancelEditDispatchInfo(): void
+    {
+        $this->editingDispatch = false;
+    }
+
+    /**
+     * Only touches carrier/tracking_number — every other dispatch field (parcel_status, eta,
+     * location, dispatch_note, ...) is left as whatever the Dispatch Terminal last wrote, so
+     * this lightweight form can't accidentally blank out state set from there.
+     */
+    public function saveDispatchInfo(): void
+    {
+        CommercialTeamAccess::authorizeAny(['sales.orders.manage', 'inventory.sale-orders.edit']);
+
+        if (!$this->modelDataReady()) {
+            $this->dispatch('notify', type: 'error', message: 'Model data storage is not ready, so tracking info cannot be saved yet.');
+
+            return;
+        }
+
+        $validated = validator($this->dispatchForm, [
+            'carrier'         => ['nullable', 'string', 'max:80'],
+            'tracking_number' => ['nullable', 'string', 'max:120'],
+        ])->validate();
+
+        $data = array_merge($this->documentMetadata(), [
+            'carrier'         => filled($validated['carrier'] ?? null) ? $validated['carrier'] : null,
+            'tracking_number' => filled($validated['tracking_number'] ?? null) ? $validated['tracking_number'] : null,
+        ]);
+
+        $modelType = $this->record->getMorphClass();
+        $modelId = $this->record->getKey();
+        $key = \Centrex\ModelData\Models\Data::generateKey($modelType, $modelId, 'data');
+
+        \Centrex\ModelData\Models\Data::query()->updateOrCreate(
+            ['key' => $key],
+            ['key' => $key, 'data_type' => 'data', 'model_type' => $modelType, 'model_id' => $modelId, 'data' => $data],
+        );
+
+        $this->editingDispatch = false;
+        $this->refreshRecord();
+
+        $this->dispatch('notify', type: 'success', message: 'Tracking info updated.');
+    }
+
+    private function modelDataReady(): bool
+    {
+        return class_exists(\Centrex\ModelData\Models\Data::class);
+    }
+
     protected function resolveFinanceDocument(): ?array
     {
         $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
@@ -313,7 +386,7 @@ class SaleOrderShowPage extends Component
     {
         $data = $this->documentMetadata();
 
-        if (!filled($data['tracking_number'] ?? null) && !filled($data['parcel_status'] ?? null)) {
+        if (!filled($data['tracking_number'] ?? null) && !filled($data['parcel_status'] ?? null) && !filled($data['carrier'] ?? null)) {
             return null;
         }
 
@@ -358,7 +431,7 @@ class SaleOrderShowPage extends Component
             return $this->metadataCache;
         }
 
-        if (!class_exists(\Centrex\ModelData\Models\Data::class)) {
+        if (!$this->modelDataReady()) {
             return $this->metadataCache = [];
         }
 
