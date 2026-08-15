@@ -7,7 +7,7 @@ namespace Centrex\Inventory\Http\Livewire\Transactions;
 use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\SaleOrder;
-use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration};
+use Centrex\Inventory\Support\{CommercialTeamAccess, CourierIntegration, ErpIntegration};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -30,6 +30,24 @@ class SaleOrderShowPage extends Component
 
     /** @var array<string, string> */
     public array $dispatchForm = ['carrier' => '', 'tracking_number' => ''];
+
+    public bool $trackingModalOpen = false;
+
+    /**
+     * Live parcel details from the courier API, keyed field => value.
+     *
+     * @var array<string, mixed>
+     */
+    public array $parcelInfo = [];
+
+    /**
+     * Live tracking history entries from the courier API.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    public array $parcelTracking = [];
+
+    public string $trackingError = '';
 
     private ?array $metadataCache = null;
 
@@ -73,12 +91,17 @@ class SaleOrderShowPage extends Component
             'canCreateSaleOrder' => $this->documentType === 'quotation'
                 && $this->record->status?->value === 'confirmed'
                 && $this->linkedSaleOrder === null,
-            'linkedSaleOrder' => $this->linkedSaleOrder,
-            'dispatchInfo'    => $this->dispatchInfo,
-            'saleFlowSteps'   => $this->saleFlowSteps(),
-            'saleFlowCurrent' => $this->saleFlowCurrentStep(),
-            'saleFlowHalted'  => in_array($this->record->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
-            'modelDataReady'  => $this->modelDataReady(),
+            'linkedSaleOrder'   => $this->linkedSaleOrder,
+            'dispatchInfo'      => $this->dispatchInfo,
+            'trackingLink'      => $this->resolveTrackingLink(),
+            'trackingModalOpen' => $this->trackingModalOpen,
+            'parcelInfo'        => $this->parcelInfo,
+            'parcelTracking'    => $this->parcelTracking,
+            'trackingError'     => $this->trackingError,
+            'saleFlowSteps'     => $this->saleFlowSteps(),
+            'saleFlowCurrent'   => $this->saleFlowCurrentStep(),
+            'saleFlowHalted'    => in_array($this->record->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
+            'modelDataReady'    => $this->modelDataReady(),
         ]);
     }
 
@@ -300,6 +323,76 @@ class SaleOrderShowPage extends Component
     private function modelDataReady(): bool
     {
         return class_exists(\Centrex\ModelData\Models\Data::class);
+    }
+
+    /**
+     * Opens the parcel-tracking modal and pulls the parcel's live details and tracking
+     * history from the courier API (Redx / Pathao) for this order's booked tracking number —
+     * mirrors DispatchTerminalPage::openTrackingModal(), but against $this->record instead of
+     * a row picked from a paginated list.
+     */
+    public function openTrackingModal(): void
+    {
+        $data = $this->documentMetadata();
+
+        $this->trackingModalOpen = true;
+        $this->parcelInfo = [];
+        $this->parcelTracking = [];
+        $this->trackingError = '';
+
+        $provider = (string) ($data['courier_provider'] ?? '');
+        $environment = (string) ($data['courier_environment'] ?? 'sandbox');
+        $trackingNumber = (string) ($data['tracking_number'] ?? '');
+
+        if ($trackingNumber === '' || !in_array($provider, ['redx', 'pathao'], true)) {
+            $this->trackingError = 'This order has no courier-booked parcel — tracking is only available for Redx and Pathao parcels.';
+
+            return;
+        }
+
+        try {
+            $details = app(CourierIntegration::class)->parcelDetails(
+                $provider,
+                $environment,
+                $trackingNumber,
+                (string) ($this->record->customer?->phone ?? data_get($data, 'shipping_address.phone', '')),
+            );
+
+            $this->parcelInfo = $details['info'];
+            $this->parcelTracking = $details['tracking'];
+
+            if ($this->parcelInfo === [] && $this->parcelTracking === []) {
+                $this->trackingError = "The courier returned no data for parcel {$trackingNumber} yet.";
+            }
+        } catch (\Throwable $exception) {
+            $this->trackingError = "Could not load parcel data: {$exception->getMessage()}";
+        }
+    }
+
+    public function closeTrackingModal(): void
+    {
+        $this->trackingModalOpen = false;
+        $this->parcelInfo = [];
+        $this->parcelTracking = [];
+        $this->trackingError = '';
+    }
+
+    /** Public, customer-facing courier tracking-page URL — see CourierIntegration::trackingLink(). */
+    private function resolveTrackingLink(): ?string
+    {
+        $data = $this->documentMetadata();
+        $trackingNumber = (string) ($data['tracking_number'] ?? '');
+        $provider = (string) ($data['courier_provider'] ?? '');
+
+        if ($trackingNumber === '' || $provider === '') {
+            return null;
+        }
+
+        return app(CourierIntegration::class)->trackingLink(
+            $provider,
+            $trackingNumber,
+            (string) ($this->record->customer?->phone ?? data_get($data, 'shipping_address.phone', '')),
+        );
     }
 
     protected function resolveFinanceDocument(): ?array

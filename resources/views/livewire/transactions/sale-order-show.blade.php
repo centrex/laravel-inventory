@@ -329,16 +329,35 @@
                 <p class="text-sm text-base-content/60">Not dispatched yet.</p>
             @endif
 
-            @if (Route::has('inventory.dispatch.index'))
-                <div class="mt-4">
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+                @if ($dispatchInfo && !empty($dispatchInfo['tracking_number']) && in_array($dispatchInfo['courier_provider'] ?? '', ['redx', 'pathao'], true))
+                    <x-tallui-button
+                        label="Live Tracking"
+                        icon="o-signal"
+                        wire:click="openTrackingModal"
+                        wire:loading.attr="disabled"
+                        wire:target="openTrackingModal"
+                        class="btn-ghost btn-sm"
+                    />
+                @endif
+                @if ($trackingLink)
+                    <x-tallui-button
+                        label="Track on courier site"
+                        icon="o-arrow-top-right-on-square"
+                        :link="$trackingLink"
+                        :external="true"
+                        class="btn-ghost btn-sm"
+                    />
+                @endif
+                @if (Route::has('inventory.dispatch.index'))
                     <x-tallui-button
                         label="Manage Dispatch"
                         icon="o-truck"
                         :link="route('inventory.dispatch.index', ['search' => $record->so_number])"
                         class="btn-ghost btn-sm"
                     />
-                </div>
-            @endif
+                @endif
+            </div>
         </x-tallui-card>
         @endif
 
@@ -561,4 +580,112 @@
             @endif
         </x-tallui-card>
     </div>
+
+{{-- ───── Live tracking modal ───── --}}
+@if ($trackingModalOpen)
+    <div
+        class="fixed inset-0 z-[9990] flex items-start justify-center overflow-y-auto p-4 pt-16"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tracking-modal-title"
+    >
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" wire:click="closeTrackingModal"></div>
+
+        <div class="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl bg-base-100 shadow-2xl">
+
+            {{-- Modal header --}}
+            <div class="flex items-center justify-between border-b border-base-200 px-6 py-4">
+                <div>
+                    <h2 id="tracking-modal-title" class="font-mono text-base font-semibold">
+                        Parcel — {{ $dispatchInfo['tracking_number'] ?? $record->so_number }}
+                    </h2>
+                    <p class="mt-0.5 text-xs text-base-content/50">
+                        {{ $record->so_number }} · {{ $dispatchInfo['carrier'] ?? '' }}
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    @if ($trackingLink)
+                        <x-tallui-button
+                            label="Track on courier site"
+                            icon="o-arrow-top-right-on-square"
+                            :link="$trackingLink"
+                            :external="true"
+                            class="btn-ghost btn-xs"
+                        />
+                    @endif
+                    <button
+                        type="button"
+                        wire:click="closeTrackingModal"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-base-content/40 transition hover:bg-base-200 hover:text-base-content"
+                    >
+                        <x-tallui-icon name="o-x-mark" class="h-5 w-5" />
+                    </button>
+                </div>
+            </div>
+
+            <div class="max-h-[70vh] space-y-6 overflow-y-auto p-6">
+
+                @if ($trackingError !== '')
+                    <div class="rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                        {{ $trackingError }}
+                        @if ($trackingLink)
+                            Use the "Track on courier site" link above instead.
+                        @endif
+                    </div>
+                @endif
+
+                {{-- Parcel details --}}
+                @if ($parcelInfo !== [])
+                    <div>
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Parcel details</h3>
+                        <dl class="grid gap-x-6 gap-y-2 rounded-xl border border-base-200 p-4 text-sm sm:grid-cols-2">
+                            @foreach ($parcelInfo as $field => $value)
+                                @continue(!is_scalar($value) || $value === '' || $value === null)
+                                <div class="flex items-start justify-between gap-3">
+                                    <dt class="shrink-0 text-base-content/50">{{ \Illuminate\Support\Str::headline((string) $field) }}</dt>
+                                    <dd class="break-all text-right font-medium">{{ $value }}</dd>
+                                </div>
+                            @endforeach
+                        </dl>
+                    </div>
+                @endif
+
+                {{-- Tracking history --}}
+                @if ($parcelTracking !== [])
+                    <div>
+                        <h3 class="mb-2 text-xs font-semibold uppercase tracking-wide text-base-content/50">Tracking history</h3>
+                        <ol class="relative space-y-4 border-l border-base-200 pl-5">
+                            @foreach ($parcelTracking as $event)
+                                @php
+                                    $eventMessage = is_array($event)
+                                        ? ($event['message_en'] ?? $event['message'] ?? $event['status'] ?? $event['desc'] ?? null)
+                                        : (is_scalar($event) ? (string) $event : null);
+                                    $eventTime = is_array($event)
+                                        ? ($event['time'] ?? $event['created_at'] ?? $event['updated_at'] ?? $event['timestamp'] ?? null)
+                                        : null;
+                                @endphp
+                                @continue($eventMessage === null && $eventTime === null)
+                                <li class="relative">
+                                    <span class="absolute -left-[26px] top-1 h-3 w-3 rounded-full {{ $loop->first ? 'bg-primary' : 'bg-base-300' }}"></span>
+                                    <div class="text-sm font-medium">{{ $eventMessage ?? '—' }}</div>
+                                    @if ($eventTime)
+                                        <div class="mt-0.5 text-xs text-base-content/50">
+                                            @php
+                                                try { $eventTime = \Carbon\Carbon::parse((string) $eventTime)->format('d M Y · h:i A'); } catch (\Throwable) {}
+                                            @endphp
+                                            {{ $eventTime }}
+                                        </div>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @elseif ($trackingError === '' && $parcelInfo !== [])
+                    <p class="text-sm text-base-content/60">No tracking updates from the courier yet.</p>
+                @endif
+
+            </div>
+        </div>
+    </div>
+@endif
 </div>
