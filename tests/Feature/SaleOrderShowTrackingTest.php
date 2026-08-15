@@ -57,7 +57,7 @@ function makeTrackingModalSaleOrder(): SaleOrder
 /** Injects metadata directly, same trick as SaleOrderDispatchInfoTest — laravel-model-data isn't wired as a path repo here. */
 function makeTrackingModalComponent(SaleOrder $saleOrder, array $metadata = []): SaleOrderShowPage
 {
-    $component = new SaleOrderShowPage();
+    $component = new SaleOrderShowPage;
     $component->record = $saleOrder->load('customer');
 
     $ref = new ReflectionClass($component);
