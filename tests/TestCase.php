@@ -56,6 +56,10 @@ class TestCase extends Orchestra
             $providers[] = \Centrex\Accounting\AccountingServiceProvider::class;
         }
 
+        if (class_exists(\Centrex\Addresses\AddressesServiceProvider::class)) {
+            $providers[] = \Centrex\Addresses\AddressesServiceProvider::class;
+        }
+
         if (class_exists(\Centrex\Cart\CartServiceProvider::class)) {
             $providers[] = \Centrex\Cart\CartServiceProvider::class;
         }

@@ -693,13 +693,26 @@
                             {{ $trackingOrder->so_number }} · {{ $trackingMeta['carrier'] ?? '' }}{{ !empty($trackingMeta['courier_environment']) ? ' (' . $trackingMeta['courier_environment'] . ')' : '' }}
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        wire:click="closeTrackingModal"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800 dark:hover:text-gray-200"
-                    >
-                        <x-tallui-icon name="o-x-mark" class="h-5 w-5" />
-                    </button>
+                    <div class="flex items-center gap-2">
+                        @if ($trackingLink)
+                            <a
+                                href="{{ $trackingLink }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 dark:border-zinc-700 dark:text-gray-200 dark:hover:bg-zinc-800"
+                            >
+                                <x-tallui-icon name="o-arrow-top-right-on-square" class="h-3.5 w-3.5" />
+                                Track on courier site
+                            </a>
+                        @endif
+                        <button
+                            type="button"
+                            wire:click="closeTrackingModal"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-zinc-800 dark:hover:text-gray-200"
+                        >
+                            <x-tallui-icon name="o-x-mark" class="h-5 w-5" />
+                        </button>
+                    </div>
                 </div>
 
                 <div class="max-h-[70vh] space-y-6 overflow-y-auto p-6">
@@ -707,6 +720,9 @@
                     @if ($trackingError !== '')
                         <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                             {{ $trackingError }}
+                            @if ($trackingLink)
+                                Use the "Track on courier site" link above instead.
+                            @endif
                         </div>
                     @endif
 

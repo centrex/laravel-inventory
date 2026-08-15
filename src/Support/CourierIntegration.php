@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Support;
 
+use Centrex\Courier\Courier as CourierClient;
 use Centrex\Courier\Services\{PathaoService, RedxService};
 use Centrex\Inventory\Models\SaleOrder;
 use Illuminate\Http\Client\Factory as HttpFactory;
@@ -149,6 +150,29 @@ class CourierIntegration
             'pathao' => $this->pathaoParcelDetails($environment, $trackingNumber, $phone),
             default  => throw new \InvalidArgumentException("Unsupported courier provider [{$provider}]."),
         };
+    }
+
+    /**
+     * The public, customer-facing tracking-page URL for a booked parcel — a link to the
+     * courier's own site rather than a call to its API. Unlike createParcel()/parcelDetails(),
+     * this doesn't need credentials (it only builds a URL from laravel-courier's own config),
+     * so it isn't gated behind enabled()/class_exists(RedxService::class) and works for any
+     * provider laravel-courier supports, not just Redx/Pathao. Returns null instead of
+     * throwing when the package is missing or the provider has no tracking link configured
+     * (e.g. a "hand carry" parcel, or Redx/Sundarban before their tracking_link is set) —
+     * callers should treat this as an optional convenience link, not a required field.
+     */
+    public function trackingLink(string $provider, string $trackingNumber, ?string $phone = null): ?string
+    {
+        if (!class_exists(CourierClient::class) || $trackingNumber === '') {
+            return null;
+        }
+
+        try {
+            return app(CourierClient::class)->trackingLink($provider, $trackingNumber, $phone);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /** @return array{info: array<string, mixed>, tracking: array<int, array<string, mixed>>} */

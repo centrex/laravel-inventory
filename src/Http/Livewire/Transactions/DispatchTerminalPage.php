@@ -1004,11 +1004,18 @@ class DispatchTerminalPage extends Component
 
         $trackingOrder = null;
         $trackingMeta = [];
+        $trackingLink = null;
 
         if ($this->trackingModalOpen && $this->trackingOrderId) {
             $trackingOrder = $orders->getCollection()->find($this->trackingOrderId)
                 ?? SaleOrder::query()->with(['customer', 'warehouse'])->find($this->trackingOrderId);
             $trackingMeta = $metadata[$this->trackingOrderId] ?? ($trackingOrder ? $this->metadataFor($trackingOrder) : []);
+
+            $trackingLink = app(CourierIntegration::class)->trackingLink(
+                (string) ($trackingMeta['courier_provider'] ?? ''),
+                (string) ($trackingMeta['tracking_number'] ?? ''),
+                (string) ($trackingOrder?->customer?->phone ?? data_get($trackingMeta, 'shipping_address.phone', '')),
+            );
         }
 
         $modalOrder = null;
@@ -1143,6 +1150,7 @@ class DispatchTerminalPage extends Component
             'parcelOrder'          => $parcelOrder,
             'trackingOrder'        => $trackingOrder,
             'trackingMeta'         => $trackingMeta,
+            'trackingLink'         => $trackingLink,
             'courierApiEnabled'    => app(CourierIntegration::class)->enabled(),
             'redxAreaOptions'      => $this->parcelModalOpen ? $this->filteredRedxAreas() : [],
             'detailOrder'          => $detailOrder,
