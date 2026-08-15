@@ -269,8 +269,8 @@
                     </div>
                 @endunless
                 <form wire:submit="saveDispatchInfo" class="space-y-3">
-                    <x-tallui-form-input name="dispatchForm.tracking_number" label="Tracking number" placeholder="e.g. CTRX-250100001" wire:model="dispatchForm.tracking_number" :error="$errors->first('dispatchForm.tracking_number')" />
-                    <x-tallui-form-input name="dispatchForm.carrier" label="Carrier / Vendor" placeholder="e.g. Connect Courier" wire:model="dispatchForm.carrier" :error="$errors->first('dispatchForm.carrier')" />
+                    <x-tallui-input name="dispatchForm.tracking_number" label="Tracking number" placeholder="e.g. CTRX-250100001" wire:model="dispatchForm.tracking_number" :error="$errors->first('dispatchForm.tracking_number')" />
+                    <x-tallui-input name="dispatchForm.carrier" label="Carrier / Vendor" placeholder="e.g. Connect Courier" wire:model="dispatchForm.carrier" :error="$errors->first('dispatchForm.carrier')" />
                     <div class="flex justify-end gap-2 pt-1">
                         <x-tallui-button label="Cancel" wire:click="cancelEditDispatchInfo" class="btn-ghost btn-sm" type="button" />
                         <x-tallui-button label="Save" icon="o-check" class="btn-primary btn-sm" type="submit" :spinner="'saveDispatchInfo'" />
