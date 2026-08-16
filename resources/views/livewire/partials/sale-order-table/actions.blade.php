@@ -15,4 +15,7 @@
     @if (Route::has('erp.documents.sales.pdf'))
         <x-tallui-button icon="o-arrow-down-tray" :link="route('erp.documents.sales.pdf', ['saleOrder' => $row->getKey()])" :no-wire-navigate="true" class="btn-ghost btn-xs" label="PDF" :responsive="true" />
     @endif
+    @if (Route::has('erp.documents.sales.sticker'))
+        <x-tallui-button icon="o-tag" :link="route('erp.documents.sales.sticker', ['saleOrder' => $row->getKey()])" :no-wire-navigate="true" class="btn-ghost btn-xs" label="Sticker" :responsive="true" />
+    @endif
 </div>
