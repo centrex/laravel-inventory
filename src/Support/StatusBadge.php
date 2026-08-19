@@ -25,7 +25,7 @@ class StatusBadge
         'partial'     => 'warning',
         'received'    => 'success',
         'fulfilled'   => 'success',
-        'completed'   => 'success',
+        'completed'   => 'accent',
         'delivered'   => 'success',
         'posted'      => 'success',
         'picked'      => 'success',

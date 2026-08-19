@@ -75,6 +75,7 @@ class InventoryServiceProvider extends ServiceProvider
                 Commands\FitCustomerClvCommand::class,
                 Commands\VoidCancelledOrderInvoicesCommand::class,
                 Commands\BackfillStockMovementsCommand::class,
+                Commands\CheckDueAmountDiscrepancyCommand::class,
             ]);
 
             $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
