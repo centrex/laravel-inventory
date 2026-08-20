@@ -5,10 +5,12 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Commands;
 
 use Centrex\Accounting\Models\Invoice;
+use Centrex\Inventory\Mail\DueAmountDiscrepancyReportMail;
 use Centrex\Inventory\Models\SaleOrder;
 use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Detects sale orders whose SaleOrder::$due_amount/$paid_amount has drifted from what its
@@ -24,12 +26,14 @@ use Illuminate\Support\Collection;
  *   php artisan inventory:check-due-amounts             # report only
  *   php artisan inventory:check-due-amounts --fix        # also resync mismatched orders
  *   php artisan inventory:check-due-amounts --fix --dry-run  # report what --fix would resync, without writing
+ *   php artisan inventory:check-due-amounts --email=ops@example.com --email=cfo@example.com
  */
 class CheckDueAmountDiscrepancyCommand extends Command
 {
     public $signature = 'inventory:check-due-amounts
         {--fix : Resync SaleOrder::due_amount/paid_amount to match the linked Invoice}
-        {--dry-run : List mismatched orders without resyncing anything, even if --fix is also passed}';
+        {--dry-run : List mismatched orders without resyncing anything, even if --fix is also passed}
+        {--email=* : Email address(es) to send the report to, in addition to console output}';
 
     public $description = 'Find sale orders whose due_amount/paid_amount disagrees with their linked accounting Invoice, and optionally fix them.';
 
@@ -44,6 +48,9 @@ class CheckDueAmountDiscrepancyCommand extends Command
         $tolerance = (float) config('accounting.rounding_tolerance', 0.01);
         $dryRun = (bool) $this->option('dry-run');
         $fix = (bool) $this->option('fix') && !$dryRun;
+        /** @var array<int, string> $recipients */
+        $recipients = (array) $this->option('email');
+        $reportLines = [];
 
         $saleOrders = SaleOrder::query()
             ->whereNotNull('accounting_invoice_id')
@@ -51,6 +58,7 @@ class CheckDueAmountDiscrepancyCommand extends Command
 
         if ($saleOrders->isEmpty()) {
             $this->info('No sale orders with a linked invoice found.');
+            $this->sendReport($recipients, 'No sale orders with a linked invoice found.', []);
 
             return self::SUCCESS;
         }
@@ -70,6 +78,7 @@ class CheckDueAmountDiscrepancyCommand extends Command
 
             if (!$invoice) {
                 $this->warn("{$so->so_number}: linked invoice #{$so->accounting_invoice_id} no longer exists.");
+                $reportLines[] = "{$so->so_number}: linked invoice #{$so->accounting_invoice_id} no longer exists.";
                 $orphaned++;
 
                 continue;
@@ -87,7 +96,7 @@ class CheckDueAmountDiscrepancyCommand extends Command
 
             $mismatched++;
 
-            $this->line(sprintf(
+            $line = sprintf(
                 '%s (invoice %s): due_amount=%.2f expected=%.2f | paid_amount=%.2f expected=%.2f',
                 $so->so_number,
                 $invoice->invoice_number,
@@ -95,7 +104,9 @@ class CheckDueAmountDiscrepancyCommand extends Command
                 $expectedDue,
                 (float) $so->paid_amount,
                 $expectedPaid,
-            ));
+            );
+            $this->line($line);
+            $reportLines[] = $line;
 
             if ($fix) {
                 $erp->resyncSaleOrderDueAmount($so, $invoice);
@@ -105,6 +116,7 @@ class CheckDueAmountDiscrepancyCommand extends Command
 
         if ($mismatched === 0 && $orphaned === 0) {
             $this->info('No due-amount discrepancies found.');
+            $this->sendReport($recipients, 'No due-amount discrepancies found.', []);
 
             return self::SUCCESS;
         }
@@ -112,13 +124,35 @@ class CheckDueAmountDiscrepancyCommand extends Command
         $this->newLine();
 
         if ($fix) {
-            $this->info("Fixed {$fixed} of {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice).");
+            $summary = "Fixed {$fixed} of {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice).";
         } elseif ($dryRun && $this->option('fix')) {
-            $this->info("[dry run] Would fix {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice).");
+            $summary = "[dry run] Would fix {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice).";
         } else {
-            $this->info("Found {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice). Re-run with --fix to resync.");
+            $summary = "Found {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice). Re-run with --fix to resync.";
         }
 
+        $this->info($summary);
+        $this->sendReport($recipients, $summary, $reportLines);
+
         return self::SUCCESS;
+    }
+
+    /**
+     * @param  array<int, string>  $recipients
+     * @param  array<int, string>  $lines
+     */
+    protected function sendReport(array $recipients, string $summary, array $lines): void
+    {
+        if ($recipients === []) {
+            return;
+        }
+
+        $body = $summary;
+
+        if ($lines !== []) {
+            $body .= "\n\n" . implode("\n", $lines);
+        }
+
+        Mail::to($recipients)->send(new DueAmountDiscrepancyReportMail($body));
     }
 }

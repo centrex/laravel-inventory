@@ -3,7 +3,9 @@
 declare(strict_types = 1);
 
 use Centrex\Inventory\Inventory;
+use Centrex\Inventory\Mail\DueAmountDiscrepancyReportMail;
 use Centrex\Inventory\Models\{Customer, Product, SaleOrder, Warehouse, WarehouseProduct};
+use Illuminate\Support\Facades\Mail;
 
 beforeEach(function (): void {
     if (!class_exists('Centrex\\Accounting\\Models\\CreditMemo')) {
@@ -127,4 +129,29 @@ it('fixes a mismatched sale order due_amount with --fix', function (): void {
         ->assertExitCode(0);
 
     expect((float) $saleOrder->fresh()->due_amount)->toBe($expectedDue);
+});
+
+it('emails the report to the given address when mismatches are found', function (): void {
+    Mail::fake();
+
+    $saleOrder = makeDueAmountSaleOrder();
+    $saleOrder->forceFill(['due_amount' => 999.0])->saveQuietly();
+
+    $this->artisan('inventory:check-due-amounts', ['--email' => ['ops@example.com']])
+        ->assertExitCode(0);
+
+    Mail::assertSent(DueAmountDiscrepancyReportMail::class, function (DueAmountDiscrepancyReportMail $mail) use ($saleOrder) {
+        return $mail->hasTo('ops@example.com') && str_contains($mail->body, $saleOrder->so_number);
+    });
+});
+
+it('does not send an email when no --email option is given', function (): void {
+    Mail::fake();
+
+    makeDueAmountSaleOrder();
+
+    $this->artisan('inventory:check-due-amounts')
+        ->assertExitCode(0);
+
+    Mail::assertNothingSent();
 });
