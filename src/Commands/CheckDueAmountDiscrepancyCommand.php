@@ -23,11 +23,13 @@ use Illuminate\Support\Collection;
  * Usage:
  *   php artisan inventory:check-due-amounts             # report only
  *   php artisan inventory:check-due-amounts --fix        # also resync mismatched orders
+ *   php artisan inventory:check-due-amounts --fix --dry-run  # report what --fix would resync, without writing
  */
 class CheckDueAmountDiscrepancyCommand extends Command
 {
     public $signature = 'inventory:check-due-amounts
-        {--fix : Resync SaleOrder::due_amount/paid_amount to match the linked Invoice}';
+        {--fix : Resync SaleOrder::due_amount/paid_amount to match the linked Invoice}
+        {--dry-run : List mismatched orders without resyncing anything, even if --fix is also passed}';
 
     public $description = 'Find sale orders whose due_amount/paid_amount disagrees with their linked accounting Invoice, and optionally fix them.';
 
@@ -40,7 +42,8 @@ class CheckDueAmountDiscrepancyCommand extends Command
         }
 
         $tolerance = (float) config('accounting.rounding_tolerance', 0.01);
-        $fix = (bool) $this->option('fix');
+        $dryRun = (bool) $this->option('dry-run');
+        $fix = (bool) $this->option('fix') && !$dryRun;
 
         $saleOrders = SaleOrder::query()
             ->whereNotNull('accounting_invoice_id')
@@ -107,9 +110,14 @@ class CheckDueAmountDiscrepancyCommand extends Command
         }
 
         $this->newLine();
-        $this->info($fix
-            ? "Fixed {$fixed} of {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice)."
-            : "Found {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice). Re-run with --fix to resync.");
+
+        if ($fix) {
+            $this->info("Fixed {$fixed} of {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice).");
+        } elseif ($dryRun && $this->option('fix')) {
+            $this->info("[dry run] Would fix {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice).");
+        } else {
+            $this->info("Found {$mismatched} mismatched sale order(s). {$orphaned} orphaned (no linked invoice). Re-run with --fix to resync.");
+        }
 
         return self::SUCCESS;
     }
