@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Centrex\Accounting\Models\{Bill, Invoice};
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, ShipmentStatus, StockReceiptStatus, TransferStatus};
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException, StaleExchangeRateException};
+use Centrex\Inventory\Jobs\{PostStockReceiptAccountingEntryJob, SyncPurchaseOrderAccountingDocumentJob, SyncSaleOrderAccountingDocumentJob, VoidStockReceiptAccountingEntryJob};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentBox, ShipmentBoxItem, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, InventoryEntityRegistry, SalesTargetCalculator};
 use Centrex\LaravelOpenExchangeRates\Client as OpenExchangeRatesClient;
@@ -759,9 +760,14 @@ class Inventory
             return $po->fresh(['supplier', 'items.product']);
         });
 
-        $this->erp()->syncPurchaseOrderDocument($po);
+        // Queued — see SyncSaleOrderAccountingDocumentJob's docblock for why this can't run
+        // inline right after the transaction above. refresh() picks up whatever the job has
+        // already written under a synchronous queue driver (e.g. in tests); under a real async
+        // queue it's a no-op until the job runs, which is the correct eventually-consistent
+        // shape now that the sync no longer blocks this method.
+        SyncPurchaseOrderAccountingDocumentJob::dispatch($po->id);
 
-        return $po;
+        return $po->refresh();
     }
 
     public function createPurchaseOrderFromRequisition(int $requisitionId, array $overrides = []): PurchaseOrder
@@ -848,9 +854,9 @@ class Inventory
         $this->assertPurchaseOrderAccess($po);
         $this->assertTransition($po->status, PurchaseOrderStatus::CONFIRMED, "purchase order #{$poId}");
         $po->update(['status' => PurchaseOrderStatus::CONFIRMED]);
-        $this->erp()->syncPurchaseOrderDocument($po->fresh(['supplier', 'items.product']));
+        SyncPurchaseOrderAccountingDocumentJob::dispatch($po->id);
 
-        return $po;
+        return $po->refresh();
     }
 
     public function receivePurchaseOrder(int $poId, array $receivedQtys = [], array $options = []): PurchaseOrder
@@ -1103,16 +1109,13 @@ class Inventory
             return $grn->refresh();
         });
 
-        $this->erp()->postStockReceipt($grn);
+        // Queued — see PostStockReceiptAccountingEntryJob's docblock. Posts the GRN's journal
+        // entry, then keeps the PO's linked bill in sync so its grni_clearing_amount reflects
+        // this newly posted GRN — otherwise Accounting::postBill() would still re-debit
+        // Inventory for goods this receipt already capitalized.
+        PostStockReceiptAccountingEntryJob::dispatch($grn->id);
 
-        // Keep the PO's linked bill (if any) in sync so its grni_clearing_amount reflects this
-        // newly posted GRN — otherwise Accounting::postBill() would still re-debit Inventory for
-        // goods this receipt already capitalized. No-op if the bill is already posted/locked.
-        if ($grn->purchase_order_id) {
-            $this->erp()->syncPurchaseOrderDocument(PurchaseOrder::findOrFail($grn->purchase_order_id));
-        }
-
-        return $grn;
+        return $grn->refresh();
     }
 
     /** Void a posted GRN: write compensating movements, reverse stock. */
@@ -1190,16 +1193,13 @@ class Inventory
             return $grn->refresh();
         });
 
-        $this->erp()->voidStockReceipt($grn);
+        // Queued — see VoidStockReceiptAccountingEntryJob's docblock. Reverses the GRN's journal
+        // entry, then keeps the linked bill's grni_clearing_amount in sync — voiding
+        // un-capitalizes these goods from Inventory, so a later bill post shouldn't clear more
+        // GRNI than was actually recognized.
+        VoidStockReceiptAccountingEntryJob::dispatch($grn->id);
 
-        // Voiding un-capitalizes these goods from Inventory, so the linked bill's
-        // grni_clearing_amount must drop back down too — otherwise a later bill post would clear
-        // more GRNI than was actually recognized.
-        if ($grn->purchase_order_id) {
-            $this->erp()->syncPurchaseOrderDocument(PurchaseOrder::findOrFail($grn->purchase_order_id));
-        }
-
-        return $grn;
+        return $grn->refresh();
     }
 
     // -------------------------------------------------------------------------
@@ -1345,9 +1345,17 @@ class Inventory
             return $so->fresh(['customer', 'items.product']);
         });
 
-        $this->erp()->syncSaleOrderDocument($so);
+        // Queued rather than called inline: syncSaleOrderDocument() talks to the accounting
+        // package (invoice create/save, GL account lookups) and can throw (e.g. a
+        // missing/inactive chart-of-accounts entry) or simply run slow. Called inline right
+        // after the transaction above, either of those turned an already-committed sale order
+        // into a 500/timeout response to the browser — the user saw a failure and often
+        // retried, creating a real duplicate order, while the original sat in the database the
+        // whole time. Running it as a job means nothing this sync does can affect this
+        // response at all.
+        SyncSaleOrderAccountingDocumentJob::dispatch($so->id);
 
-        return $so;
+        return $so->refresh();
     }
 
     public function createSaleOrderFromQuotation(int $quotationId, array $overrides = []): SaleOrder

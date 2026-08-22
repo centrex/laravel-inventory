@@ -52,7 +52,37 @@
     </x-slot:actions>
 </x-tallui-page-header>
 
-<form wire:submit="save" wire:key="sale-order-form-{{ $warehouse_id ?? 'none' }}-{{ $form_refresh_key }}" class="space-y-4">
+<form wire:submit="save" wire:key="sale-order-form-{{ $warehouse_id ?? 'none' }}-{{ $form_refresh_key }}" class="space-y-4"
+    x-data="{
+        subtotal: 0,
+        total: 0,
+        calcTotals() {
+            let subtotal = 0;
+            this.$el.querySelectorAll('[data-so-item-row]').forEach((row) => {
+                const qty = parseFloat(row.querySelector('[data-so-field=qty]')?.value) || 0;
+                const price = parseFloat(row.querySelector('[data-so-field=price]')?.value) || 0;
+                const discountPct = parseFloat(row.querySelector('[data-so-field=discount]')?.value) || 0;
+                const lineTotal = qty * price * (1 - discountPct / 100);
+                subtotal += lineTotal;
+
+                const cell = row.querySelector('[data-so-line-total]');
+                if (cell) cell.textContent = lineTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            });
+
+            const tax = parseFloat(this.$el.querySelector('[data-so-field=tax]')?.value) || 0;
+            const orderDiscount = parseFloat(this.$el.querySelector('[data-so-field=order-discount]')?.value) || 0;
+            const shipping = parseFloat(this.$el.querySelector('[data-so-field=shipping]')?.value) || 0;
+
+            this.subtotal = subtotal;
+            this.total = subtotal + tax + shipping - orderDiscount;
+        },
+    }"
+    x-init="
+        calcTotals();
+        $nextTick(() => new MutationObserver(() => calcTotals()).observe($el, { childList: true, subtree: true, attributes: true, attributeFilter: ['value'] }));
+    "
+    x-on:input="calcTotals()"
+>
 
     {{-- Catches errors keyed to something no field on this form displays inline (e.g. the
          generic 'items' stock-availability check) — without this, a blocked submit could
@@ -147,15 +177,15 @@
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Tax (Local)">
-                <x-tallui-input name="tax_local" type="number" step="0.0001" wire:model="tax_local" placeholder="0.00" />
+                <x-tallui-input name="tax_local" type="number" step="0.0001" wire:model="tax_local" placeholder="0.00" data-so-field="tax" />
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Discount (Local)" :helper="!$canApplyDiscount ? 'Requires discount permission' : null">
-                <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" :disabled="!$canApplyDiscount" />
+                <x-tallui-input name="discount_local" type="number" step="0.0001" wire:model="discount_local" placeholder="0.00" :disabled="!$canApplyDiscount" data-so-field="order-discount" />
             </x-tallui-form-group>
 
             <x-tallui-form-group label="Shipping (Local)">
-                <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" />
+                <x-tallui-input name="shipping_local" type="number" step="0.0001" wire:model="shipping_local" placeholder="0.00" data-so-field="shipping" />
             </x-tallui-form-group>
 
             <div class="md:col-span-2 lg:col-span-3">
@@ -270,12 +300,13 @@
                         <th class="w-32">Tier Override</th>
                         <th class="w-32">Unit Price ({{ $currency ?: 'Local' }})</th>
                         <th class="w-24">Discount %</th>
+                        <th class="w-32 text-right">Line Total</th>
                         <th class="pr-5 w-28 text-right">Options</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-base-200">
                     @forelse ($items as $index => $item)
-                        <tr wire:key="so-item-{{ $index }}" class="even:bg-base-200/50 hover:bg-base-200">
+                        <tr wire:key="so-item-{{ $index }}" data-so-item-row class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5 py-2">
                                 <div wire:key="sale-product-select-{{ $index }}-{{ $warehouse_id ?? 'none' }}-{{ $customer_id ?? 'none' }}-{{ $item['product_key'] ?? 'none' }}-{{ $form_refresh_key }}">
                                     <x-tallui-select
@@ -306,7 +337,7 @@
                                 />
                             </td>
                             <td class="py-2">
-                                <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="1" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" :error="$errors->first('items.' . $index . '.qty_ordered')" />
+                                <x-tallui-input name="items.{{ $index }}.qty_ordered" type="number" step="1" min="0" wire:model="items.{{ $index }}.qty_ordered" class="input-sm text-right w-full" :error="$errors->first('items.' . $index . '.qty_ordered')" data-so-field="qty" />
                             </td>
                             <td class="py-2 text-sm text-base-content/70">
                                 {{ number_format((float) ($availableStock->get(($item['product_id'] ?? 0) . ':' . (int) ($item['variant_id'] ?? 0))?->qtyAvailable() ?? 0), 4) }}
@@ -331,6 +362,7 @@
                                     class="input-sm text-right w-full"
                                     :disabled="!$canOverridePrice"
                                     :tooltip="!$canOverridePrice ? 'Price override requires special permission' : null"
+                                    data-so-field="price"
                                 />
                             </td>
                             <td class="py-2">
@@ -345,8 +377,10 @@
                                     placeholder="0"
                                     :disabled="!$canApplyDiscount"
                                     :tooltip="!$canApplyDiscount ? 'Discount requires special permission' : null"
+                                    data-so-field="discount"
                                 />
                             </td>
+                            <td class="py-2 text-right font-mono text-sm" data-so-line-total>0.00</td>
                             <td class="pr-5 py-2 text-right">
                                 <div class="flex items-center justify-end gap-1">
                                     <x-tallui-button
@@ -364,7 +398,7 @@
                         </tr>
                         @if (($item['show_notes'] ?? false) || filled($item['notes'] ?? ''))
                             <tr wire:key="so-item-notes-{{ $index }}" class="bg-base-200/30">
-                                <td colspan="8" class="px-5 py-3">
+                                <td colspan="9" class="px-5 py-3">
                                     <x-tallui-form-group label="Line Note">
                                         <x-tallui-textarea
                                             name="items.{{ $index }}.notes"
@@ -378,7 +412,7 @@
                         @endif
                     @empty
                         <tr>
-                            <td colspan="8" class="py-6 text-center">
+                            <td colspan="9" class="py-6 text-center">
                                 <x-tallui-empty-state title="No items yet" description="Add at least one product line." icon="o-shopping-bag" size="sm">
                                     <x-tallui-button label="Add Line" icon="o-plus" class="btn-primary btn-sm" type="button" wire:click="addItem" />
                                 </x-tallui-empty-state>
@@ -387,6 +421,20 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+
+        <div class="flex justify-end border-t border-base-200 px-5 py-3">
+            <div class="w-full max-w-xs space-y-1 text-sm">
+                <div class="flex justify-between text-base-content/60">
+                    <span>Subtotal</span>
+                    <span class="font-mono" x-text="subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                </div>
+                <div class="flex justify-between items-center pt-1 border-t border-base-200 text-base font-semibold">
+                    <span>Total ({{ $currency ?: 'Local' }})</span>
+                    <span class="font-mono" x-text="total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })"></span>
+                </div>
+                <p class="text-xs text-base-content/40 pt-1">Estimate only — final totals (incl. any coupon) are calculated on save.</p>
+            </div>
         </div>
 
         @if ($editable)

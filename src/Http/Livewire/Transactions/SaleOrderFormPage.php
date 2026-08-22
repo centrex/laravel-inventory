@@ -224,7 +224,7 @@ class SaleOrderFormPage extends Component
                 $this->dispatch('notify', type: 'success', message: "{$this->documentLabel()} {$saleOrder->so_number} created.");
             }
 
-            return redirect()->route($this->routeBase() . '.edit', ['recordId' => $saleOrder->getKey()]);
+            return redirect()->route($this->routeBase() . '.index');
         });
     }
 
