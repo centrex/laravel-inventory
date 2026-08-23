@@ -141,19 +141,19 @@ class InventorySalesStatisticsCard extends Component
             ->all();
 
         return [
-            'count'           => (int) ($totals->cnt ?? 0),
-            'gross_subtotal'  => round((float) ($totals->gross_subtotal ?? 0), 2),
-            'discount'        => round((float) ($totals->discount ?? 0), 2),
-            'tax'             => round((float) ($totals->tax ?? 0), 2),
-            'shipping'        => round((float) ($totals->shipping ?? 0), 2),
-            'net_total'       => round((float) ($totals->net_total ?? 0), 2),
-            'fulfilled_total' => round((float) ($totals->fulfilled_total ?? 0), 2),
-            'invoice_paid'      => $invoiceSummary['paid'],
-            'invoice_due'       => $invoiceSummary['due'],
-            'current_due'       => $invoiceSummary['current_due'],
-            'historical_due'    => $invoiceSummary['historical_due'],
-            'overdue_invoices'  => $invoiceSummary['overdue_invoices'],
-            'status_counts'     => $statusCounts,
+            'count'            => (int) ($totals->cnt ?? 0),
+            'gross_subtotal'   => round((float) ($totals->gross_subtotal ?? 0), 2),
+            'discount'         => round((float) ($totals->discount ?? 0), 2),
+            'tax'              => round((float) ($totals->tax ?? 0), 2),
+            'shipping'         => round((float) ($totals->shipping ?? 0), 2),
+            'net_total'        => round((float) ($totals->net_total ?? 0), 2),
+            'fulfilled_total'  => round((float) ($totals->fulfilled_total ?? 0), 2),
+            'invoice_paid'     => $invoiceSummary['paid'],
+            'invoice_due'      => $invoiceSummary['due'],
+            'current_due'      => $invoiceSummary['current_due'],
+            'historical_due'   => $invoiceSummary['historical_due'],
+            'overdue_invoices' => $invoiceSummary['overdue_invoices'],
+            'status_counts'    => $statusCounts,
         ];
     }
 
