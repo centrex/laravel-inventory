@@ -26,6 +26,8 @@ trait ScopesSalesReport
 
     public ?int $productId = null;
 
+    public ?int $employeeId = null;
+
     protected function scopedSalesQuery(): Builder
     {
         $query = SaleOrder::query()
@@ -33,7 +35,8 @@ trait ScopesSalesReport
             ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
             ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
             ->when($this->customerId, fn ($query) => $query->where('customer_id', $this->customerId))
-            ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)));
+            ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)))
+            ->when($this->employeeId, fn ($query) => $query->where('sales_executive_id', $this->employeeId));
 
         CommercialTeamAccess::applySalesScope($query);
 

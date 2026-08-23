@@ -30,7 +30,7 @@ class InventorySoldProductsCard extends Component
     use CachesData;
     use ScopesSalesReport;
 
-    public function mount(string $startDate = '', string $endDate = '', ?int $customerId = null, ?int $productId = null): void
+    public function mount(string $startDate = '', string $endDate = '', ?int $customerId = null, ?int $productId = null, ?int $employeeId = null): void
     {
         Gate::authorize('inventory.reports.view');
 
@@ -38,6 +38,7 @@ class InventorySoldProductsCard extends Component
         $this->endDate = $endDate;
         $this->customerId = $customerId;
         $this->productId = $productId;
+        $this->employeeId = $employeeId;
         $this->cacheTtl = 120;
     }
 
@@ -60,7 +61,7 @@ class InventorySoldProductsCard extends Component
     private function soldProducts(): Collection
     {
         return collect($this->rememberCache(
-            $this->cacheKey('inventory', 'sold-products-card', $this->startDate, $this->endDate, (string) $this->customerId, (string) $this->productId),
+            $this->cacheKey('inventory', 'sold-products-card', $this->startDate, $this->endDate, (string) $this->customerId, (string) $this->productId, (string) $this->employeeId),
             fn (): array => $this->buildSoldProductsReport()->all(),
         ));
     }

@@ -4,8 +4,8 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
-use Centrex\Inventory\Models\{Customer, Product};
-use Centrex\Inventory\Support\SalesReportExcelExporter;
+use Centrex\Inventory\Models\{Customer, Product, SaleOrder};
+use Centrex\Inventory\Support\{CommercialTeamAccess, SalesReportExcelExporter};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\{Gate, Route};
 use Livewire\Attributes\{Layout, Url};
@@ -13,12 +13,12 @@ use Livewire\Component;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Thin shell: page header + date/customer/product filters + tab bar. The actual report
- * content lives in InventorySalesStatisticsCard / InventoryRecentSaleOrdersCard /
+ * Thin shell: page header + date/customer/product/employee filters + tab bar. The actual
+ * report content lives in InventorySalesStatisticsCard / InventoryRecentSaleOrdersCard /
  * InventorySoldProductsCard, each lazy-loaded per tab so none of the three is computed as
  * part of this page's own render.
  *
- * Each card is keyed by wire:key="...-{{ $startDate }}-{{ $endDate }}-{{ $customerId }}-{{ $productId }}"
+ * Each card is keyed by wire:key="...-{{ $startDate }}-{{ $endDate }}-{{ $customerId }}-{{ $productId }}-{{ $employeeId }}"
  * in the Blade view — changing any filter changes the key, which makes Livewire tear down
  * and re-mount (and re-fetch, via `lazy`) each card instead of silently keeping stale data.
  */
@@ -36,6 +36,9 @@ class SalesReportPage extends Component
 
     #[Url(as: 'product', except: null)]
     public ?int $productId = null;
+
+    #[Url(as: 'employee', except: null)]
+    public ?int $employeeId = null;
 
     public function mount(): void
     {
@@ -67,6 +70,7 @@ class SalesReportPage extends Component
             $this->endDate,
             $this->customerId,
             $this->productId,
+            $this->employeeId,
             'sales-report-' . now()->format('Ymd-His') . '.xlsx',
         );
     }
@@ -94,7 +98,40 @@ class SalesReportPage extends Component
                     ],
                 ]
                 : [],
+            'employeeOptions' => $this->employeeOptions(),
         ]);
+    }
+
+    /**
+     * Employees (sales executives) who actually have sale orders visible to the current
+     * user — rather than the full user table — mirroring how InventorySalesByEmployeeCard/
+     * SalesBreakdowns::byEmployee already group orders. Kept as a plain dropdown (not an
+     * async-select resource) since a company's sales team is a small, bounded list.
+     *
+     * @return array<int, string> id => name
+     */
+    private function employeeOptions(): array
+    {
+        $query = SaleOrder::query()
+            ->where('document_type', 'order')
+            ->whereNotNull('sales_executive_id');
+
+        CommercialTeamAccess::applySalesScope($query);
+
+        $employeeIds = $query->distinct()->pluck('sales_executive_id');
+
+        if ($employeeIds->isEmpty()) {
+            return [];
+        }
+
+        $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
+
+        return $userModel::query()
+            ->whereIn('id', $employeeIds)
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->map(fn ($name): string => (string) $name)
+            ->all();
     }
 
     /** Link to the customer's accounting ledger, when laravel-accounting is installed and the two records are linked. */

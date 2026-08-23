@@ -26,6 +26,14 @@
     </div>
 </x-tallui-card>
 
+<x-tallui-card title="Collection" subtitle="Collected so far, and outstanding due split into not-yet-due and overdue." icon="o-banknotes" :shadow="true" class="mb-6">
+    <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
+        <x-tallui-stat title="Collected" :value="number_format($salesMetrics['invoice_paid'], 2)" icon="o-check-circle" icon-color="text-success" />
+        <x-tallui-stat title="Current Due" :value="number_format($salesMetrics['current_due'], 2)" desc="Not yet past due date" icon="o-clock" icon-color="text-info" />
+        <x-tallui-stat title="Historical Due" :value="number_format($salesMetrics['historical_due'], 2)" :desc="$salesMetrics['overdue_invoices'] . ' overdue invoice' . ($salesMetrics['overdue_invoices'] === 1 ? '' : 's')" icon="o-exclamation-triangle" :icon-color="$salesMetrics['historical_due'] > 0 ? 'text-error' : 'text-success'" />
+    </div>
+</x-tallui-card>
+
 <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
     <x-tallui-card title="Sales by Employee" subtitle="Revenue, order count, and gross profit for the selected period. Click a row for its price-tier split." icon="o-user-group" :shadow="true">
         @if (!empty($salesByEmployee))

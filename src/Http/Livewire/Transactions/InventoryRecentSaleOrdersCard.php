@@ -24,7 +24,7 @@ class InventoryRecentSaleOrdersCard extends Component
 
     public ?int $viewingOrderId = null;
 
-    public function mount(string $startDate = '', string $endDate = '', ?int $customerId = null, ?int $productId = null): void
+    public function mount(string $startDate = '', string $endDate = '', ?int $customerId = null, ?int $productId = null, ?int $employeeId = null): void
     {
         Gate::authorize('inventory.reports.view');
 
@@ -32,6 +32,7 @@ class InventoryRecentSaleOrdersCard extends Component
         $this->endDate = $endDate;
         $this->customerId = $customerId;
         $this->productId = $productId;
+        $this->employeeId = $employeeId;
     }
 
     public function viewOrder(int $id): void

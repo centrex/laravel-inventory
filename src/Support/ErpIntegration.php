@@ -806,12 +806,23 @@ class ErpIntegration
             return;
         }
 
+        // Tax isn't tracked per line item (SaleOrder/Invoice only carry an order-level
+        // tax_amount), so a return's tax credit can't be read off the returned lines the
+        // way $totalRevenue is. Prorate the invoice's tax_amount by the fraction of its
+        // subtotal being returned instead — otherwise a return only ever credited the bare
+        // product revenue, leaving the tax portion permanently stuck in the invoice balance
+        // (and therefore in SaleOrder::due_amount) even after every unit was returned.
+        $invoiceSubtotal = round((float) $invoice->subtotal, 2);
+        $taxAmount = $invoiceSubtotal > 0.0
+            ? round((float) $invoice->tax_amount * ($totalRevenue / $invoiceSubtotal), 2)
+            : 0.0;
+
         $accounting = app('accounting');
         $creditMemo = $accounting->createCreditMemo($invoice, [
             'date'             => $saleReturn->returned_at?->toDateString() ?? now()->toDateString(),
             'reason'           => "Customer return {$saleReturn->return_number}",
             'subtotal'         => $totalRevenue,
-            'tax_amount'       => 0,
+            'tax_amount'       => $taxAmount,
             'source_type'      => SaleReturn::class,
             'source_id'        => $saleReturn->id,
             'source_reference' => $saleReturn->return_number,

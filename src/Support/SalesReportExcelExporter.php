@@ -28,13 +28,14 @@ final class SalesReportExcelExporter
 {
     use ScopesSalesReport;
 
-    public static function download(string $startDate, string $endDate, ?int $customerId, ?int $productId, string $filename): StreamedResponse
+    public static function download(string $startDate, string $endDate, ?int $customerId, ?int $productId, ?int $employeeId, string $filename): StreamedResponse
     {
         $exporter = new self;
         $exporter->startDate = $startDate;
         $exporter->endDate = $endDate;
         $exporter->customerId = $customerId;
         $exporter->productId = $productId;
+        $exporter->employeeId = $employeeId;
 
         $spreadsheet = $exporter->build();
 
@@ -77,6 +78,7 @@ final class SalesReportExcelExporter
         $card->endDate = $this->endDate;
         $card->customerId = $this->customerId;
         $card->productId = $this->productId;
+        $card->employeeId = $this->employeeId;
 
         $method = new ReflectionMethod($card, 'statistics');
         $method->setAccessible(true);
@@ -96,6 +98,9 @@ final class SalesReportExcelExporter
             ['Fulfilled Total', $metrics['fulfilled_total']],
             ['Invoice Paid', $metrics['invoice_paid']],
             ['Invoice Due', $metrics['invoice_due']],
+            ['Current Due', $metrics['current_due']],
+            ['Historical Due (Overdue)', $metrics['historical_due']],
+            ['Overdue Invoices', $metrics['overdue_invoices']],
         ];
 
         foreach ($metrics['status_counts'] as $status => $count) {

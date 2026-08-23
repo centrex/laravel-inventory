@@ -29,7 +29,7 @@ class InventorySalesStatisticsCard extends Component
     use CachesData;
     use ScopesSalesReport;
 
-    public function mount(string $startDate = '', string $endDate = '', ?int $customerId = null, ?int $productId = null): void
+    public function mount(string $startDate = '', string $endDate = '', ?int $customerId = null, ?int $productId = null, ?int $employeeId = null): void
     {
         Gate::authorize('inventory.reports.view');
 
@@ -37,6 +37,7 @@ class InventorySalesStatisticsCard extends Component
         $this->endDate = $endDate;
         $this->customerId = $customerId;
         $this->productId = $productId;
+        $this->employeeId = $employeeId;
         $this->cacheTtl = 120;
     }
 
@@ -73,7 +74,7 @@ class InventorySalesStatisticsCard extends Component
     private function statistics(): array
     {
         return $this->rememberCache(
-            $this->cacheKey('inventory', 'sales-statistics-card', $this->startDate, $this->endDate, (string) $this->customerId, (string) $this->productId),
+            $this->cacheKey('inventory', 'sales-statistics-card', $this->startDate, $this->endDate, (string) $this->customerId, (string) $this->productId, (string) $this->employeeId),
             function (): array {
                 $orderIds = $this->scopedOrderIds();
                 $orders = $orderIds->isEmpty()
@@ -147,9 +148,12 @@ class InventorySalesStatisticsCard extends Component
             'shipping'        => round((float) ($totals->shipping ?? 0), 2),
             'net_total'       => round((float) ($totals->net_total ?? 0), 2),
             'fulfilled_total' => round((float) ($totals->fulfilled_total ?? 0), 2),
-            'invoice_paid'    => $invoiceSummary['paid'],
-            'invoice_due'     => $invoiceSummary['due'],
-            'status_counts'   => $statusCounts,
+            'invoice_paid'      => $invoiceSummary['paid'],
+            'invoice_due'       => $invoiceSummary['due'],
+            'current_due'       => $invoiceSummary['current_due'],
+            'historical_due'    => $invoiceSummary['historical_due'],
+            'overdue_invoices'  => $invoiceSummary['overdue_invoices'],
+            'status_counts'     => $statusCounts,
         ];
     }
 
@@ -157,13 +161,19 @@ class InventorySalesStatisticsCard extends Component
      * Invoice paid/due totals from laravel-accounting, scoped to exactly the sale orders
      * matched by the current filters — see SalesReportPage's original docblock for why this
      * can't be pushed into a single SQL SUM().
+     *
+     * `due` is also split into `current_due` (balance not yet past its invoice due_date, or
+     * with no due_date set) and `historical_due` (balance on an invoice whose due_date has
+     * already passed, i.e. overdue) — backs the "Collection" card's current-vs-historical
+     * breakdown. This is a due-date split, distinct from Inventory::dueAgingReport()'s
+     * days-since-order-date buckets used by the Due Aging report.
      */
     private function invoiceSummary(Collection $orderIds): array
     {
         $invoiceClass = \Centrex\Accounting\Models\Invoice::class;
 
         if (!class_exists($invoiceClass) || $orderIds->isEmpty()) {
-            return ['paid' => 0.0, 'due' => 0.0];
+            return ['paid' => 0.0, 'due' => 0.0, 'current_due' => 0.0, 'historical_due' => 0.0, 'overdue_invoices' => 0];
         }
 
         $invoices = $invoiceClass::query()
@@ -173,9 +183,32 @@ class InventorySalesStatisticsCard extends Component
             })
             ->get();
 
+        $today = now()->startOfDay();
+        $currentDue = 0.0;
+        $historicalDue = 0.0;
+        $overdueInvoices = 0;
+
+        foreach ($invoices as $invoice) {
+            $balance = round((float) $invoice->base_balance, 2);
+
+            if ($balance <= 0.0) {
+                continue;
+            }
+
+            if ($invoice->due_date && $invoice->due_date->lt($today)) {
+                $historicalDue += $balance;
+                $overdueInvoices++;
+            } else {
+                $currentDue += $balance;
+            }
+        }
+
         return [
-            'paid' => round((float) $invoices->sum('base_paid_amount'), 2),
-            'due'  => round((float) $invoices->sum('base_balance'), 2),
+            'paid'             => round((float) $invoices->sum('base_paid_amount'), 2),
+            'due'              => round((float) $invoices->sum('base_balance'), 2),
+            'current_due'      => round($currentDue, 2),
+            'historical_due'   => round($historicalDue, 2),
+            'overdue_invoices' => $overdueInvoices,
         ];
     }
 }

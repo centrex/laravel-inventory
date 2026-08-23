@@ -53,15 +53,23 @@
                     @endif
                 </div>
             </div>
+            <div class="w-48">
+                <select wire:model.live="employeeId" wire:loading.attr="disabled" wire:target="employeeId" class="select select-bordered select-sm w-full">
+                    <option value="">All employees</option>
+                    @foreach ($employeeOptions as $id => $name)
+                        <option value="{{ $id }}">{{ $name }}</option>
+                    @endforeach
+                </select>
+            </div>
             <select wire:model.live="dateRange" wire:loading.attr="disabled" wire:target="dateRange" class="select select-bordered select-sm">
                 <option value="this_month">This Month</option>
                 <option value="last_month">Last Month</option>
                 <option value="this_quarter">This Quarter</option>
                 <option value="last_quarter">Last Quarter</option>
             </select>
-            <x-tallui-input type="date" wire:model.live="startDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId" class="input-sm" />
-            <x-tallui-input type="date" wire:model.live="endDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId" class="input-sm" />
-            <span wire:loading wire:target="dateRange,startDate,endDate,customerId,productId" class="flex items-center gap-1 text-xs text-base-content/60">
+            <x-tallui-input type="date" wire:model.live="startDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId,employeeId" class="input-sm" />
+            <x-tallui-input type="date" wire:model.live="endDate" wire:loading.attr="disabled" wire:target="startDate,endDate,customerId,productId,employeeId" class="input-sm" />
+            <span wire:loading wire:target="dateRange,startDate,endDate,customerId,productId,employeeId" class="flex items-center gap-1 text-xs text-base-content/60">
                 <span class="loading loading-spinner loading-xs"></span>
                 Updating…
             </span>
@@ -71,7 +79,7 @@
 </x-tallui-page-header>
 
 @php
-    $filterKey = $startDate . '-' . $endDate . '-' . ($customerId ?? 'none') . '-' . ($productId ?? 'none');
+    $filterKey = $startDate . '-' . $endDate . '-' . ($customerId ?? 'none') . '-' . ($productId ?? 'none') . '-' . ($employeeId ?? 'none');
 @endphp
 
 <x-tallui-tab :tabs="[
@@ -85,6 +93,7 @@
         :end-date="$endDate"
         :customer-id="$customerId"
         :product-id="$productId"
+        :employee-id="$employeeId"
         lazy
         wire:key="sales-statistics-{{ $filterKey }}"
     />
@@ -96,6 +105,7 @@
         :end-date="$endDate"
         :customer-id="$customerId"
         :product-id="$productId"
+        :employee-id="$employeeId"
         lazy
         wire:key="recent-sale-orders-{{ $filterKey }}"
     />
@@ -107,6 +117,7 @@
         :end-date="$endDate"
         :customer-id="$customerId"
         :product-id="$productId"
+        :employee-id="$employeeId"
         lazy
         wire:key="sold-products-{{ $filterKey }}"
     />
