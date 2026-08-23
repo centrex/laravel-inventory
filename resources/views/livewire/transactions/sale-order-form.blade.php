@@ -79,7 +79,20 @@
     }"
     x-init="
         calcTotals();
-        $nextTick(() => new MutationObserver(() => calcTotals()).observe($el, { childList: true, subtree: true, attributes: true, attributeFilter: ['value'] }));
+        $nextTick(() => {
+            const observedConfig = { childList: true, subtree: true, attributes: true, attributeFilter: ['value'] };
+            const observer = new MutationObserver(() => {
+                // calcTotals() itself writes [data-so-line-total] textContent, which is a
+                // childList mutation inside the very subtree being observed — without
+                // disconnecting first, that write re-triggers this callback forever and
+                // pins the tab at 100% CPU (observed: selecting a customer, which morphs
+                // this form, was enough to kick off the loop and freeze the page).
+                observer.disconnect();
+                calcTotals();
+                observer.observe($el, observedConfig);
+            });
+            observer.observe($el, observedConfig);
+        });
     "
     x-on:input="calcTotals()"
 >
