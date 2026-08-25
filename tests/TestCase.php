@@ -106,6 +106,12 @@ class TestCase extends Orchestra
         // to INSERT into a nonexistent table instead of just running inline.
         config()->set('queue.default', 'sync');
 
+        // Same story for the cache: the framework default is 'database', and this package's
+        // test schema has no `cache`/`cache_locks` tables. Any Cache::lock() taken during a
+        // test (e.g. GuardsAgainstDuplicateSubmission on the PO/SO form pages) would blow up
+        // on a missing table instead of just locking in memory.
+        config()->set('cache.default', 'array');
+
         // Livewire signs component snapshots with the app key — needed by any test that does a
         // full Livewire::test(...) round-trip (mount + render + update) rather than instantiating
         // the component class directly, or rendering throws MissingAppKeyException.

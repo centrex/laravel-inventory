@@ -1101,6 +1101,108 @@ it('issues an accounting credit memo when a sale return is posted against an inv
     expect((float) $invoice->fresh()->balance)->toBe(200.0);
 });
 
+it('credits a returned discounted line at its actually-invoiced price, not the pre-discount list price', function (): void {
+    if (!class_exists('Centrex\\Accounting\\Models\\CreditMemo')) {
+        $this->markTestSkipped('Accounting package (with credit memo support) is not available in this test environment.');
+    }
+
+    $accountClass = 'Centrex\\Accounting\\Models\\Account';
+    $invoiceClass = 'Centrex\\Accounting\\Models\\Invoice';
+    $creditMemoClass = 'Centrex\\Accounting\\Models\\CreditMemo';
+
+    $accountClass::create(['code' => '1000', 'name' => 'Cash', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '1200', 'name' => 'Accounts Receivable', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '1300', 'name' => 'Inventory', 'type' => 'asset', 'is_active' => true]);
+    $accountClass::create(['code' => '2300', 'name' => 'Sales Tax Payable', 'type' => 'liability', 'is_active' => true]);
+    $accountClass::create(['code' => '4000', 'name' => 'Sales Revenue', 'type' => 'revenue', 'is_active' => true]);
+    $accountClass::create(['code' => '5000', 'name' => 'Cost of Goods Sold', 'type' => 'expense', 'is_active' => true]);
+    $accountClass::create(['code' => '6134', 'name' => 'Sales Returns & Allowances', 'type' => 'expense', 'is_active' => true]);
+
+    $inventory = app(Inventory::class);
+    $warehouse = Warehouse::create([
+        'code'         => 'W-CMD',
+        'name'         => 'Discounted Credit Memo Warehouse',
+        'country_code' => 'BD',
+        'currency'     => 'BDT',
+    ]);
+    $customer = Customer::create([
+        'code'            => 'CUS-CMD-1',
+        'name'            => 'Discounted Credit Memo Customer',
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'is_active'       => true,
+    ]);
+    $product = Product::create([
+        'sku'          => 'SKU-CMD-1',
+        'name'         => 'Discounted Returnable Widget',
+        'unit'         => 'pcs',
+        'is_stockable' => true,
+    ]);
+
+    WarehouseProduct::create([
+        'warehouse_id'   => $warehouse->id,
+        'product_id'     => $product->id,
+        'qty_on_hand'    => 10,
+        'qty_reserved'   => 0,
+        'qty_in_transit' => 0,
+        'wac_amount'     => 120,
+    ]);
+
+    // 2 units at 200 list price with a 50% line discount: invoiced total is 200, i.e. 100/unit,
+    // not the 200/unit list price stored on SaleOrderItem::unit_price_amount.
+    $saleOrder = $inventory->createSaleOrder([
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'currency'        => 'BDT',
+        'price_tier_code' => 'b2c_retail',
+        'items'           => [[
+            'product_id'       => $product->id,
+            'qty_ordered'      => 2,
+            'unit_price_local' => 200,
+            'discount_pct'     => 50,
+        ]],
+    ]);
+
+    $inventory->confirmSaleOrder($saleOrder->id);
+    $inventory->reserveStock($saleOrder->id);
+    $inventory->fulfillSaleOrder($saleOrder->id);
+
+    // fulfillSaleOrder() posts the invoice immediately as part of fulfillment.
+    $invoice = $invoiceClass::findOrFail($saleOrder->fresh()->accounting_invoice_id);
+
+    expect((float) $invoice->fresh()->total)->toBe(200.0);
+
+    // No explicit unit_price_amount on the return item — exercises the default fallback,
+    // same as what the Livewire return form now prefills.
+    $saleReturn = $inventory->createSaleReturn([
+        'sale_order_id' => $saleOrder->id,
+        'warehouse_id'  => $warehouse->id,
+        'customer_id'   => $customer->id,
+        'returned_at'   => now(),
+        'items'         => [[
+            'product_id'   => $product->id,
+            'qty_returned' => 1,
+        ]],
+    ]);
+
+    expect((float) $saleReturn->items->first()->unit_price_amount)->toBe(100.0)
+        ->and((float) $saleReturn->items->first()->line_total_amount)->toBe(100.0);
+
+    $saleReturn = $inventory->postSaleReturn($saleReturn->id);
+
+    $memo = $creditMemoClass::where('source_type', Centrex\Inventory\Models\SaleReturn::class)
+        ->where('source_id', $saleReturn->id)
+        ->first();
+
+    // Half of the line (1 of 2 units) was returned, so the credit should be half of the
+    // 200 actually invoiced — 100 — not half of the 400 pre-discount list value.
+    expect($memo)->not->toBeNull()
+        ->and((float) $memo->total)->toBe(100.0);
+
+    expect((float) $invoice->fresh()->balance)->toBe(100.0)
+        ->and((float) $saleOrder->fresh()->due_amount)->toBe(100.0);
+});
+
 it('reconciles a sale return credit memo once its invoice is posted after the return', function (): void {
     if (!class_exists('Centrex\\Accounting\\Models\\CreditMemo')) {
         $this->markTestSkipped('Accounting package (with credit memo support) is not available in this test environment.');

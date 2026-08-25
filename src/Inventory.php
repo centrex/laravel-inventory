@@ -683,9 +683,13 @@ class Inventory
 
     public function createPurchaseOrder(array $data): PurchaseOrder
     {
-        $po = DB::transaction(function () use ($data): PurchaseOrder {
-            $currency = strtoupper($data['currency'] ?? config('inventory.purchase_defaults.currency', 'GBP'));
-            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
+        // See the matching comment in createSaleOrder(): resolved before the transaction opens
+        // so a live exchange-rate API call can't hold the DB transaction (and its sequential
+        // number lock) open for the duration of an external HTTP round-trip.
+        $currency = strtoupper($data['currency'] ?? config('inventory.purchase_defaults.currency', 'GBP'));
+        $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
+
+        $po = DB::transaction(function () use ($data, $currency, $rate): PurchaseOrder {
             $documentType = $this->normalizePurchaseDocumentType($data['document_type'] ?? null);
 
             $warehouseId = $data['warehouse_id'] ?? $this->defaultPurchaseWarehouseId();
@@ -1208,10 +1212,16 @@ class Inventory
 
     public function createSaleOrder(array $data): SaleOrder
     {
-        $so = DB::transaction(function () use ($data): SaleOrder {
+        // Resolved before the transaction opens: getExchangeRate() can fall through to a live
+        // HTTP call to the Open Exchange Rates API (see resolveExchangeRate()) when no fresh
+        // stored rate covers today — doing that while holding the transaction (and, downstream,
+        // createWithSequentialNumber()'s range lock on the so_number sequence) turns one slow
+        // API call into a lock held across every concurrent sale order creation, not just this one.
+        $currency = strtoupper($data['currency'] ?? config('inventory.sale_defaults.currency', 'GBP'));
+        $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
+
+        $so = DB::transaction(function () use ($data, $currency, $rate): SaleOrder {
             $tierCode = $this->normalizePriceTierCode($data['price_tier_code'] ?? PriceTierCode::B2B_RETAIL->value);
-            $currency = strtoupper($data['currency'] ?? config('inventory.sale_defaults.currency', 'GBP'));
-            $rate = (float) ($data['exchange_rate'] ?? $this->getExchangeRate($currency));
             $warehouseId = $data['warehouse_id'] ?? $this->defaultSaleWarehouseId();
             $customer = isset($data['customer_id']) ? Customer::findOrFail($data['customer_id']) : null;
             $documentType = $this->normalizeSaleDocumentType($data['document_type'] ?? null);
@@ -1594,9 +1604,19 @@ class Inventory
                     }
                 }
 
+                // Default to the actually-invoiced per-unit price (line_total_amount / qty_ordered),
+                // not the pre-discount SaleOrderItem::unit_price_amount — otherwise returning a
+                // discounted line overcredits the customer (see issueSaleReturnCreditMemo(), which
+                // sums qty_returned * this field), driving the invoice balance and SaleOrder::due_amount
+                // below what's actually still owed.
+                $orderedQty = (float) ($saleOrderItem?->qty_ordered ?? 0);
+                $defaultUnitPrice = $saleOrderItem && $orderedQty > 0.0
+                    ? round((float) $saleOrderItem->line_total_amount / $orderedQty, 4)
+                    : round((float) ($saleOrderItem?->unit_price_amount ?? 0), 4);
+
                 $unitPrice = isset($item['unit_price_amount'])
                     ? round((float) $item['unit_price_amount'], 4)
-                    : round((float) ($saleOrderItem?->unit_price_amount ?? 0), 4);
+                    : $defaultUnitPrice;
                 $unitCost = isset($item['unit_cost_amount'])
                     ? round((float) $item['unit_cost_amount'], 4)
                     : round((float) $stock->wac_amount, 4);

@@ -201,13 +201,24 @@ class SaleReturnFormPage extends Component
                     ? trim(($item->product?->name ?? 'Product') . ' / ' . $item->variant->name)
                     : ($item->product?->name ?? 'Product');
 
+                // SaleOrderItem::unit_price_amount is the pre-discount list price — the amount
+                // actually invoiced per unit is line_total_amount / qty_ordered, which bakes in
+                // discount_pct. Prefilling with the undiscounted price overcredits any return of
+                // a discounted line (the credit memo in ErpIntegration::issueSaleReturnCreditMemo()
+                // sums qty_returned * this field), driving the invoice balance — and therefore
+                // SaleOrder::due_amount — below what the customer actually still owes.
+                $orderedQty = (float) $item->qty_ordered;
+                $effectiveUnitPrice = $orderedQty > 0.0
+                    ? round((float) $item->line_total_amount / $orderedQty, 4)
+                    : (float) $item->unit_price_amount;
+
                 return [
                     'id'                => (int) $item->getKey(),
                     'product_id'        => (int) $item->product_id,
                     'variant_id'        => $item->variant_id !== null ? (int) $item->variant_id : null,
                     'name'              => $productLabel,
                     'max_qty'           => $maxQty,
-                    'unit_price_amount' => (float) $item->unit_price_amount,
+                    'unit_price_amount' => $effectiveUnitPrice,
                     'unit_cost_amount'  => (float) $item->unit_cost_amount,
                 ];
             })

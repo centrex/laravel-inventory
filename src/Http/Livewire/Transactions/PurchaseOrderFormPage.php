@@ -321,52 +321,59 @@ class PurchaseOrderFormPage extends Component
 
         abort_unless($this->canEdit(), 403, 'This purchase order can no longer be edited.');
 
-        $subtotal = 0.0;
+        $rate = (float) ($validated['exchange_rate'] ?? 1);
+
+        $subtotalLocal = 0.0;
+        $subtotalAmount = 0.0;
         $itemsPayload = [];
 
         foreach ($validated['items'] as $item) {
             $qty = round((float) $item['qty_ordered'], 4);
-            $unitPrice = round((float) $item['unit_price_local'], 4);
-            $lineTotal = round($qty * $unitPrice, 4);
-            $subtotal += $lineTotal;
+            $unitPriceLocal = round((float) $item['unit_price_local'], 4);
+            $unitPriceAmount = round($unitPriceLocal * $rate, 4);
+            $lineTotalLocal = round($qty * $unitPriceLocal, 4);
+            $lineTotalAmount = round($qty * $unitPriceAmount, 4);
+            $subtotalLocal += $lineTotalLocal;
+            $subtotalAmount += $lineTotalAmount;
 
             $itemsPayload[] = [
                 'product_id'        => (int) $item['product_id'],
                 'variant_id'        => ($item['variant_id'] ?? null) !== null ? (int) $item['variant_id'] : null,
                 'qty_ordered'       => $qty,
                 'qty_received'      => 0,
-                'unit_price_local'  => $unitPrice,
-                'unit_price_amount' => $unitPrice,
-                'line_total_local'  => $lineTotal,
-                'line_total_amount' => $lineTotal,
+                'unit_price_local'  => $unitPriceLocal,
+                'unit_price_amount' => $unitPriceAmount,
+                'line_total_local'  => $lineTotalLocal,
+                'line_total_amount' => $lineTotalAmount,
                 'notes'             => $item['notes'] ?? '',
             ];
         }
 
-        $total = round(
-            $subtotal
-            + (float) ($validated['tax_local'] ?? 0)
-            + (float) ($validated['shipping_local'] ?? 0)
-            + (float) ($validated['other_charges_amount'] ?? 0),
-            4,
-        );
+        $taxLocal = round((float) ($validated['tax_local'] ?? 0), 4);
+        $shippingLocal = round((float) ($validated['shipping_local'] ?? 0), 4);
+        $taxAmount = round($taxLocal * $rate, 4);
+        $shippingAmount = round($shippingLocal * $rate, 4);
+        $otherChargesAmount = round((float) ($validated['other_charges_amount'] ?? 0), 4);
 
-        DB::transaction(function () use ($purchaseOrder, $validated, $subtotal, $total, $itemsPayload): void {
+        $totalLocal = round($subtotalLocal + $taxLocal + $shippingLocal, 4);
+        $totalAmount = round($subtotalAmount + $taxAmount + $shippingAmount + $otherChargesAmount, 4);
+
+        DB::transaction(function () use ($purchaseOrder, $validated, $subtotalLocal, $subtotalAmount, $taxLocal, $taxAmount, $shippingLocal, $shippingAmount, $otherChargesAmount, $totalLocal, $totalAmount, $itemsPayload): void {
             $purchaseOrder->fill([
                 'document_type'        => $validated['document_type'] ?? $purchaseOrder->document_type,
                 'warehouse_id'         => $validated['warehouse_id'],
                 'supplier_id'          => $validated['supplier_id'],
                 'currency'             => $validated['currency'],
                 'exchange_rate'        => $validated['exchange_rate'] ?? 1,
-                'subtotal_local'       => round($subtotal, 4),
-                'subtotal_amount'      => round($subtotal, 4),
-                'tax_local'            => round((float) ($validated['tax_local'] ?? 0), 4),
-                'tax_amount'           => round((float) ($validated['tax_local'] ?? 0), 4),
-                'shipping_local'       => round((float) ($validated['shipping_local'] ?? 0), 4),
-                'shipping_amount'      => round((float) ($validated['shipping_local'] ?? 0), 4),
-                'other_charges_amount' => round((float) ($validated['other_charges_amount'] ?? 0), 4),
-                'total_local'          => $total,
-                'total_amount'         => $total,
+                'subtotal_local'       => $subtotalLocal,
+                'subtotal_amount'      => $subtotalAmount,
+                'tax_local'            => $taxLocal,
+                'tax_amount'           => $taxAmount,
+                'shipping_local'       => $shippingLocal,
+                'shipping_amount'      => $shippingAmount,
+                'other_charges_amount' => $otherChargesAmount,
+                'total_local'          => $totalLocal,
+                'total_amount'         => $totalAmount,
                 'expected_at'          => $validated['expected_at'] ?? null,
                 'notes'                => $validated['notes'] ?? '',
             ])->save();
