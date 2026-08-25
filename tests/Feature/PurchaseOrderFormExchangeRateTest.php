@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Livewire\Transactions\PurchaseOrderFormPage;
 use Centrex\Inventory\Inventory;
-use Centrex\Inventory\Models\{Product, PurchaseOrder, Supplier, Warehouse};
+use Centrex\Inventory\Models\{Product, Supplier, Warehouse};
 use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
@@ -26,7 +26,7 @@ it('multiplies local-currency amounts by the exchange rate when editing a purcha
         'supplier_id'   => $supplier->id,
         'currency'      => 'BDT',
         'exchange_rate' => 1,
-        'items' => [
+        'items'         => [
             ['product_id' => $product->id, 'qty_ordered' => 2, 'unit_price_local' => 10],
         ],
     ]);
