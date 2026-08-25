@@ -1352,7 +1352,7 @@ class Inventory
                 DB::table($so->getTable())->where('id', $so->id)->update(['order_role' => $data['order_role']]);
             }
 
-            return $so->fresh(['customer', 'items.product']);
+            return $so->fresh(['customer', 'warehouse', 'items.product']);
         });
 
         // Queued rather than called inline: syncSaleOrderDocument() talks to the accounting
@@ -1365,7 +1365,11 @@ class Inventory
         // response at all.
         SyncSaleOrderAccountingDocumentJob::dispatch($so->id);
 
-        return $so->refresh();
+        // $so is already the post-commit state from the fresh() call above (with 'warehouse'
+        // now included so callers don't lazy-load it per order) — a trailing ->refresh() here
+        // would just re-run the same customer/items.product queries a second time for
+        // identical data, doubling every sale order creation's round trips against the DB.
+        return $so;
     }
 
     public function createSaleOrderFromQuotation(int $quotationId, array $overrides = []): SaleOrder
