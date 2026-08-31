@@ -6,6 +6,10 @@
     :shadow="true"
     class="mb-6"
 >
+    <x-slot:actions>
+        <x-tallui-button icon="o-arrow-path" class="btn-ghost btn-sm btn-circle" wire:click="refresh" :spinner="'refresh'" tooltip="Refresh" />
+    </x-slot:actions>
+
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 mb-5">
         <div class="rounded-2xl border border-base-200 bg-base-100 p-4">
             <div class="text-xs font-semibold text-base-content/50 uppercase mb-2">Total Stock Value</div>

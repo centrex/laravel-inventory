@@ -207,6 +207,23 @@ it('InventoryWarehouseStockCard aggregates stock value/net saleable stock and ca
     expect($queryCount)->toBe(0);
 });
 
+it('InventoryWarehouseStockCard::refresh() busts the cache so the next call recomputes', function (): void {
+    $component = new InventoryWarehouseStockCard;
+    $component->mount();
+
+    $component->warehouseStock();
+
+    $queryCount = 0;
+    DB::listen(function () use (&$queryCount): void {
+        $queryCount++;
+    });
+
+    $component->refresh();
+    $component->warehouseStock();
+
+    expect($queryCount)->toBeGreaterThan(0);
+});
+
 it('InventoryWarehouseStockCard never caches the warehouses Collection itself — only a plain array', function (): void {
     // The 'array' cache store used in these tests keeps values in-process without ever
     // calling serialize()/unserialize(), so it can't catch this: in production

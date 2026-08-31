@@ -42,6 +42,15 @@ class InventoryWarehouseStockCard extends Component
         );
     }
 
+    /**
+     * Bust the 5-minute cache and recompute on this render — company-wide data can shift
+     * (a stock receipt/adjustment posts elsewhere) before the TTL naturally expires.
+     */
+    public function refresh(): void
+    {
+        $this->forgetCache($this->cacheKey('inventory', 'warehouse-stock-card'));
+    }
+
     public function placeholder(): string
     {
         return Blade::render(<<<'BLADE'
