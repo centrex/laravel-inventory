@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
+use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Http\Livewire\Transactions\Concerns\GuardsAgainstDuplicateSubmission;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Customer, Product, SaleOrder, SaleReturnItem, Warehouse};
@@ -169,7 +170,11 @@ class SaleReturnFormPage extends Component
         return SaleOrder::query()
             ->with(['customer', 'warehouse', 'items.product', 'items.variant'])
             ->where('document_type', 'order')
-            ->whereNotIn('status', ['draft', 'cancelled'])
+            // Only orders with something actually delivered are returnable. 'partial' is
+            // included alongside 'fulfilled' because availableProducts() already caps each
+            // line's returnable quantity at qty_fulfilled, so a partially-shipped order only
+            // ever exposes the units that were really delivered.
+            ->whereIn('status', [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::COMPLETED->value, SaleOrderStatus::PARTIAL->value])
             ->find($this->sale_order_id);
     }
 

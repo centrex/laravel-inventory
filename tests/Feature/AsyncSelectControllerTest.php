@@ -37,8 +37,24 @@ it('returns matching sale orders for the async select endpoint', function (): vo
         'currency' => 'BDT',
     ]);
 
-    $confirmedOrder = SaleOrder::create([
+    // Only a fulfilled (or partial/completed) order has anything actually delivered, so only
+    // it is returnable — a merely confirmed order (nothing shipped yet) must not show up.
+    $fulfilledOrder = SaleOrder::create([
         'so_number'       => 'SO-1001',
+        'document_type'   => 'order',
+        'warehouse_id'    => $warehouse->id,
+        'customer_id'     => $customer->id,
+        'price_tier_code' => 'b2c_retail',
+        'currency'        => 'BDT',
+        'exchange_rate'   => 1,
+        'total_local'     => 100,
+        'total_amount'    => 100,
+        'status'          => 'fulfilled',
+        'ordered_at'      => now(),
+    ]);
+    // Confirmed orders aren't returnable yet (nothing shipped) — must not show up in the picker.
+    SaleOrder::create([
+        'so_number'       => 'SO-1002',
         'document_type'   => 'order',
         'warehouse_id'    => $warehouse->id,
         'customer_id'     => $customer->id,
@@ -50,26 +66,12 @@ it('returns matching sale orders for the async select endpoint', function (): vo
         'status'          => 'confirmed',
         'ordered_at'      => now(),
     ]);
-    // Draft orders aren't returnable yet — must not show up in the picker.
-    SaleOrder::create([
-        'so_number'       => 'SO-1002',
-        'document_type'   => 'order',
-        'warehouse_id'    => $warehouse->id,
-        'customer_id'     => $customer->id,
-        'price_tier_code' => 'b2c_retail',
-        'currency'        => 'BDT',
-        'exchange_rate'   => 1,
-        'total_local'     => 100,
-        'total_amount'    => 100,
-        'status'          => 'draft',
-        'ordered_at'      => now(),
-    ]);
 
     $this->getJson(route('inventory.async-select', ['resource' => 'sale-orders', 'q' => 'SO-1001']))
         ->assertOk()
         ->assertJsonCount(1, 'data')
         ->assertJsonFragment([
-            'value'    => $confirmedOrder->id,
+            'value'    => $fulfilledOrder->id,
             'label'    => 'SO-1001',
             'sublabel' => 'Alice Buyer',
         ]);

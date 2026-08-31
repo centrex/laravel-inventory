@@ -8632,7 +8632,7 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property object\\:\\:\\$id\\.$#"
-			count: 1
+			count: 2
 			path: src/Observers/InvoicePaymentObserver.php
 
 		-
@@ -8647,7 +8647,7 @@ parameters:
 
 		-
 			message: "#^Call to an undefined method object\\:\\:isDirty\\(\\)\\.$#"
-			count: 1
+			count: 2
 			path: src/Observers/InvoicePaymentObserver.php
 
 		-

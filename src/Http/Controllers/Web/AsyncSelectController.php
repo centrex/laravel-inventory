@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Http\Controllers\Web;
 
+use Centrex\Inventory\Enums\SaleOrderStatus;
 use Centrex\Inventory\Models\{Customer, Product, ProductVariant, SaleOrder, Supplier, WarehouseProduct};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\{JsonResponse, Request};
@@ -96,10 +97,12 @@ class AsyncSelectController extends Controller
      */
     private function searchSaleOrders(string $term, int $page, int $perPage): array
     {
+        // This resource only backs the sale-return picker: only orders with something
+        // actually delivered are eligible for return (see SaleReturnFormPage::selectedSaleOrder()).
         $orders = SaleOrder::query()
             ->with('customer')
             ->where('document_type', 'order')
-            ->whereNotIn('status', ['draft', 'cancelled'])
+            ->whereIn('status', [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::COMPLETED->value, SaleOrderStatus::PARTIAL->value])
             ->when($term !== '', fn (Builder $query) => $query->where(function (Builder $builder) use ($term): void {
                 $builder->where('so_number', 'like', '%' . $term . '%')
                     ->orWhereHas('customer', fn (Builder $customerQuery) => $customerQuery
