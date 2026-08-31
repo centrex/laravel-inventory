@@ -96,6 +96,8 @@ class InventorySalesTrendCard extends Component
         $thisSummary = $summarizer->summarize($thisOrders);
         $prevSummary = $summarizer->summarize($prevOrders);
 
+        $backlog = $this->fulfillmentBacklog($scopedOrders);
+
         $daysInMonth = now()->daysInMonth;
         $days = range(1, $daysInMonth);
 
@@ -140,6 +142,7 @@ class InventorySalesTrendCard extends Component
                 'gross_profit' => $pctChange($thisSummary['gross_profit'], $prevSummary['gross_profit']),
             ],
             'dispatched_count' => $dispatchedCount,
+            'backlog'          => $backlog,
             'chart'            => [
                 'categories' => array_map(static fn (int $d): string => (string) $d, $days),
                 'series'     => [
@@ -147,6 +150,39 @@ class InventorySalesTrendCard extends Component
                     ['name' => now()->subMonthNoOverflow()->format('M'), 'data' => $fillDaily($prevOrders)],
                 ],
             ],
+        ];
+    }
+
+    /**
+     * gross_profit above only counts orders SalesOrderProfitSummary considers "costed"
+     * (cogs_amount > 0, set by fulfillSaleOrder()) — an order sitting in Processing/Partial
+     * indefinitely never contributes, which reads on this card as gross profit having
+     * "stopped updating" even though nothing is actually broken in the calculation. This
+     * surfaces that stall directly: not scoped to the this/prev-month window above, since a
+     * backlog order can be weeks old and still be silently excluded from every month it
+     * touches.
+     *
+     * @param  \Closure(): Builder  $scopedOrders
+     * @return array{pending_count: int, pending_value: float, stale_count: int, oldest_days: ?int}
+     */
+    private function fulfillmentBacklog(\Closure $scopedOrders): array
+    {
+        $pendingOrders = $scopedOrders()
+            ->whereIn('status', [SaleOrderStatus::PROCESSING->value, SaleOrderStatus::PARTIAL->value])
+            ->get(['id', 'total_amount', 'ordered_at']);
+
+        $staleThreshold = now()->subDays(2)->startOfDay();
+        $staleOrders = $pendingOrders->filter(
+            static fn (SaleOrder $order): bool => $order->ordered_at !== null && $order->ordered_at->lt($staleThreshold),
+        );
+
+        $oldest = $staleOrders->min('ordered_at');
+
+        return [
+            'pending_count' => $pendingOrders->count(),
+            'pending_value' => round((float) $pendingOrders->sum('total_amount'), 2),
+            'stale_count'   => $staleOrders->count(),
+            'oldest_days'   => $oldest !== null ? (int) $oldest->diffInDays(now()) : null,
         ];
     }
 }

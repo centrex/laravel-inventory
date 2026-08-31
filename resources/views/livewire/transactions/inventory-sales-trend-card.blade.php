@@ -6,6 +6,16 @@
     :shadow="true"
     class="mb-6"
 >
+    @if ($salesTrend['backlog']['stale_count'] > 0)
+        <x-tallui-alert type="warning" class="mb-5" title="Gross profit may look stale">
+            {{ $salesTrend['backlog']['stale_count'] }} order{{ $salesTrend['backlog']['stale_count'] === 1 ? '' : 's' }}
+            ({{ number_format($salesTrend['backlog']['pending_value'], 2) }})
+            {{ $salesTrend['backlog']['stale_count'] === 1 ? 'has' : 'have' }} been awaiting fulfillment for 2+ days
+            (oldest {{ $salesTrend['backlog']['oldest_days'] }} day{{ $salesTrend['backlog']['oldest_days'] === 1 ? '' : 's' }}) —
+            they're excluded from gross profit until dispatched. {{ $salesTrend['backlog']['pending_count'] }} order{{ $salesTrend['backlog']['pending_count'] === 1 ? '' : 's' }} total pending fulfillment.
+        </x-tallui-alert>
+    @endif
+
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4 mb-5">
         @php
             $trendMetrics = [
