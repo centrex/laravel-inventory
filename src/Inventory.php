@@ -593,7 +593,7 @@ class Inventory
      */
     private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
-        $model = new WarehouseProduct;
+        $model = new WarehouseProduct();
         $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
@@ -1816,14 +1816,15 @@ class Inventory
      * shouldAutoReserveOnConfirm() — inventory.auto_reserve_price_tiers, b2c_ecom by default, or
      * inventory.auto_reserve_on_confirm=true for every tier), this also reserves stock in the
      * same call — the order goes straight from draft to processing, skipping the separate manual
-     * "Reserve" step. Any shortages are surfaced via $order->shortageWarnings rather than
-     * blocking confirmation, matching reserveStock()'s own behavior when called standalone.
+     * "Reserve" step. If any line is short on available stock, reserveStockItems() throws
+     * InsufficientStockException and the whole confirmation rolls back — the order stays in
+     * DRAFT rather than being confirmed against stock it can't cover.
+     *
+     * @throws InsufficientStockException
      */
     public function confirmSaleOrder(int $soId): SaleOrder
     {
-        $shortages = [];
-
-        $so = DB::transaction(function () use ($soId, &$shortages): SaleOrder {
+        return DB::transaction(function () use ($soId): SaleOrder {
             $so = SaleOrder::lockForUpdate()->findOrFail($soId);
             $this->assertSaleOrderAccess($so);
             $this->assertTransition($so->status, SaleOrderStatus::CONFIRMED, "sale order #{$soId}");
@@ -1831,18 +1832,12 @@ class Inventory
             $so->update(['status' => SaleOrderStatus::CONFIRMED]);
 
             if ($this->shouldAutoReserveOnConfirm($so)) {
-                $shortages = $this->reserveStockItems($so);
+                $this->reserveStockItems($so);
                 $so->update(['status' => SaleOrderStatus::PROCESSING]);
             }
 
             return $so->refresh();
         });
-
-        if ($shortages !== []) {
-            $so->shortageWarnings = $shortages;
-        }
-
-        return $so;
     }
 
     /**
@@ -1903,12 +1898,16 @@ class Inventory
      * than before it) so that two overlapping requests for the same order — e.g. a
      * double-click on a slow connection — serialize instead of both passing the "not already
      * reserved" check and double-incrementing qty_reserved.
+     *
+     * If any line is short on available stock, reserveStockItems() throws
+     * InsufficientStockException and the order stays in CONFIRMED rather than moving to
+     * PROCESSING against stock it can't cover.
+     *
+     * @throws InsufficientStockException
      */
     public function reserveStock(int $soId): SaleOrder
     {
-        $shortages = [];
-
-        $result = DB::transaction(function () use ($soId, &$shortages): SaleOrder {
+        return DB::transaction(function () use ($soId): SaleOrder {
             $so = SaleOrder::lockForUpdate()->findOrFail($soId);
             $this->assertSaleOrderAccess($so);
 
@@ -1920,64 +1919,82 @@ class Inventory
                 throw new InvalidTransitionException("Cannot reserve stock for sale order in status [{$so->status->value}].");
             }
 
-            $shortages = $this->reserveStockItems($so);
+            $this->reserveStockItems($so);
             $so->update(['status' => SaleOrderStatus::PROCESSING]);
 
             return $so->refresh();
         });
-
-        if ($shortages !== []) {
-            // Reservation succeeded but stock is short — the caller receives this via the
-            // returned array so the UI can surface a warning without blocking the action.
-            $result->shortageWarnings = $shortages;
-        }
-
-        return $result;
     }
 
     /**
      * Increments qty_reserved for each line item of $so (auto-creating a WarehouseProduct row
-     * where none exists yet) and returns any shortage warnings. Shared by reserveStock() and
-     * confirmSaleOrder()'s optional auto-reserve-on-confirm step — the caller is responsible for
-     * the surrounding transaction/row lock and for updating $so->status afterward.
+     * where none exists yet). Shared by reserveStock() and confirmSaleOrder()'s optional
+     * auto-reserve-on-confirm step — the caller is responsible for the surrounding
+     * transaction/row lock and for updating $so->status afterward.
      *
-     * @return array<int, string>
+     * Checks every line's availability before reserving any of them, and throws
+     * InsufficientStockException listing every short line if any is short — reservation is
+     * all-or-nothing so a shortfall can never be silently oversold, and the caller's
+     * transaction rolls back cleanly. Lines are tallied per warehouse product (rather than
+     * checked independently) so that two lines drawing on the same product/variant correctly
+     * compete for the same available quantity instead of both being approved against it.
+     *
+     * @throws InsufficientStockException
      */
-    private function reserveStockItems(SaleOrder $so): array
+    private function reserveStockItems(SaleOrder $so): void
     {
+        $items = $so->items()->lockForUpdate()->get();
+        $warehouseProducts = [];
+        $requested = [];
         $shortages = [];
-        $items = $so->items()->with('product')->lockForUpdate()->get();
 
         foreach ($items as $item) {
-            $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
-                ->where('product_id', $item->product_id)
-                ->where('variant_id', $item->variant_id)
-                ->lockForUpdate()
-                ->first();
+            $key = "{$item->product_id}:{$item->variant_id}";
 
-            // Auto-create the warehouse product record if it has never been stocked here.
-            if (!$wp) {
-                $wp = WarehouseProduct::create([
-                    'warehouse_id' => $so->warehouse_id,
-                    'product_id'   => $item->product_id,
-                    'variant_id'   => $item->variant_id,
-                    'qty_on_hand'  => 0,
-                    'qty_reserved' => 0,
-                    'wac_amount'   => 0,
-                ]);
+            if (!isset($warehouseProducts[$key])) {
+                $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
+                    ->where('product_id', $item->product_id)
+                    ->where('variant_id', $item->variant_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                // Auto-create the warehouse product record if it has never been stocked here.
+                if (!$wp) {
+                    $wp = WarehouseProduct::create([
+                        'warehouse_id' => $so->warehouse_id,
+                        'product_id'   => $item->product_id,
+                        'variant_id'   => $item->variant_id,
+                        'qty_on_hand'  => 0,
+                        'qty_reserved' => 0,
+                        'wac_amount'   => 0,
+                    ]);
+                }
+
+                $warehouseProducts[$key] = $wp;
+                $requested[$key] = 0.0;
             }
 
-            $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
-
-            if ($available < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance', 0.0001)) {
-                $productName = $item->product?->name ?? "Product #{$item->product_id}";
-                $shortages[] = "{$productName}: {$available} available, {$item->qty_ordered} required";
-            }
-
-            $wp->increment('qty_reserved', $item->qty_ordered);
+            $requested[$key] += (float) $item->qty_ordered;
         }
 
-        return $shortages;
+        foreach ($warehouseProducts as $key => $wp) {
+            $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
+
+            if ($available < $requested[$key] - (float) config('inventory.qty_tolerance', 0.0001)) {
+                $productName = $wp->product?->name ?? "Product #{$wp->product_id}";
+                $shortages[] = "{$productName}: {$available} available, {$requested[$key]} required";
+            }
+        }
+
+        if ($shortages !== []) {
+            throw new InsufficientStockException(
+                "Cannot reserve stock for sale order #{$so->id}: " . implode('; ', $shortages),
+            );
+        }
+
+        foreach ($warehouseProducts as $key => $wp) {
+            $wp->increment('qty_reserved', $requested[$key]);
+        }
     }
 
     /**

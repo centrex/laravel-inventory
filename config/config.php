@@ -119,11 +119,11 @@ return [
     | Inventory::confirmSaleOrder() immediately reserves stock for the order in the same call —
     | it goes straight from draft to processing, skipping the separate manual "Reserve" step —
     | for any sale order whose price_tier_code is listed in auto_reserve_price_tiers (b2c_ecom
-    | only, by default). Any stock shortages are still surfaced via $order->shortageWarnings
-    | rather than blocking confirmation, exactly as the standalone reserveStock() already
-    | behaves. Tiers not listed keep the two-step confirm-then-reserve workflow (or get reserved
-    | explicitly by the caller, e.g. the POS terminal checkout always passes reserve=true
-    | itself regardless of this setting).
+    | only, by default). If any line is short on available stock, the reservation throws
+    | InsufficientStockException and the whole confirmation rolls back — same as the standalone
+    | reserveStock() call. Tiers not listed keep the two-step confirm-then-reserve workflow (or
+    | get reserved explicitly by the caller, e.g. the POS terminal checkout always passes
+    | reserve=true itself regardless of this setting).
     |
     | Set auto_reserve_on_confirm to true to restore the old behavior of auto-reserving every
     | tier; auto_reserve_price_tiers is ignored while it's true.
