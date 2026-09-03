@@ -26,7 +26,13 @@ class SaleReturnTable extends DataTable
                 ->view('inventory::livewire.partials.sale-return-table.customer'),
             Column::make('Sale Order', 'saleOrder.so_number')->relation('saleOrder')->searchable()
                 ->view('inventory::livewire.partials.sale-return-table.sale-order'),
-            Column::make('Sale Order Date', 'saleOrder.so_date')->relation('saleOrder')->sortable()
+            // SaleOrder has no 'so_date' column — the real field is 'ordered_at'.
+            // Also not ->sortable(): tallui's DataTable silently excludes any
+            // dotted (relation) key from sorting (str_contains($key, '.') check
+            // in DataTable::sortableColumns()), so it would render an inert sort
+            // arrow rather than actually sorting — dropped rather than kept as
+            // misleading dead UI.
+            Column::make('Sale Order Date', 'saleOrder.ordered_at')->relation('saleOrder')
                 ->format('date'),
             Column::make('Warehouse', 'warehouse.name')->relation('warehouse'),
             Column::make('Status', 'status')->badge('neutral', StatusBadge::colors()),

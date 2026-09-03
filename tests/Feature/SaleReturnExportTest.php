@@ -95,7 +95,7 @@ it('exports the credit memo refundable amount, not its status, in the Refundable
     $memo = $saleReturn->fresh()->creditMemo;
     expect($memo)->not->toBeNull();
 
-    $table = new SaleReturnTable;
+    $table = new SaleReturnTable();
     $table->columnDefs = array_map(fn ($col): array => $col->toArray(), $table->columns());
 
     ob_start();
@@ -105,8 +105,10 @@ it('exports the credit memo refundable amount, not its status, in the Refundable
     $lines = array_values(array_filter(explode("\n", $csv)));
     $header = str_getcsv(ltrim($lines[0], "\xEF\xBB\xBF"));
     $refundableIndex = array_search('Refundable', $header, true);
+    $saleOrderDateIndex = array_search('Sale Order Date', $header, true);
 
-    expect($refundableIndex)->not->toBeFalse();
+    expect($refundableIndex)->not->toBeFalse()
+        ->and($saleOrderDateIndex)->not->toBeFalse();
 
     $exportedRow = collect($lines)
         ->slice(1)
@@ -115,5 +117,9 @@ it('exports the credit memo refundable amount, not its status, in the Refundable
 
     expect($exportedRow)->not->toBeNull()
         ->and((float) $exportedRow[$refundableIndex])->toBe((float) $memo->refundable_amount)
-        ->and($exportedRow[$refundableIndex])->not->toBe('issued');
+        ->and($exportedRow[$refundableIndex])->not->toBe('issued')
+        // Regression: the column used to key off 'saleOrder.so_date', which
+        // doesn't exist on SaleOrder (the real column is 'ordered_at') and
+        // always rendered blank.
+        ->and($exportedRow[$saleOrderDateIndex])->not->toBe('');
 });
