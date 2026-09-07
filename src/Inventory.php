@@ -389,7 +389,7 @@ class Inventory
      * collection, whereas issuing one query per combination is exactly the N+1 this exists to
      * avoid.
      *
-     * @param Collection<int, int> $productIds
+     * @param  Collection<int, int>  $productIds
      * @return Collection<int, Collection<int, ProductPrice>>
      */
     private function loadPriceCandidatesForProducts(Collection $productIds): Collection
