@@ -1054,7 +1054,7 @@ class ErpIntegration
             return [];
         }
 
-        return ['status' => SaleOrderStatus::COMPLETED];
+        return ['status' => SaleOrderStatus::COMPLETED, 'completed_at' => now()];
     }
 
     /**

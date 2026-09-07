@@ -308,7 +308,7 @@ class DispatchTerminalPage extends Component
                 return;
             }
         } else {
-            $saleOrder->forceFill(['status' => SaleOrderStatus::SHIPPED->value])->save();
+            $saleOrder->forceFill(['status' => SaleOrderStatus::SHIPPED->value, 'shipped_at' => now()])->save();
         }
 
         $this->putMetadata($saleOrder, $updatedMeta);

@@ -102,6 +102,7 @@ class SaleOrderShowPage extends Component
             'saleFlowCurrent'   => $this->saleFlowCurrentStep(),
             'saleFlowHalted'    => in_array($this->record->status, [SaleOrderStatus::CANCELLED, SaleOrderStatus::RETURNED], true),
             'modelDataReady'    => $this->modelDataReady(),
+            'eventTimeline'     => $this->eventTimeline(),
         ]);
     }
 
@@ -128,6 +129,44 @@ class SaleOrderShowPage extends Component
             SaleOrderStatus::FULFILLED, SaleOrderStatus::SHIPPED, SaleOrderStatus::COMPLETED => 4,
             default                                                                          => 1,
         };
+    }
+
+    /**
+     * Every recorded lifecycle timestamp on the order, in chronological order, for the
+     * "Timeline" card — null events (steps this order never went through) are dropped rather
+     * than shown as blank rows. Includes the linked invoice's posting date (when it exists)
+     * so the full order-to-cash trail is visible in one place.
+     *
+     * @return array<int, array{time: string, title: string, color: string, icon: string}>
+     */
+    private function eventTimeline(): array
+    {
+        $candidates = [
+            ['at' => $this->record->ordered_at, 'title' => 'Ordered', 'color' => 'neutral', 'icon' => 'heroicon-o-document-text'],
+            ['at' => $this->record->confirmed_at, 'title' => 'Confirmed', 'color' => 'info', 'icon' => 'heroicon-o-check-circle'],
+            ['at' => $this->record->reserved_at, 'title' => 'Stock Reserved', 'color' => 'warning', 'icon' => 'heroicon-o-archive-box-arrow-down'],
+            ['at' => $this->record->shipped_at, 'title' => 'Shipped', 'color' => 'primary', 'icon' => 'heroicon-o-truck'],
+            ['at' => $this->record->fulfilled_at, 'title' => 'Fulfilled', 'color' => 'success', 'icon' => 'heroicon-o-check-badge'],
+            ['at' => $this->financeDocument['posted_at'] ?? null, 'title' => 'Invoice ' . ($this->financeDocument['number'] ?? '') . ' Posted', 'color' => 'success', 'icon' => 'heroicon-o-banknotes', 'raw' => true],
+            ['at' => $this->record->completed_at, 'title' => 'Completed', 'color' => 'success', 'icon' => 'heroicon-o-flag'],
+            ['at' => $this->record->cancelled_at, 'title' => 'Cancelled', 'color' => 'error', 'icon' => 'heroicon-o-x-circle'],
+        ];
+
+        return collect($candidates)
+            ->filter(fn (array $event): bool => filled($event['at']))
+            ->map(fn (array $event): array => [
+                // financeDocument['posted_at'] is already a formatted string; every other
+                // entry is still a Carbon instance from the model's datetime casts.
+                'time'  => $event['raw'] ?? false ? (string) $event['at'] : $event['at']->format('M d, Y h:i A'),
+                'sort'  => $event['raw'] ?? false ? strtotime((string) $event['at']) : $event['at']->getTimestamp(),
+                'title' => $event['title'],
+                'color' => $event['color'],
+                'icon'  => $event['icon'],
+            ])
+            ->sortBy('sort')
+            ->values()
+            ->map(fn (array $event): array => array_diff_key($event, ['sort' => null]))
+            ->all();
     }
 
     public function confirm(): void
@@ -392,10 +431,10 @@ class SaleOrderShowPage extends Component
 
         $invoice = $this->record->accounting_invoice_id
             ? $invoiceClass::query()
-                ->with(['payments.journalEntry'])
+                ->with(['payments.journalEntry', 'journalEntry'])
                 ->find($this->record->accounting_invoice_id)
             : $invoiceClass::query()
-                ->with(['payments.journalEntry'])
+                ->with(['payments.journalEntry', 'journalEntry'])
                 ->where(function ($query): void {
                     $query->where('source_type', SaleOrder::class)
                         ->where('source_id', $this->record->getKey());
@@ -410,16 +449,21 @@ class SaleOrderShowPage extends Component
         $status = $invoice->status->value ?? (string) $invoice->status;
 
         return [
-            'id'         => (int) $invoice->getKey(),
-            'number'     => (string) $invoice->invoice_number,
-            'status'     => ucfirst(str_replace('_', ' ', $status)),
-            'status_raw' => strtolower((string) $status),
-            'total'      => (float) $invoice->total,
-            'paid'       => (float) $invoice->paid_amount,
-            'balance'    => (float) $invoice->balance,
-            'due_date'   => $invoice->due_date?->format('M d, Y') ?? '—',
-            'is_due'     => (float) $invoice->balance > 0,
-            'payments'   => $invoice->payments
+            'id'           => (int) $invoice->getKey(),
+            'number'       => (string) $invoice->invoice_number,
+            'status'       => ucfirst(str_replace('_', ' ', $status)),
+            'status_raw'   => strtolower((string) $status),
+            'total'        => (float) $invoice->total,
+            'paid'         => (float) $invoice->paid_amount,
+            'balance'      => (float) $invoice->balance,
+            'invoice_date' => $invoice->invoice_date?->format('M d, Y') ?? '—',
+            'due_date'     => $invoice->due_date?->format('M d, Y') ?? '—',
+            // The journal entry's approved_at is stamped the moment JournalEntry::post() ran
+            // (see laravel-accounting), which is exactly when this invoice was posted/issued —
+            // there's no separate "posted_at" column, so this is the invoice's posting date.
+            'posted_at' => $invoice->journalEntry?->approved_at?->format('M d, Y h:i A'),
+            'is_due'    => (float) $invoice->balance > 0,
+            'payments'  => $invoice->payments
                 ->sortByDesc(fn ($payment) => $payment->payment_date?->getTimestamp() ?? 0)
                 ->values()
                 ->map(fn ($payment): array => [

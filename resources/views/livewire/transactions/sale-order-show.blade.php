@@ -229,6 +229,12 @@
             @endif
         </x-tallui-card>
 
+        @if ($eventTimeline !== [])
+        <x-tallui-card title="Timeline" subtitle="Every recorded event for this order." icon="o-clock" :shadow="true">
+            <x-tallui-timeline :compact="true" :items="$eventTimeline" />
+        </x-tallui-card>
+        @endif
+
         <x-tallui-card title="Sales Team" subtitle="Creator and assigned sales personnel." icon="o-user-group" :shadow="true">
             <div class="space-y-3 text-sm">
                 <div>
@@ -367,6 +373,10 @@
                 <div class="space-y-3 text-sm">
                     <div><span class="text-base-content/50">Invoice</span><div class="font-medium">{{ $financeDocument['number'] }}</div></div>
                     <div><span class="text-base-content/50">Status</span><div class="font-medium">{{ $financeDocument['status'] }}</div></div>
+                    <div><span class="text-base-content/50">Invoice Date</span><div class="font-medium">{{ $financeDocument['invoice_date'] }}</div></div>
+                    @if ($financeDocument['posted_at'])
+                        <div><span class="text-base-content/50">Posted At</span><div class="font-medium">{{ $financeDocument['posted_at'] }}</div></div>
+                    @endif
                     <div><span class="text-base-content/50">Due Date</span><div class="font-medium">{{ $financeDocument['due_date'] }}</div></div>
                     <div><span class="text-base-content/50">Total</span><div class="font-medium">{{ number_format($financeDocument['total'], 2) }}</div></div>
                     <div><span class="text-base-content/50">Paid</span><div class="font-medium text-success">{{ number_format($financeDocument['paid'], 2) }}</div></div>

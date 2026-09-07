@@ -57,6 +57,12 @@ use OwenIt\Auditing\Contracts\Auditable;
  * @property float $cogs_amount Filled when the order is fulfilled
  * @property SaleOrderStatus $status
  * @property \Carbon\Carbon|null $ordered_at
+ * @property \Carbon\Carbon|null $confirmed_at
+ * @property \Carbon\Carbon|null $reserved_at
+ * @property \Carbon\Carbon|null $shipped_at
+ * @property \Carbon\Carbon|null $fulfilled_at
+ * @property \Carbon\Carbon|null $completed_at
+ * @property \Carbon\Carbon|null $cancelled_at
  * @property string|null $notes
  * @property int|null $created_by
  * @property int|null $accounting_invoice_id FK to laravel-accounting Invoice
@@ -95,6 +101,7 @@ class SaleOrder extends Model implements Auditable
         'credit_override_required', 'credit_override_approved_by',
         'credit_override_approved_at', 'credit_override_notes',
         'cogs_amount', 'status', 'ordered_at', 'notes', 'created_by',
+        'confirmed_at', 'reserved_at', 'shipped_at', 'fulfilled_at', 'completed_at', 'cancelled_at',
         'sales_manager_id', 'sales_assistant_manager_id', 'sales_executive_id',
         'accounting_invoice_id',
         'order_role', 'paired_sale_order_id', 'agent_customer_id',
@@ -126,6 +133,12 @@ class SaleOrder extends Model implements Auditable
         'credit_override_approved_at'   => 'datetime',
         'cogs_amount'                   => 'decimal:4',
         'ordered_at'                    => 'datetime',
+        'confirmed_at'                  => 'datetime',
+        'reserved_at'                   => 'datetime',
+        'shipped_at'                    => 'datetime',
+        'fulfilled_at'                  => 'datetime',
+        'completed_at'                  => 'datetime',
+        'cancelled_at'                  => 'datetime',
         'order_role'                    => OrderRole::class,
     ];
 

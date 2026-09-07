@@ -389,7 +389,7 @@ class Inventory
      * collection, whereas issuing one query per combination is exactly the N+1 this exists to
      * avoid.
      *
-     * @param  Collection<int, int>  $productIds
+     * @param Collection<int, int> $productIds
      * @return Collection<int, Collection<int, ProductPrice>>
      */
     private function loadPriceCandidatesForProducts(Collection $productIds): Collection
@@ -1920,11 +1920,11 @@ class Inventory
             $this->assertSaleOrderAccess($so);
             $this->assertTransition($so->status, SaleOrderStatus::CONFIRMED, "sale order #{$soId}");
             $this->assertHighValueConfirmAuthorized($so);
-            $so->update(['status' => SaleOrderStatus::CONFIRMED]);
+            $so->update(['status' => SaleOrderStatus::CONFIRMED, 'confirmed_at' => now()]);
 
             if ($this->shouldAutoReserveOnConfirm($so)) {
                 $this->reserveStockItems($so);
-                $so->update(['status' => SaleOrderStatus::PROCESSING]);
+                $so->update(['status' => SaleOrderStatus::PROCESSING, 'reserved_at' => now()]);
             }
 
             return $so->refresh();
@@ -2011,7 +2011,7 @@ class Inventory
             }
 
             $this->reserveStockItems($so);
-            $so->update(['status' => SaleOrderStatus::PROCESSING]);
+            $so->update(['status' => SaleOrderStatus::PROCESSING, 'reserved_at' => now()]);
 
             return $so->refresh();
         });
@@ -2260,6 +2260,10 @@ class Inventory
                 'cogs_amount' => (float) $so->cogs_amount + $totalCogs,
             ];
 
+            if ($fullyFulfilled) {
+                $statusUpdate['fulfilled_at'] = now();
+            }
+
             // If fully fulfilled with no linked accounting invoice, zero the due_amount now.
             // The InvoicePaymentObserver will set it correctly if an invoice is linked later.
             if ($fullyFulfilled && !$so->accounting_invoice_id) {
@@ -2315,7 +2319,7 @@ class Inventory
                 }
             }
 
-            $so->update(['status' => SaleOrderStatus::CANCELLED]);
+            $so->update(['status' => SaleOrderStatus::CANCELLED, 'cancelled_at' => now()]);
 
             return $so->refresh();
         });
