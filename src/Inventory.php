@@ -383,6 +383,82 @@ class Inventory
     }
 
     /**
+     * Single-query prefetch for pickPrice(): every active, currently-effective ProductPrice row
+     * for the given products, grouped by product_id. Deliberately not filtered by tier/variant/
+     * warehouse here — those vary per line item and are cheap to filter from an in-memory
+     * collection, whereas issuing one query per combination is exactly the N+1 this exists to
+     * avoid.
+     *
+     * @param Collection<int, int> $productIds
+     * @return Collection<int, Collection<int, ProductPrice>>
+     */
+    private function loadPriceCandidatesForProducts(Collection $productIds): Collection
+    {
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        $date = now()->toDateString();
+
+        return ProductPrice::query()
+            ->whereIn('product_id', $productIds)
+            ->where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('effective_from')->orWhere('effective_from', '<=', $date))
+            ->where(fn ($q) => $q->whereNull('effective_to')->orWhere('effective_to', '>=', $date))
+            ->get()
+            ->groupBy('product_id');
+    }
+
+    /**
+     * In-memory equivalent of resolvePrice(), scored against a prefetched candidate collection
+     * for one product (see loadPriceCandidatesForProducts()) instead of querying. Fallback order
+     * and damaged-price handling must stay identical to resolvePrice() — the two are exercised
+     * against the same fixtures in tests/Feature/SaleOrderPricingTest.php.
+     */
+    private function pickPrice(Collection $candidates, int $productId, string $tierCode, int $warehouseId, ?int $variantId, bool $damaged): ProductPrice
+    {
+        $tierCode = $this->normalizePriceTierCode($tierCode);
+        $variantId = $this->normalizeVariantId($variantId, $productId);
+
+        $scoped = fn (bool $isDamaged) => $candidates
+            ->where('price_tier_code', $tierCode)
+            ->where('is_damaged', $isDamaged);
+
+        $pick = fn (Collection $pool, ?int $variantMatch, ?int $warehouseMatch): ?ProductPrice => $pool
+            ->when($variantMatch === null, fn (Collection $c) => $c->whereNull('variant_id'), fn (Collection $c) => $c->where('variant_id', $variantMatch))
+            ->when($warehouseMatch === null, fn (Collection $c) => $c->whereNull('warehouse_id'), fn (Collection $c) => $c->where('warehouse_id', $warehouseMatch))
+            ->sortByDesc('created_at')
+            ->first();
+
+        $lookup = function (bool $isDamaged) use ($scoped, $pick, $variantId, $warehouseId): ?ProductPrice {
+            $pool = $scoped($isDamaged);
+            $price = null;
+
+            if ($variantId !== null) {
+                $price = $pick($pool, $variantId, $warehouseId);
+                $price ??= $pick($pool, $variantId, null);
+            }
+
+            $price ??= $pick($pool, null, $warehouseId);
+            $price ??= $pick($pool, null, null);
+
+            return $price;
+        };
+
+        $price = $damaged ? ($lookup(true) ?? $lookup(false)) : $lookup(false);
+
+        if (!$price) {
+            if (config('inventory.price_not_found_throws', true)) {
+                throw new PriceNotFoundException("No price found for product [{$productId}], tier [{$tierCode}], warehouse [{$warehouseId}].");
+            }
+
+            return new ProductPrice(['price_amount' => 0, 'price_local' => 0]);
+        }
+
+        return $price;
+    }
+
+    /**
      * Get all tier prices for a product at a warehouse (global fallback per tier).
      */
     public function getPriceSheet(int $productId, int $warehouseId, ?string $date = null, ?int $variantId = null): Collection
@@ -1233,6 +1309,14 @@ class Inventory
             $lineItems = [];
             $subtotalLocal = 0.0;
 
+            // Loaded once for every product on the order rather than via resolvePrice()'s up to
+            // 4 sequential fallback queries per line: a multi-line order (the common case from
+            // the mobile app, which rarely sends unit_price_local) was otherwise issuing dozens
+            // of blocking queries per checkout while holding this transaction's row locks.
+            $priceCandidatesByProduct = $this->loadPriceCandidatesForProducts(
+                collect($data['items'])->map(fn (array $item): int => (int) $item['product_id'])->unique()->values(),
+            );
+
             foreach ($data['items'] as $item) {
                 [$productId, $variantId] = $this->resolveProductReference($item);
                 $itemTierCode = isset($item['price_tier_code']) && trim((string) $item['price_tier_code']) !== ''
@@ -1243,7 +1327,14 @@ class Inventory
 
                 $unitPriceBdt = isset($item['unit_price_local'])
                     ? round((float) $item['unit_price_local'] * $rate, 4)
-                    : (float) $this->resolvePrice($productId, $itemTierCode, $warehouseId, null, $variantId, $fromDamaged)->price_amount;
+                    : (float) $this->pickPrice(
+                        $priceCandidatesByProduct->get($productId, collect()),
+                        $productId,
+                        $itemTierCode,
+                        $warehouseId,
+                        $variantId,
+                        $fromDamaged,
+                    )->price_amount;
 
                 $unitPriceLocal = round($unitPriceBdt / ($rate ?: 1), 4);
                 $qty = (float) $item['qty_ordered'];
