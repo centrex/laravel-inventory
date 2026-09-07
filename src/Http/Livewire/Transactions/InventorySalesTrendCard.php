@@ -92,9 +92,17 @@ class InventorySalesTrendCard extends Component
             ->whereNotIn('status', $excluded)
             ->get(['id', 'total_amount', 'cogs_amount', 'accounting_invoice_id', 'ordered_at']);
 
+        // Every order this user can see, unbounded by date — a return counts toward "this
+        // month" if it was PROCESSED this month, even against an order placed months earlier
+        // (matching how ErpIntegration dates the ledger's reversal, by returned_at, not by the
+        // order's own month). Without this, a return on an old order silently disappears from
+        // every month's gross profit instead of landing in the one it actually happened in —
+        // see SalesOrderProfitSummary::returnAdjustments().
+        $allVisibleOrderIds = $scopedOrders()->pluck('id')->map(static fn ($id): int => (int) $id)->all();
+
         $summarizer = app(SalesOrderProfitSummary::class);
-        $thisSummary = $summarizer->summarize($thisOrders);
-        $prevSummary = $summarizer->summarize($prevOrders);
+        $thisSummary = $summarizer->summarize($thisOrders, $allVisibleOrderIds, [$thisStart, $thisEnd]);
+        $prevSummary = $summarizer->summarize($prevOrders, $allVisibleOrderIds, [$prevStart, $prevEnd]);
 
         $backlog = $this->fulfillmentBacklog($scopedOrders);
 

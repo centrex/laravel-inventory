@@ -95,6 +95,85 @@ it('nets out the margin on posted customer returns against the same order', func
     expect($summary['gross_profit'])->toBe(150.0);
 });
 
+it('attributes a return to the month it was processed in, not the month its order was placed, when a window is given', function (): void {
+    // Order placed and fulfilled back in a prior month.
+    $order = makeProfitSummaryOrder('H', 1000, 700, 'fulfilled');
+    $order->forceFill(['ordered_at' => today()->subMonths(2)])->save();
+
+    // But the customer returns it THIS month.
+    $saleReturn = SaleReturn::create([
+        'return_number' => 'SRT-PS-H',
+        'sale_order_id' => $order->id,
+        'warehouse_id'  => $order->warehouse_id,
+        'customer_id'   => $order->customer_id,
+        'status'        => 'posted',
+        'returned_at'   => today(),
+    ]);
+    SaleReturnItem::create([
+        'sale_return_id'    => $saleReturn->id,
+        'product_id'        => 1,
+        'qty_returned'      => 1,
+        'unit_price_amount' => 500,
+        'unit_cost_amount'  => 350,
+        'line_total_amount' => 500,
+    ]);
+
+    // Without a window: unchanged pre-existing behavior — the return doesn't count because
+    // $order isn't in $thisMonthOrders (it was placed two months ago).
+    $thisMonthOrders = SaleOrder::whereBetween('ordered_at', [today()->startOfMonth(), today()->endOfDay()])->get();
+    expect($thisMonthOrders)->toHaveCount(0);
+    $withoutWindow = app(SalesOrderProfitSummary::class)->summarize($thisMonthOrders);
+    expect($withoutWindow['gross_profit'])->toBe(0.0);
+
+    // With a window covering this month, and $order in the eligible set (unbounded by date):
+    // the return is picked up this month even though its order belongs to a prior month —
+    // matching how the accounting ledger dates the reversal by returned_at. No order was
+    // placed this month, so costedRevenue/cogs are both 0 — the windowed return's own
+    // revenue/cost swing is all that's left: -500 (revenue given back) + 350 (cost
+    // recovered) = -150.
+    $allOrderIds = SaleOrder::pluck('id')->all();
+    $withWindow = app(SalesOrderProfitSummary::class)->summarize(
+        $thisMonthOrders,
+        $allOrderIds,
+        [today()->startOfMonth(), today()->endOfDay()],
+    );
+    expect($withWindow['gross_profit'])->toBe(-150.0);
+});
+
+it('does not pick up a return whose returned_at falls outside the given window, even if the order is eligible', function (): void {
+    $order = makeProfitSummaryOrder('J', 1000, 700, 'fulfilled');
+
+    $saleReturn = SaleReturn::create([
+        'return_number' => 'SRT-PS-J',
+        'sale_order_id' => $order->id,
+        'warehouse_id'  => $order->warehouse_id,
+        'customer_id'   => $order->customer_id,
+        'status'        => 'posted',
+        'returned_at'   => today()->subMonths(3),
+    ]);
+    SaleReturnItem::create([
+        'sale_return_id'    => $saleReturn->id,
+        'product_id'        => 1,
+        'qty_returned'      => 1,
+        'unit_price_amount' => 500,
+        'unit_cost_amount'  => 350,
+        'line_total_amount' => 500,
+    ]);
+
+    $orders = SaleOrder::all();
+    $allOrderIds = $orders->pluck('id')->all();
+
+    $summary = app(SalesOrderProfitSummary::class)->summarize(
+        $orders,
+        $allOrderIds,
+        [today()->startOfMonth(), today()->endOfDay()],
+    );
+
+    // The return happened 3 months ago — outside this month's window — so this month sees the
+    // order's full, un-reversed margin.
+    expect($summary['gross_profit'])->toBe(300.0);
+});
+
 it('ignores a draft (not yet posted) customer return', function (): void {
     $order = makeProfitSummaryOrder('G', 1000, 700, 'fulfilled');
 

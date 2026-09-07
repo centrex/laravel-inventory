@@ -24,9 +24,22 @@ final class SalesOrderProfitSummary
 {
     /**
      * @param  Collection<int, \Centrex\Inventory\Models\SaleOrder>  $orders
+     * @param  array<int, int>|null  $returnEligibleOrderIds  the full set of order ids a
+     *                                                        return is allowed to be attributed against (typically every order visible under
+     *                                                        the caller's team-scope, unbounded by date) — required whenever $returnWindow is
+     *                                                        given; defaults to $orders' own ids, which reproduces the pre-existing
+     *                                                        order-month-scoped behavior for callers that don't pass a window (SalesBreakdowns'
+     *                                                        employee/price-tier group-bys, where a return must stay attributed to the group
+     *                                                        it's grouped by).
+     * @param  array{0: mixed, 1: mixed}|null  $returnWindow  when given, a return counts toward
+     *                                                        this summary if its OWN `returned_at` falls in [start, end] — matching how the
+     *                                                        accounting ledger recognizes a return in the period it happened — instead of
+     *                                                        requiring its original order to be one of $orders. Pass this from any caller whose
+     *                                                        result gets compared against the Income Statement (see InventorySalesTrendCard);
+     *                                                        leave null to keep a return tied to its order's own month.
      * @return array{orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float}
      */
-    public function summarize(Collection $orders): array
+    public function summarize(Collection $orders, ?array $returnEligibleOrderIds = null, ?array $returnWindow = null): array
     {
         $revenue = (float) $orders->sum('total_amount');
 
@@ -47,7 +60,7 @@ final class SalesOrderProfitSummary
         $deductions = $this->deductions($invoiceIds);
 
         $orderIds = $costedOrders->pluck('id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
-        $returns = $this->returnAdjustments($orderIds);
+        $returns = $this->returnAdjustments($returnEligibleOrderIds ?? $orderIds, $returnWindow);
 
         $grossProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'] - $returns['revenue'] + $returns['cost'];
 
@@ -94,22 +107,36 @@ final class SalesOrderProfitSummary
      * Revenue and cost taken back out by posted customer returns against these orders, on the
      * same qty*unit_price / qty*unit_cost basis ErpIntegration::postSaleReturn()/
      * issueSaleReturnCreditMemo() use — so an order whose units came back reduces gross_profit
-     * by the margin that was originally recognized on those units, regardless of which month
-     * the return itself was processed in.
+     * by the margin that was originally recognized on those units.
+     *
+     * Without $window: a return counts if its order is in $orderIds, regardless of which month
+     * the return itself was processed in — the original (and still correct, for a
+     * group-attributed summary) behavior.
+     *
+     * With $window: $orderIds is treated as "which orders are allowed to attribute here at
+     * all" (typically unbounded by date) and a return counts if its OWN `returned_at` falls in
+     * the window instead — matching ErpIntegration's ledger postings, which date a return's
+     * reversal by when it happened, not by the original order's month.
      *
      * @param  array<int, int>  $orderIds
+     * @param  array{0: mixed, 1: mixed}|null  $window
      * @return array{revenue: float, cost: float}
      */
-    private function returnAdjustments(array $orderIds): array
+    private function returnAdjustments(array $orderIds, ?array $window = null): array
     {
         if ($orderIds === []) {
             return ['revenue' => 0.0, 'cost' => 0.0];
         }
 
-        $returnIds = SaleReturn::query()
+        $query = SaleReturn::query()
             ->where('status', 'posted')
-            ->whereIn('sale_order_id', $orderIds)
-            ->pluck('id');
+            ->whereIn('sale_order_id', $orderIds);
+
+        if ($window !== null) {
+            $query->whereBetween('returned_at', $window);
+        }
+
+        $returnIds = $query->pluck('id');
 
         if ($returnIds->isEmpty()) {
             return ['revenue' => 0.0, 'cost' => 0.0];

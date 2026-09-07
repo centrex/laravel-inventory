@@ -1726,6 +1726,11 @@ parameters:
 			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
 
 		-
+			message: "#^Cannot cast mixed to int\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
+
+		-
 			message: "#^Cannot call method diffInDays\\(\\) on mixed\\.$#"
 			count: 1
 			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
@@ -9852,7 +9857,7 @@ parameters:
 
 		-
 			message: "#^Cannot cast mixed to int\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/SalesOrderProfitSummary.php
 
 		-
