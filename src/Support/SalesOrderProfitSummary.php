@@ -26,21 +26,30 @@ final class SalesOrderProfitSummary
      * @param  Collection<int, \Centrex\Inventory\Models\SaleOrder>  $orders
      * @param  array<int, int>|null  $returnEligibleOrderIds  the full set of order ids a
      *                                                        return is allowed to be attributed against (typically every order visible under
-     *                                                        the caller's team-scope, unbounded by date) — required whenever $returnWindow is
+     *                                                        the caller's team-scope, unbounded by date) — required whenever $window is
      *                                                        given; defaults to $orders' own ids, which reproduces the pre-existing
      *                                                        order-month-scoped behavior for callers that don't pass a window (SalesBreakdowns'
      *                                                        employee/price-tier group-bys, where a return must stay attributed to the group
      *                                                        it's grouped by).
-     * @param  array{0: mixed, 1: mixed}|null  $returnWindow  when given, a return counts toward
-     *                                                        this summary if its OWN `returned_at` falls in [start, end] — matching how the
-     *                                                        accounting ledger recognizes a return in the period it happened — instead of
-     *                                                        requiring its original order to be one of $orders. Pass this from any caller whose
-     *                                                        result gets compared against the Income Statement (see InventorySalesTrendCard);
-     *                                                        leave null to keep a return tied to its order's own month.
+     * @param  array{0: mixed, 1: mixed}|null  $window  when given, a return or discount counts
+     *                                                  toward this summary if its OWN date (`returned_at` / `expense_date`) falls in
+     *                                                  [start, end] — matching how the accounting ledger recognizes each in the period
+     *                                                  it happened — instead of requiring its original order/invoice to be one of
+     *                                                  $orders. Pass this from any caller whose result gets compared against the Income
+     *                                                  Statement (see InventorySalesTrendCard); leave null to keep both tied to their
+     *                                                  order's own month. Deliberately does NOT affect charges — see deductions().
+     * @param  array<int, int>|null  $discountEligibleInvoiceIds  the discount-side counterpart
+     *                                                            of $returnEligibleOrderIds: every invoice id visible under the caller's
+     *                                                            team-scope, unbounded by date. Required whenever $window is given; defaults to
+     *                                                            this summary's own costed-order invoice ids otherwise.
      * @return array{orders_count: int, revenue: float, gross_profit: float, gross_margin_pct: ?float}
      */
-    public function summarize(Collection $orders, ?array $returnEligibleOrderIds = null, ?array $returnWindow = null): array
-    {
+    public function summarize(
+        Collection $orders,
+        ?array $returnEligibleOrderIds = null,
+        ?array $window = null,
+        ?array $discountEligibleInvoiceIds = null,
+    ): array {
         $revenue = (float) $orders->sum('total_amount');
 
         // cogs_amount only gets populated by fulfillSaleOrder() — it's still 0 on a confirmed/
@@ -57,10 +66,10 @@ final class SalesOrderProfitSummary
         $cogs = (float) $costedOrders->sum('cogs_amount');
 
         $invoiceIds = $costedOrders->pluck('accounting_invoice_id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
-        $deductions = $this->deductions($invoiceIds);
+        $deductions = $this->deductions($invoiceIds, $discountEligibleInvoiceIds, $window);
 
         $orderIds = $costedOrders->pluck('id')->filter()->unique()->values()->map(static fn ($id): int => (int) $id)->all();
-        $returns = $this->returnAdjustments($returnEligibleOrderIds ?? $orderIds, $returnWindow);
+        $returns = $this->returnAdjustments($returnEligibleOrderIds ?? $orderIds, $window);
 
         $grossProfit = $costedRevenue - $cogs - $deductions['discount'] - $deductions['charges'] - $returns['revenue'] + $returns['cost'];
 
@@ -73,34 +82,62 @@ final class SalesOrderProfitSummary
     }
 
     /**
+     * Charges are always scoped to $invoiceIds (this summary's own orders) regardless of
+     * $window — unlike returns and discounts, charges aren't a "which period" disagreement
+     * with the ledger. The dashboard nets delivery/return charges against gross profit by
+     * choice; the Income Statement books them as a below-the-line operating expense and never
+     * lets them touch its gross_profit figure at all. Windowing charges the same way as
+     * discounts would just subtract more from the dashboard's own number without bringing it
+     * any closer to the ledger's — there's no period misalignment here to fix, only a
+     * deliberate difference in what counts as "gross profit". See the August 2026 reconciliation
+     * report for the numbers that ruled this in/out.
+     *
+     * Discounts follow the exact same order-month-vs-posting-date choice as
+     * returnAdjustments(): without $window, scoped to $invoiceIds; with $window,
+     * $discountEligibleInvoiceIds is "which invoices may attribute here at all" (typically
+     * unbounded by date) and a discount counts if its own `expense_date` falls in the window.
+     *
      * @param  array<int, int>  $invoiceIds
+     * @param  array<int, int>|null  $discountEligibleInvoiceIds
+     * @param  array{0: mixed, 1: mixed}|null  $window
      * @return array{discount: float, charges: float}
      */
-    private function deductions(array $invoiceIds): array
+    private function deductions(array $invoiceIds, ?array $discountEligibleInvoiceIds = null, ?array $window = null): array
     {
         $expenseClass = 'Centrex\\Accounting\\Models\\Expense';
         $invoiceClass = 'Centrex\\Accounting\\Models\\Invoice';
 
-        if ($invoiceIds === [] || !class_exists($expenseClass) || !class_exists($invoiceClass)) {
+        if (!class_exists($expenseClass) || !class_exists($invoiceClass)) {
             return ['discount' => 0.0, 'charges' => 0.0];
         }
 
         $discountCodes = $invoiceClass::AR_REDUCING_ACCOUNT_CODES;
         $chargeCodes = ['6310', '6320', '6330', '6340'];
 
-        $expenses = $expenseClass::query()
+        $charges = $invoiceIds === [] ? 0.0 : (float) $expenseClass::query()
             ->where('chargeable_type', $invoiceClass)
             ->whereIn('chargeable_id', $invoiceIds)
-            ->whereHas('account', function ($query) use ($discountCodes, $chargeCodes): void {
-                $query->whereIn('code', [...$discountCodes, ...$chargeCodes]);
-            })
-            ->with('account:id,code')
-            ->get(['id', 'total', 'account_id']);
+            ->whereHas('account', fn ($query) => $query->whereIn('code', $chargeCodes))
+            ->sum('total');
 
-        return [
-            'discount' => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $discountCodes, true))->sum('total'),
-            'charges'  => (float) $expenses->filter(static fn ($expense): bool => in_array($expense->account?->code, $chargeCodes, true))->sum('total'),
-        ];
+        $discountInvoiceIds = $discountEligibleInvoiceIds ?? $invoiceIds;
+
+        if ($discountInvoiceIds === []) {
+            $discount = 0.0;
+        } else {
+            $discountQuery = $expenseClass::query()
+                ->where('chargeable_type', $invoiceClass)
+                ->whereIn('chargeable_id', $discountInvoiceIds)
+                ->whereHas('account', fn ($query) => $query->whereIn('code', $discountCodes));
+
+            if ($window !== null) {
+                $discountQuery->whereBetween('expense_date', $window);
+            }
+
+            $discount = (float) $discountQuery->sum('total');
+        }
+
+        return ['discount' => $discount, 'charges' => $charges];
     }
 
     /**

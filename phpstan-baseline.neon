@@ -1727,7 +1727,7 @@ parameters:
 
 		-
 			message: "#^Cannot cast mixed to int\\.$#"
-			count: 1
+			count: 2
 			path: src/Http/Livewire/Transactions/InventorySalesTrendCard.php
 
 		-
@@ -9846,13 +9846,8 @@ parameters:
 			path: src/Support/SalesBreakdowns.php
 
 		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Account\\:\\:\\$code\\.$#"
-			count: 2
-			path: src/Support/SalesOrderProfitSummary.php
-
-		-
 			message: "#^Cannot cast mixed to float\\.$#"
-			count: 5
+			count: 3
 			path: src/Support/SalesOrderProfitSummary.php
 
 		-
@@ -9862,12 +9857,7 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, 'chargeable_type' given\\.$#"
-			count: 1
-			path: src/Support/SalesOrderProfitSummary.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Expense, array\\<int, string\\> given\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/SalesOrderProfitSummary.php
 
 		-
