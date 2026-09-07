@@ -15,7 +15,7 @@ use Centrex\Inventory\Models\{Product, ProductPrice, ProductVariant, Warehouse};
  */
 beforeEach(function (): void {
     $this->warehouse = Warehouse::create([
-        'code' => 'PRC', 'name' => 'Pricing Warehouse', 'country_code' => 'BD',
+        'code'     => 'PRC', 'name' => 'Pricing Warehouse', 'country_code' => 'BD',
         'currency' => 'BDT', 'is_active' => true, 'is_default' => true,
     ]);
 
@@ -28,11 +28,11 @@ function createOrderForPricingTest(Warehouse $warehouse, Product $product, ?int 
 {
     $so = Inventory::createSaleOrder([
         'warehouse_id' => $warehouse->id,
-        'currency' => 'BDT',
-        'items' => [[
-            'product_id' => $product->id,
-            'variant_id' => $variantId,
-            'qty_ordered' => 1,
+        'currency'     => 'BDT',
+        'items'        => [[
+            'product_id'   => $product->id,
+            'variant_id'   => $variantId,
+            'qty_ordered'  => 1,
             'from_damaged' => $fromDamaged,
         ]],
     ]);
@@ -99,8 +99,8 @@ it('resolves distinct correct prices for multiple products on the same order', f
 
     $so = Inventory::createSaleOrder([
         'warehouse_id' => $this->warehouse->id,
-        'currency' => 'BDT',
-        'items' => [
+        'currency'     => 'BDT',
+        'items'        => [
             ['product_id' => $this->product->id, 'qty_ordered' => 1],
             ['product_id' => $productTwo->id, 'qty_ordered' => 1],
         ],
@@ -113,7 +113,7 @@ it('resolves distinct correct prices for multiple products on the same order', f
 it('throws when no price exists anywhere for the product', function (): void {
     Inventory::createSaleOrder([
         'warehouse_id' => $this->warehouse->id,
-        'currency' => 'BDT',
-        'items' => [['product_id' => $this->product->id, 'qty_ordered' => 1]],
+        'currency'     => 'BDT',
+        'items'        => [['product_id' => $this->product->id, 'qty_ordered' => 1]],
     ]);
 })->throws(PriceNotFoundException::class);
