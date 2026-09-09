@@ -69,8 +69,12 @@ class AdjustmentFormPage extends Component
     }
 
     /** Clear the previously selected variant whenever the product for a row changes. */
-    public function updatedItems(mixed $value, string $key): void
+    public function updatedItems(mixed $value, ?string $key): void
     {
+        if ($key === null) {
+            return;
+        }
+
         if (str_ends_with($key, '.product_id')) {
             $index = (int) explode('.', $key)[0];
             $this->items[$index]['variant_id'] = null;

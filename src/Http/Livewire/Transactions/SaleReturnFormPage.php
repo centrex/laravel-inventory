@@ -128,8 +128,12 @@ class SaleReturnFormPage extends Component
         $this->items = [$this->blankItem()];
     }
 
-    public function updatedItems($value, string $name): void
+    public function updatedItems($value, ?string $name): void
     {
+        if ($name === null) {
+            return;
+        }
+
         [$index, $field] = explode('.', $name);
         $index = (int) $index;
 

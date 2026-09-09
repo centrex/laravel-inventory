@@ -147,8 +147,12 @@ class SaleOrderFormPage extends Component
         $this->syncItemPrice($index);
     }
 
-    public function updatedItems(mixed $value, string $key): void
+    public function updatedItems(mixed $value, ?string $key): void
     {
+        if ($key === null) {
+            return;
+        }
+
         if (preg_match('/^(\d+)\.product_key$/', $key, $matches)) {
             $this->applyProductKey((int) $matches[1]);
 

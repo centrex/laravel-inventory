@@ -75,8 +75,12 @@ class AgentSaleOrderFormPage extends Component
     /**
      * Triggered by Livewire whenever any items.*.product_id or items.*.qty changes.
      */
-    public function updatedItems(mixed $_value, string $key): void
+    public function updatedItems(mixed $_value, ?string $key): void
     {
+        if ($key === null) {
+            return;
+        }
+
         [$index, $field] = array_pad(explode('.', $key, 2), 2, '');
 
         if (in_array($field, ['product_id', 'variant_id'], true)) {
