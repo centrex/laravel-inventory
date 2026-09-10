@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Enums\OrderRole;
 use Centrex\Inventory\Facades\Inventory;
-use Centrex\Inventory\Models\{Agent, Customer, Product, SaleOrder, Warehouse};
+use Centrex\Inventory\Models\{Agent, Customer, Product, SaleOrder, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Services\AgentOrderService;
 
 function makeAgentWarehouse(string $code = 'AW1'): Warehouse
@@ -85,6 +85,15 @@ it('confirming and reserving the B2B order mirrors its lifecycle onto the paired
     $product = makeAgentProduct('SKU-2');
     $agent = makeAgentWithCustomer('AGT-2');
     $endCustomer = Customer::create(['code' => 'END-2', 'name' => 'End Customer 2', 'currency' => 'BDT', 'price_tier_code' => 'b2c_retail', 'is_active' => true]);
+
+    // Only this test actually reserves stock (via confirmAndReserve() below) — the other
+    // AgentOrderServiceTest cases never get past order creation, which doesn't check stock.
+    WarehouseProduct::create([
+        'warehouse_id' => $warehouse->id,
+        'product_id'   => $product->id,
+        'qty_on_hand'  => 10,
+        'wac_amount'   => 50,
+    ]);
 
     $result = app(AgentOrderService::class)->createPairedOrders(
         b2cData: [

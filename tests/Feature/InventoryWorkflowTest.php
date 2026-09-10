@@ -5,6 +5,8 @@ declare(strict_types = 1);
 use Centrex\Inventory\Http\Livewire\Transactions\DispatchTerminalPage;
 use Centrex\Inventory\Inventory;
 use Centrex\Inventory\Models\{Coupon, Customer, Product, PurchaseOrderItem, SaleOrder, SaleOrderItem, Supplier, TransferBoxItem, Warehouse, WarehouseProduct};
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Livewire;
 
 it('prevents crossing purchase order items when creating stock receipts', function (): void {
@@ -58,6 +60,19 @@ it('prevents crossing purchase order items when creating stock receipts', functi
 })->throws(InvalidArgumentException::class);
 
 it('updates dispatch terminal orders through livewire', function (): void {
+    // The dispatch queue table is gated behind inventory.dispatch.{dispatcher,updater}-tab —
+    // both fall back to the 'inventory-admin' super-gate (see InventoryServiceProvider). With
+    // no authenticated user, both deny and the component renders its "no permission" empty
+    // state instead of the order table, which is what was actually failing here (not a
+    // missing/misfiltered order).
+    Gate::define('inventory-admin', fn () => true);
+    test()->actingAs(new class() extends Authenticatable
+    {
+        protected $table = 'users';
+
+        public $id = 1;
+    });
+
     $warehouse = Warehouse::create([
         'code'         => 'W-DISPATCH-1',
         'name'         => 'Dispatch Warehouse',
@@ -88,8 +103,11 @@ it('updates dispatch terminal orders through livewire', function (): void {
         'exchange_rate'   => 1,
         'total_local'     => 100,
         'total_amount'    => 100,
-        'status'          => 'confirmed',
-        'ordered_at'      => now(),
+        // updateOrder() requires a DISPATCHABLE_STATUSES status (processing/partial/shipped/
+        // fulfilled) before it will accept a non-pre-reservation parcel_status like
+        // 'Dispatched' below — 'confirmed' (stock not yet reserved) would reject the update.
+        'status'     => 'processing',
+        'ordered_at' => now(),
     ]);
 
     SaleOrderItem::create([
@@ -112,7 +130,8 @@ it('updates dispatch terminal orders through livewire', function (): void {
         ->set("orderForms.{$saleOrder->id}.location", 'Hub A')
         ->call('updateOrder', $saleOrder->id)
         ->assertHasNoErrors()
-        ->assertSee('SO-DISPATCH-1 dispatch updated.');
+        // Success feedback is a dispatched Livewire browser event, not a rendered flash message.
+        ->assertDispatched('notify', type: 'success', message: 'SO-DISPATCH-1 dispatch updated.');
 
     expect($saleOrder->fresh()->status->value)->toBe('shipped');
 });

@@ -4394,10 +4394,15 @@ class Inventory
 
     /**
      * List customers with optional filters.
+     *
+     * Eager-loads 'media' — Customer's primary_image_url is an always-appended accessor
+     * (HasPrimaryImage::getPrimaryImageUrlAttribute() -> getFirstMediaUrl()) that otherwise
+     * lazy-loads the media relation once per customer, turning every call into an N+1.
      */
     public function listCustomers(bool $activeOnly = false, ?string $search = null): Collection
     {
         return Customer::query()
+            ->with('media')
             ->when($activeOnly, fn ($q) => $q->where('is_active', true))
             ->when($search, fn ($q) => $q->where(fn ($sq) => $sq->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%")))
             ->orderBy('name')
