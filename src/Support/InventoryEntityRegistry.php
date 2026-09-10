@@ -249,16 +249,19 @@ class InventoryEntityRegistry
                 'model'         => WarehouseProduct::class,
                 'search'        => ['bin_location'],
                 'index_columns' => ['warehouse_id', 'product_id', 'variant_id', 'sku', 'qty_on_hand', 'qty_reserved', 'net_saleable_stock', 'qty_in_transit', 'wac_amount', 'reorder_point'],
-                'form_fields'   => [
+                // qty_on_hand/qty_reserved/qty_in_transit are deliberately NOT editable here —
+                // every other place that changes them (GRN receipt, sale reservation/fulfillment,
+                // transfers, adjustments) does so through Inventory:: methods that lock the row
+                // and write a matching inv_stock_movements record; editing them through this
+                // generic CRUD form would silently desync the movement ledger from the actual
+                // balance. Use the Stock Adjustments flow to correct an on-hand quantity instead.
+                'form_fields' => [
                     self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . Warehouse::class . ',id'], null, Warehouse::class, 'name'),
                     self::field('product_id', 'select', ['required', 'integer', 'exists:' . Product::class . ',id'], null, Product::class, 'name'),
                     self::field('variant_id', 'select', ['nullable', 'integer', 'exists:' . ProductVariant::class . ',id'], null, ProductVariant::class, 'sku', label: 'Variant (leave blank for base product)'),
-                    self::field('qty_on_hand', 'number', ['required', 'numeric']),
-                    self::field('qty_reserved', 'number', ['required', 'numeric']),
-                    self::field('qty_in_transit', 'number', ['required', 'numeric']),
                     self::field('wac_amount', 'number', ['required', 'numeric', 'min:0']),
-                    self::field('reorder_point', 'number', ['nullable', 'numeric']),
-                    self::field('reorder_qty', 'number', ['nullable', 'numeric']),
+                    self::field('reorder_point', 'number', ['nullable', 'numeric', 'min:0']),
+                    self::field('reorder_qty', 'number', ['nullable', 'numeric', 'min:0']),
                     self::field('bin_location', 'text', ['nullable', 'string', 'max:100']),
                 ],
             ],
@@ -290,7 +293,7 @@ class InventoryEntityRegistry
     {
         $modelClass = self::modelClass($entity);
 
-        return new $modelClass;
+        return new $modelClass();
     }
 
     public static function validationRules(string $entity, ?Model $record = null, array $payload = []): array
@@ -444,7 +447,7 @@ class InventoryEntityRegistry
                 continue;
             }
 
-            $related = new $field['related_model'];
+            $related = new $field['related_model']();
             $query = $related->newQuery();
 
             if ($entity === 'customers' && $field['name'] === 'sales_owner_id') {

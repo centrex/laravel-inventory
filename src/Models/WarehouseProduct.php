@@ -61,6 +61,21 @@ class WarehouseProduct extends Model implements Auditable
         'reorder_qty'    => 'decimal:4',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (WarehouseProduct $stock): void {
+            $tolerance = (float) config('inventory.qty_tolerance', 0.0001);
+
+            foreach (['qty_on_hand', 'qty_reserved', 'qty_in_transit', 'qty_damaged', 'wac_amount', 'reorder_point', 'reorder_qty'] as $column) {
+                $value = $stock->getAttribute($column);
+
+                if ($value !== null && (float) $value < -$tolerance) {
+                    throw new \InvalidArgumentException("Warehouse stock [{$column}] cannot be negative (got {$value}).");
+                }
+            }
+        });
+    }
+
     public function warehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class);

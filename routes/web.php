@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
 use Centrex\Inventory\Http\Livewire\Agents\{AgentCustomerCreatePage, AgentCustomersPage, AgentDashboard, AgentFormPage, AgentIndexPage, AgentInvoicesPage, AgentSaleOrderFormPage, ProAnalyticsDashboard};
-use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseStockIndexPage};
+use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseProductMovementsPage, WarehouseStockIndexPage};
 use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ForecastReportPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +29,7 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         // Warehouse stock, products, customers, and suppliers have dedicated DataTable-backed
         // listings; create/edit stay on the generic entity form for all four.
         Route::get('/warehouse-products', WarehouseStockIndexPage::class)->name('entities.warehouse-products.index');
+        Route::get('/warehouse-products/{recordId}/movements', WarehouseProductMovementsPage::class)->name('entities.warehouse-products.movements')->whereNumber('recordId');
         Route::get('/products', ProductIndexPage::class)->name('entities.products.index');
         Route::get('/customers', CustomerIndexPage::class)->name('entities.customers.index');
         Route::get('/suppliers', SupplierIndexPage::class)->name('entities.suppliers.index');

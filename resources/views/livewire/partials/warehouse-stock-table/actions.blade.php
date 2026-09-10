@@ -1,4 +1,8 @@
 <div class="flex justify-end gap-1">
+    @can('inventory.reports.view')
+    <x-tallui-button icon="o-arrows-right-left" :link="route('inventory.entities.warehouse-products.movements', ['recordId' => $row->getKey()])" class="btn-ghost btn-xs" label="Movements" :responsive="true" wire:navigate />
+    @endcan
+
     @can('inventory.stock-data.audit')
     <x-tallui-button icon="o-clock" wire:click="$dispatch('warehouse-stock-table:audit', { id: {{ $row->getKey() }} })" class="btn-ghost btn-xs" label="Audit" :responsive="true" />
     @endcan

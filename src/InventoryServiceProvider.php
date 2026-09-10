@@ -393,8 +393,8 @@ class InventoryServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/config.php', 'inventory');
 
-        $this->app->singleton('inventory', fn () => new Inventory);
-        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration);
+        $this->app->singleton('inventory', fn () => new Inventory());
+        $this->app->singleton(ErpIntegration::class, fn () => new ErpIntegration());
 
         if (interface_exists(\Centrex\Accounting\Contracts\InventorySnapshotProvider::class)) {
             $this->app->bind(
@@ -423,6 +423,7 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-manage-user-access', Http\Livewire\Entities\ManageUserAccess::class);
         Livewire::component('inventory-warehouse-stock-index', Http\Livewire\Entities\WarehouseStockIndexPage::class);
         Livewire::component('inventory-warehouse-stock-table', Http\Livewire\Entities\WarehouseStockTable::class);
+        Livewire::component('inventory-warehouse-product-movements', Http\Livewire\Entities\WarehouseProductMovementsPage::class);
         Livewire::component('inventory-product-price-table', Http\Livewire\Entities\ProductPriceTable::class);
         Livewire::component('inventory-sale-order-index', Http\Livewire\Transactions\SaleOrderIndexPage::class);
         Livewire::component('inventory-sale-order-table', Http\Livewire\Transactions\SaleOrderTable::class);

@@ -1224,7 +1224,7 @@ class Inventory
                 $qtyBefore = (float) $wp->qty_on_hand;
 
                 if ($qtyBefore + $tolerance < $qtyGood) {
-                    throw new InsufficientStockException("Cannot void GRN #{$grnId} for product [{$item->product_id}] because only {$qtyBefore} units remain in stock.");
+                    throw new InsufficientStockException("Cannot void GRN #{$grn->id} for product [{$item->product_id}] because only {$qtyBefore} units remain in stock.");
                 }
 
                 $qtyAfter = $qtyBefore - $qtyGood;
@@ -1242,7 +1242,7 @@ class Inventory
                     $damagedAvailable = (float) $wp->qty_damaged;
 
                     if ($damagedAvailable + $tolerance < $qtyDamaged) {
-                        throw new InsufficientStockException("Cannot void GRN #{$grnId} for product [{$item->product_id}]: {$qtyDamaged} damaged units were received but only {$damagedAvailable} remain in the damaged bin (some may already be sold).");
+                        throw new InsufficientStockException("Cannot void GRN #{$grn->id} for product [{$item->product_id}]: {$qtyDamaged} damaged units were received but only {$damagedAvailable} remain in the damaged bin (some may already be sold).");
                     }
 
                     $wp->decrement('qty_damaged', $qtyDamaged);
