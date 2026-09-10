@@ -66,7 +66,7 @@ it('updates dispatch terminal orders through livewire', function (): void {
     // state instead of the order table, which is what was actually failing here (not a
     // missing/misfiltered order).
     Gate::define('inventory-admin', fn () => true);
-    test()->actingAs(new class() extends Authenticatable
+    test()->actingAs(new class extends Authenticatable
     {
         protected $table = 'users';
 
