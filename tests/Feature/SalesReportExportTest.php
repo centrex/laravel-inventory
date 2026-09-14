@@ -31,7 +31,7 @@ it('exports the sales report as one workbook with a tab per sale report section'
     $spreadsheet = IOFactory::load($tmpFile);
     @unlink($tmpFile);
 
-    expect($spreadsheet->getSheetNames())->toBe(['Sale Statistics', 'Recent Sales', 'Sold Products']);
+    expect($spreadsheet->getSheetNames())->toBe(['Sale Statistics', 'Recent Sales', 'Sold Products', 'Returned Products']);
 
     $statistics = $spreadsheet->getSheetByName('Sale Statistics');
     expect($statistics->getCell('A1')->getValue())->toBe('Metric')
@@ -42,4 +42,7 @@ it('exports the sales report as one workbook with a tab per sale report section'
 
     $soldProducts = $spreadsheet->getSheetByName('Sold Products');
     expect($soldProducts->getCell('A1')->getValue())->toBe('Product');
+
+    $returnedProducts = $spreadsheet->getSheetByName('Returned Products');
+    expect($returnedProducts->getCell('A1')->getValue())->toBe('Product');
 });

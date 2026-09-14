@@ -6,7 +6,7 @@ namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Http\Livewire\Transactions\Concerns\ScopesSalesReport;
 use Centrex\Inventory\Http\Livewire\Transactions\InventorySalesStatisticsCard;
-use Centrex\Inventory\Models\{Product, ProductVariant, SaleOrder, SaleOrderItem};
+use Centrex\Inventory\Models\{Product, ProductVariant, SaleOrder, SaleOrderItem, SaleReturnItem};
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -15,14 +15,15 @@ use ReflectionMethod;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
- * Exports SalesReportPage's three tabs (Sale Statistics / Recent Sales / Sold Products) as
- * one .xlsx, scoped to the same date/customer/product filters as the on-screen report — via
- * ScopesSalesReport, the same trait the three Livewire cards use, so the export's totals
- * agree with what the page shows for the same filters.
+ * Exports SalesReportPage's four tabs (Sale Statistics / Recent Sales / Sold Products /
+ * Returned Products) as one .xlsx, scoped to the same date/customer/product filters as the
+ * on-screen report — via ScopesSalesReport, the same trait the four Livewire cards use, so
+ * the export's totals agree with what the page shows for the same filters.
  *
- * "Recent Sales" and "Sold Products" pull the *full* matching dataset rather than the
- * capped on-screen rows (InventoryRecentSaleOrdersCard caps at 25, InventorySoldProductsCard
- * at 50) — same "export everything" convention as InventoryReportsExporter.
+ * "Recent Sales", "Sold Products" and "Returned Products" pull the *full* matching dataset
+ * rather than the capped on-screen rows (InventoryRecentSaleOrdersCard caps at 25,
+ * InventorySoldProductsCard/InventoryReturnedProductsCard at 50) — same "export everything"
+ * convention as InventoryReportsExporter.
  */
 final class SalesReportExcelExporter
 {
@@ -58,6 +59,7 @@ final class SalesReportExcelExporter
         $this->writeStatisticsSheet($spreadsheet, 0);
         $this->writeRecentSalesSheet($spreadsheet, 1);
         $this->writeSoldProductsSheet($spreadsheet, 2);
+        $this->writeReturnedProductsSheet($spreadsheet, 3);
 
         $spreadsheet->setActiveSheetIndex(0);
 
@@ -196,6 +198,62 @@ final class SalesReportExcelExporter
 
         self::writeSheet($spreadsheet, $index, 'Sold Products', [
             'Product', 'SKU', 'Qty Sold', 'Revenue', 'Orders', 'Cost', 'Profit', 'Margin %',
+        ], $rows);
+    }
+
+    /** Mirrors InventoryReturnedProductsCard::buildReturnedProductsReport() without its ->limit(50). */
+    private function writeReturnedProductsSheet(Spreadsheet $spreadsheet, int $index): void
+    {
+        $returnIds = $this->scopedReturnIds();
+
+        if ($returnIds->isEmpty()) {
+            self::writeSheet($spreadsheet, $index, 'Returned Products', [
+                'Product', 'SKU', 'Qty Returned', 'Return Value', 'Cost', 'Returns',
+            ], []);
+
+            return;
+        }
+
+        $items = SaleReturnItem::query()
+            ->whereIn('sale_return_id', $returnIds)
+            ->when($this->productId, fn ($query) => $query->where('product_id', $this->productId))
+            ->selectRaw('
+                product_id, variant_id,
+                SUM(qty_returned) as qty_returned,
+                SUM(line_total_amount) as value_local,
+                SUM(qty_returned * unit_cost_amount) as cost_amount,
+                COUNT(DISTINCT sale_return_id) as returns_count
+            ')
+            ->groupBy('product_id', 'variant_id')
+            ->orderByDesc('qty_returned')
+            ->get();
+
+        $productIds = $items->pluck('product_id')->filter()->unique();
+        $variantIds = $items->pluck('variant_id')->filter()->unique();
+
+        $products = $productIds->isEmpty()
+            ? collect()
+            : Product::query()->whereIn('id', $productIds)->get()->keyBy('id');
+        $variants = $variantIds->isEmpty()
+            ? collect()
+            : ProductVariant::query()->whereIn('id', $variantIds)->get()->keyBy('id');
+
+        $rows = $items->map(function (SaleReturnItem $row) use ($products, $variants): array {
+            $product = $products->get((int) $row->product_id);
+            $variant = $row->variant_id ? $variants->get((int) $row->variant_id) : null;
+
+            return [
+                $product?->name ?? $variant?->display_name ?? ('Product #' . $row->product_id),
+                $variant?->sku ?: $product?->sku,
+                round((float) $row->qty_returned, 2),
+                round((float) $row->value_local, 2),
+                round((float) $row->cost_amount, 2),
+                (int) $row->returns_count,
+            ];
+        })->all();
+
+        self::writeSheet($spreadsheet, $index, 'Returned Products', [
+            'Product', 'SKU', 'Qty Returned', 'Return Value', 'Cost', 'Returns',
         ], $rows);
     }
 

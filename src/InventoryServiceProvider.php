@@ -451,6 +451,7 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-sales-statistics-card', Http\Livewire\Transactions\InventorySalesStatisticsCard::class);
         Livewire::component('inventory-recent-sale-orders-card', Http\Livewire\Transactions\InventoryRecentSaleOrdersCard::class);
         Livewire::component('inventory-sold-products-card', Http\Livewire\Transactions\InventorySoldProductsCard::class);
+        Livewire::component('inventory-returned-products-card', Http\Livewire\Transactions\InventoryReturnedProductsCard::class);
         Livewire::component('inventory-purchase-report', Http\Livewire\Transactions\PurchaseReportPage::class);
         Livewire::component('inventory-stock-report', Http\Livewire\Transactions\StockReportPage::class);
         Livewire::component('inventory-low-stock-card', Http\Livewire\Transactions\InventoryLowStockCard::class);
