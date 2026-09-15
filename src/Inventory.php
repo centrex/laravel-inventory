@@ -7,7 +7,7 @@ namespace Centrex\Inventory;
 use Carbon\Carbon;
 use Centrex\Accounting\Models\{Bill, Invoice};
 use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, SaleOrderStatus, ShipmentStatus, StockReceiptStatus, TransferStatus};
-use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException, StaleExchangeRateException};
+use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
 use Centrex\Inventory\Jobs\{PostStockReceiptAccountingEntryJob, SyncPurchaseOrderAccountingDocumentJob, SyncSaleOrderAccountingDocumentJob, VoidStockReceiptAccountingEntryJob};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentBox, ShipmentBoxItem, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, InventoryEntityRegistry, SalesTargetCalculator};
@@ -108,10 +108,10 @@ class Inventory
         try {
             return $this->resolveStoredExchangeRate($currency, $baseCurrency, $anchorCurrency, $date);
         } catch (\RuntimeException $e) {
-            // Covers both "nothing in the database at all" and "found but stale"
-            // (StaleExchangeRateException extends RuntimeException) — in either case a live
-            // refresh is worth trying before giving up; it's precisely the fix for the case the
-            // staleness guard exists to catch. allowLiveFetch: false on the retry stops recursion.
+            // Reaching here means nothing usable is in the database at all (a stored-but-stale
+            // rate is used as-is by resolveStoredExchangeRate() below, not treated as missing —
+            // see warnIfRateStale()) — a live API call is only worth its latency for a genuinely
+            // unknown currency. allowLiveFetch: false on the retry stops recursion.
             if ($allowLiveFetch && $this->fetchLiveExchangeRate($currency, $baseCurrency, $anchorCurrency, $date)) {
                 return $this->resolveExchangeRate($currency, $date, allowLiveFetch: false);
             }
@@ -120,7 +120,7 @@ class Inventory
         }
     }
 
-    /** @throws \RuntimeException|StaleExchangeRateException */
+    /** @throws \RuntimeException */
     private function resolveStoredExchangeRate(string $currency, string $baseCurrency, string $anchorCurrency, string $date): float
     {
         $asOf = Carbon::parse($date)->endOfDay();
@@ -129,7 +129,7 @@ class Inventory
         $direct = $this->lookupExchangeRate($baseCurrency, $currency, $asOf);
 
         if ($direct !== null) {
-            $this->assertRateFresh($currency, $asOf, $direct['date']);
+            $this->warnIfRateStale($currency, $asOf, $direct['date']);
 
             return $direct['rate'];
         }
@@ -138,7 +138,7 @@ class Inventory
         $reversed = $this->lookupExchangeRate($currency, $baseCurrency, $asOf);
 
         if ($reversed !== null) {
-            $this->assertRateFresh($currency, $asOf, $reversed['date']);
+            $this->warnIfRateStale($currency, $asOf, $reversed['date']);
 
             return $reversed['rate'];
         }
@@ -147,7 +147,7 @@ class Inventory
 
         // 3. Currency IS the anchor (e.g. asking for USD when anchor is USD)
         if ($currency === $anchorCurrency && $anchorToBase !== null) {
-            $this->assertRateFresh($currency, $asOf, $anchorToBase['date']);
+            $this->warnIfRateStale($currency, $asOf, $anchorToBase['date']);
 
             return $anchorToBase['rate'];
         }
@@ -158,7 +158,7 @@ class Inventory
         if ($anchorToBase !== null && $anchorToCurrency !== null && $anchorToCurrency['rate'] != 0.0) {
             // A cross-rate is only as fresh as whichever of its two legs is older.
             $staleAsOf = $anchorToBase['date']->lessThan($anchorToCurrency['date']) ? $anchorToBase['date'] : $anchorToCurrency['date'];
-            $this->assertRateFresh($currency, $asOf, $staleAsOf);
+            $this->warnIfRateStale($currency, $asOf, $staleAsOf);
 
             return round($anchorToBase['rate'] / $anchorToCurrency['rate'], 8);
         }
@@ -210,13 +210,16 @@ class Inventory
     }
 
     /**
-     * Guard against silently converting at a rate older than INVENTORY_EXCHANGE_RATE_STALE_DAYS
+     * Warn (without blocking) when a stored rate is older than INVENTORY_EXCHANGE_RATE_STALE_DAYS
      * (default 1 day) — e.g. because the daily `inventory:sync-exchange-rates` job stopped
-     * running. Without this, PO/SO currency conversion would keep using an increasingly outdated
-     * rate with no warning. A threshold of 0 disables the check (matches this codebase's existing
-     * "0 = off" convention for other tolerances).
+     * running. The stored rate is still used: a stale-but-present rate resolves from the
+     * database immediately rather than falling through to a live API call, since blocking a
+     * sale/purchase order request on third-party API latency is worse than converting at a
+     * rate that's a day or two old — this log line is the only signal an operator needs to
+     * notice and fix the sync job. A threshold of 0 disables the check (matches this
+     * codebase's existing "0 = off" convention for other tolerances).
      */
-    private function assertRateFresh(string $currency, Carbon $asOf, Carbon $rateDate): void
+    private function warnIfRateStale(string $currency, Carbon $asOf, Carbon $rateDate): void
     {
         $staleDays = (int) config('inventory.exchange_rate_stale_days', 1);
 
@@ -227,8 +230,9 @@ class Inventory
         $ageInDays = $rateDate->diffInDays($asOf);
 
         if ($ageInDays > $staleDays) {
-            throw new StaleExchangeRateException(
-                "Exchange rate for [{$currency}] is {$ageInDays} day(s) old (last updated {$rateDate->toDateString()}), exceeding the configured staleness limit of {$staleDays} day(s). Run `php artisan inventory:sync-exchange-rates` to refresh rates, or raise INVENTORY_EXCHANGE_RATE_STALE_DAYS if this is expected.",
+            logger()->warning(
+                "Exchange rate for [{$currency}] is {$ageInDays} day(s) old (last updated {$rateDate->toDateString()}), exceeding the configured staleness limit of {$staleDays} day(s). Using it anyway rather than blocking on a live API call. Run `php artisan inventory:sync-exchange-rates` to refresh rates, or raise INVENTORY_EXCHANGE_RATE_STALE_DAYS if this is expected.",
+                ['currency' => $currency, 'age_in_days' => $ageInDays, 'rate_date' => $rateDate->toDateString()],
             );
         }
     }
@@ -265,7 +269,7 @@ class Inventory
 
     /**
      * Return the most-recent stored rate for (base, currency) on or before $asOf, along with the
-     * date it was recorded under (needed by assertRateFresh()), or null if not found.
+     * date it was recorded under (needed by warnIfRateStale()), or null if not found.
      *
      * @return array{rate: float, date: Carbon}|null
      */
@@ -2035,38 +2039,59 @@ class Inventory
     private function reserveStockItems(SaleOrder $so): void
     {
         $items = $so->items()->lockForUpdate()->get();
-        $warehouseProducts = [];
         $requested = [];
-        $shortages = [];
+        $pairs = [];
 
         foreach ($items as $item) {
             $key = "{$item->product_id}:{$item->variant_id}";
 
-            if (!isset($warehouseProducts[$key])) {
-                $wp = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
-                    ->where('product_id', $item->product_id)
-                    ->where('variant_id', $item->variant_id)
-                    ->lockForUpdate()
-                    ->first();
-
-                // Auto-create the warehouse product record if it has never been stocked here.
-                if (!$wp) {
-                    $wp = WarehouseProduct::create([
-                        'warehouse_id' => $so->warehouse_id,
-                        'product_id'   => $item->product_id,
-                        'variant_id'   => $item->variant_id,
-                        'qty_on_hand'  => 0,
-                        'qty_reserved' => 0,
-                        'wac_amount'   => 0,
-                    ]);
-                }
-
-                $warehouseProducts[$key] = $wp;
+            if (!isset($requested[$key])) {
+                $pairs[$key] = [$item->product_id, $item->variant_id];
                 $requested[$key] = 0.0;
             }
 
             $requested[$key] += (float) $item->qty_ordered;
         }
+
+        if ($pairs === []) {
+            return;
+        }
+
+        // One locked query for every distinct product/variant on this order, instead of a
+        // lockForUpdate()->first() per line inside the loop above. Under concurrent
+        // checkouts for the same hot-selling products, N separate per-row lock-acquisition
+        // round trips serialized requests behind one another one row at a time; a single
+        // batched query still locks exactly the same rows (no more, no less — the grouped
+        // orWhere below matches only the requested product+variant pairs, not every variant
+        // of a product) but does it in one round trip.
+        $warehouseProducts = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
+            ->where(function ($query) use ($pairs): void {
+                foreach ($pairs as [$productId, $variantId]) {
+                    $query->orWhere(function ($q) use ($productId, $variantId): void {
+                        $q->where('product_id', $productId);
+                        $variantId === null ? $q->whereNull('variant_id') : $q->where('variant_id', $variantId);
+                    });
+                }
+            })
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn (WarehouseProduct $wp): string => "{$wp->product_id}:{$wp->variant_id}");
+
+        // Auto-create warehouse product records for anything never stocked at this warehouse.
+        foreach ($pairs as $key => [$productId, $variantId]) {
+            if (!$warehouseProducts->has($key)) {
+                $warehouseProducts[$key] = WarehouseProduct::create([
+                    'warehouse_id' => $so->warehouse_id,
+                    'product_id'   => $productId,
+                    'variant_id'   => $variantId,
+                    'qty_on_hand'  => 0,
+                    'qty_reserved' => 0,
+                    'wac_amount'   => 0,
+                ]);
+            }
+        }
+
+        $shortages = [];
 
         foreach ($warehouseProducts as $key => $wp) {
             $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
