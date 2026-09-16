@@ -8,6 +8,9 @@
         <x-tallui-badge type="warning" size="sm">Refundable</x-tallui-badge>
         <div class="text-xs font-mono text-base-content/70 mt-0.5">{{ number_format((float) $memo->refundable_amount, 2) }}</div>
     </div>
+@elseif (in_array($memo->status->value, ['issued', 'partially_refunded'], true))
+    {{-- Invoice hasn't been paid (enough) yet, so there's no cash to hand back --}}
+    <x-tallui-badge type="neutral" size="sm">Issued</x-tallui-badge>
 @elseif ($memo->status->value === 'refunded')
     <x-tallui-badge type="success" size="sm">Refunded</x-tallui-badge>
 @elseif ($memo->status->value === 'void')

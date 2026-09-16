@@ -18,6 +18,8 @@ enum OrderRole: string
     /** Placed directly by a customer through the mobile app — no agent involved. */
     case USER_APP = 'user_app';
 
+    case WEBHOOK = 'webhook';
+
     public function label(): string
     {
         return match ($this) {
@@ -25,6 +27,7 @@ enum OrderRole: string
             self::AGENT_B2C => 'Agent (Customer Invoice)',
             self::AGENT_B2B => 'Agent (Cost Order)',
             self::USER_APP  => 'Mobile App',
+            self::WEBHOOK   => 'Webhook',
         };
     }
 
