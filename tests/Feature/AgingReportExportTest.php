@@ -42,8 +42,10 @@ it('exports the stock aging tab as its own .xlsx respecting the warehouse filter
 
     $response = $component->exportExcel();
 
+    // No charset suffix: Symfony's Response::prepare() only auto-appends "; charset=" for
+    // text/* content types, and this is a binary xlsx MIME type.
     expect($response->headers->get('Content-Type'))
-        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=UTF-8')
+        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         ->and($response->headers->get('Content-Disposition'))
         ->toContain('stock-aging-')
         ->toContain('.xlsx');
@@ -80,8 +82,10 @@ it('exports the due aging tab as its own .xlsx respecting the fromDate filter', 
 
     $response = $component->exportExcel();
 
+    // No charset suffix: Symfony's Response::prepare() only auto-appends "; charset=" for
+    // text/* content types, and this is a binary xlsx MIME type.
     expect($response->headers->get('Content-Type'))
-        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=UTF-8')
+        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         ->and($response->headers->get('Content-Disposition'))
         ->toContain('due-aging-')
         ->toContain('.xlsx');

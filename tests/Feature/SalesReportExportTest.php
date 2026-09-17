@@ -16,8 +16,11 @@ it('exports the sales report as one workbook with a tab per sale report section'
 
     $response = $page->exportExcel();
 
+    // No charset suffix: Symfony's Response::prepare() only auto-appends "; charset=" for
+    // text/* content types, and this is a binary xlsx MIME type — SalesReportExcelExporter
+    // sets it exactly this way (see Support/SalesReportExcelExporter.php).
     expect($response->headers->get('Content-Type'))
-        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=UTF-8')
+        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         ->and($response->headers->get('Content-Disposition'))
         ->toContain('sales-report-')
         ->toContain('.xlsx');

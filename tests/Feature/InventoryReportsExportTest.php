@@ -16,8 +16,10 @@ it('exports every report as one multi-sheet workbook with a Summary tab plus one
 
     $response = $component->exportAll();
 
+    // No charset suffix: Symfony's Response::prepare() only auto-appends "; charset=" for
+    // text/* content types, and this is a binary xlsx MIME type.
     expect($response->headers->get('Content-Type'))
-        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=UTF-8')
+        ->toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         ->and($response->headers->get('Content-Disposition'))
         ->toContain('inventory-reports-')
         ->toContain('.xlsx');

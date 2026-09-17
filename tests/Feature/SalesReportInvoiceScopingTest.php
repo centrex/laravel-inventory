@@ -94,11 +94,13 @@ it('scopes invoice paid/due totals to the selected customer, not every invoice i
 
     $invoiceClass = 'Centrex\\Accounting\\Models\\Invoice';
     $invoiceA = $invoiceClass::findOrFail($orderA->fresh()->accounting_invoice_id);
-    $invoiceB = $invoiceClass::findOrFail($orderB->fresh()->accounting_invoice_id);
 
     $accounting = app('accounting');
-    $accounting->postInvoice($invoiceA);
-    $accounting->postInvoice($invoiceB);
+
+    // fulfillSaleOrder() already syncs and posts each order's invoice itself
+    // (ErpIntegration::postSaleOrderInvoice() — fulfillment is the revenue-recognition
+    // trigger), so both invoices are already posted here; posting them again throws
+    // InvalidStatusTransitionException (same reasoning as InvoicePaymentRequiresFulfillmentTest).
 
     // Fully pay A's invoice, leave B's untouched — so paid/due clearly differ per customer.
     $accounting->recordInvoicePayment($invoiceA->fresh(), [
