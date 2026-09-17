@@ -1,6 +1,285 @@
 parameters:
 	ignoreErrors:
 		-
+			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Expense\\:\\:\\$expense_number\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ExpenseFormPage.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\ExpenseFormPage\\:\\:save\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ExpenseFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Expense\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Accounting\\\\Models\\\\Expense, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ExpenseFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Account\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Accounting\\\\Models\\\\Account, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Account\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Accounting\\\\Models\\\\Account, 'is_active' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ExpenseFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Account\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Account\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Account, array\\<int, string\\> given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ExpenseFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Expense, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Expense, 'direction' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/ExpenseIndexPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\PurchaseOrder\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\PurchaseOrder\\>\\:\\:\\$accounting_bill_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/PaymentFormPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\|Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>\\:\\:\\$accounting_invoice_id\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/PaymentFormPage.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Http\\\\Livewire\\\\Transactions\\\\PaymentFormPage\\:\\:save\\(\\) has no return type specified\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/PaymentFormPage.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Payment, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Payment, 'direction' given\\.$#"
+			count: 1
+			path: src/Http/Livewire/Transactions/PaymentIndexPage.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:\\$paid_amount\\.$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:\\$total\\.$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:__construct\\(\\) has parameter \\$attributes with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:customer\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:purchaseOrder\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:saleOrder\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:supplier\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Expense\\:\\:warehouse\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Parameter \\#1 \\$name of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:setConnection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 1
+			path: src/Models/Expense.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Payment\\:\\:__construct\\(\\) has parameter \\$attributes with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Payment\\:\\:customer\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Payment\\:\\:purchaseOrder\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Payment\\:\\:saleOrder\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Payment\\:\\:supplier\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Models\\\\Payment\\:\\:warehouse\\(\\) return type with generic class Illuminate\\\\Database\\\\Eloquent\\\\Relations\\\\BelongsTo does not specify its types\\: TRelatedModel, TDeclaringModel$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Parameter \\#1 \\$name of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:setConnection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 1
+			path: src/Models/Payment.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$account\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$account_id\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$chargeable_id\\.$#"
+			count: 3
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$chargeable_type\\.$#"
+			count: 2
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$currency\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$due_date\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$expense_date\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$expense_number\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$id\\.$#"
+			count: 3
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$notes\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$payment_method\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$reference\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$status\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$vendor_name\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\:\\:updateOrCreate\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Expense, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Expense, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Expense, 'accounting_expense…' given\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Expense, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Expense\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Expense, 'accounting_expense…' given\\.$#"
+			count: 1
+			path: src/Observers/ExpenseMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$amount\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$id\\.$#"
+			count: 3
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$notes\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$payable_id\\.$#"
+			count: 3
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$payable_type\\.$#"
+			count: 2
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$payment_date\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$payment_method\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$payment_number\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Access to an undefined property object\\:\\:\\$reference\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\:\\:updateOrCreate\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Payment, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Payment, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Payment, 'accounting_payment…' given\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Payment, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Payment\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Payment, 'accounting_payment…' given\\.$#"
+			count: 1
+			path: src/Observers/PaymentMirrorObserver.php
+		-
+			message: "#^Parameter \\#1 \\$name of static method Illuminate\\\\Support\\\\Facades\\\\Schema\\:\\:connection\\(\\) expects string\\|null, mixed given\\.$#"
+			count: 4
+			path: database/migrations/2026_09_17_000001_create_payments_and_expenses_tables.php
+
+		-
 			message: "#^Parameter \\#1 \\$name of static method Illuminate\\\\Support\\\\Facades\\\\Schema\\:\\:connection\\(\\) expects string\\|null, mixed given\\.$#"
 			count: 42
 			path: database/migrations/2026_01_01_000001_create_inventory_tables.php
@@ -6911,39 +7190,9 @@ parameters:
 			path: src/InventoryServiceProvider.php
 
 		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Invoice\\:\\:\\$paid_amount\\.$#"
-			count: 2
-			path: src/Jobs/RecalculateCustomerCreditExposureJob.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Invoice\\:\\:\\$total\\.$#"
-			count: 1
-			path: src/Jobs/RecalculateCustomerCreditExposureJob.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Invoice, array\\<int, string\\> given\\.$#"
-			count: 1
-			path: src/Jobs/RecalculateCustomerCreditExposureJob.php
-
-		-
 			message: "#^Parameter \\#1 \\$key of method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),Centrex\\\\Accounting\\\\Models\\\\Invoice\\>\\:\\:get\\(\\) expects \\(int\\|string\\), int\\|null given\\.$#"
 			count: 1
 			path: src/Jobs/RecalculateCustomerCreditExposureJob.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Bill\\:\\:\\$paid_amount\\.$#"
-			count: 2
-			path: src/Jobs/RecalculateSupplierCreditExposureJob.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\Bill\\:\\:\\$total\\.$#"
-			count: 1
-			path: src/Jobs/RecalculateSupplierCreditExposureJob.php
-
-		-
-			message: "#^Parameter \\#1 \\$columns of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Accounting\\\\Models\\\\Bill\\>\\:\\:get\\(\\) expects array\\<int, model property of Centrex\\\\Accounting\\\\Models\\\\Bill\\>\\|model property of Centrex\\\\Accounting\\\\Models\\\\Bill, array\\<int, string\\> given\\.$#"
-			count: 1
-			path: src/Jobs/RecalculateSupplierCreditExposureJob.php
 
 		-
 			message: "#^Parameter \\#1 \\$key of method Illuminate\\\\Support\\\\Collection\\<\\(int\\|string\\),Centrex\\\\Accounting\\\\Models\\\\Bill\\>\\:\\:get\\(\\) expects \\(int\\|string\\), int\\|null given\\.$#"
@@ -8606,16 +8855,6 @@ parameters:
 			path: src/Observers/BillPaymentObserver.php
 
 		-
-			message: "#^Access to an undefined property object\\:\\:\\$paid_amount\\.$#"
-			count: 2
-			path: src/Observers/BillPaymentObserver.php
-
-		-
-			message: "#^Access to an undefined property object\\:\\:\\$total\\.$#"
-			count: 1
-			path: src/Observers/BillPaymentObserver.php
-
-		-
 			message: "#^Call to an undefined method object\\:\\:isDirty\\(\\)\\.$#"
 			count: 1
 			path: src/Observers/BillPaymentObserver.php
@@ -9292,12 +9531,12 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property object\\:\\:\\$balance\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/ErpIntegration.php
 
 		-
 			message: "#^Access to an undefined property object\\:\\:\\$paid_amount\\.$#"
-			count: 1
+			count: 2
 			path: src/Support/ErpIntegration.php
 
 		-

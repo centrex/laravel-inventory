@@ -5,7 +5,7 @@ declare(strict_types = 1);
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
 use Centrex\Inventory\Http\Livewire\Agents\{AgentCustomerCreatePage, AgentCustomersPage, AgentDashboard, AgentFormPage, AgentIndexPage, AgentInvoicesPage, AgentSaleOrderFormPage, ProAnalyticsDashboard};
 use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseProductMovementsPage, WarehouseStockIndexPage};
-use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ForecastReportPage, InventoryReportsPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
+use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ExpenseFormPage, ExpenseIndexPage, ForecastReportPage, InventoryReportsPage, PaymentFormPage, PaymentIndexPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -98,4 +98,13 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/agents/{agentId}/customers/create', AgentCustomerCreatePage::class)->name('agents.customers.create');
         Route::get('/agents/{agentId}/invoices', AgentInvoicesPage::class)->name('agents.invoices');
         Route::get('/agent-orders/create', AgentSaleOrderFormPage::class)->name('agent-orders.create');
+
+        // Payments & expenses — off by default (see inventory.payments_ui.enabled); the
+        // inv_payments/inv_expenses sync itself runs regardless of this flag.
+        if ((bool) config('inventory.payments_ui.enabled', false)) {
+            Route::get('/payments', PaymentIndexPage::class)->name('payments.index');
+            Route::get('/payments/create', PaymentFormPage::class)->name('payments.create');
+            Route::get('/expenses', ExpenseIndexPage::class)->name('expenses.index');
+            Route::get('/expenses/create', ExpenseFormPage::class)->name('expenses.create');
+        }
     });

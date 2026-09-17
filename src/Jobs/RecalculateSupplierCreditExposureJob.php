@@ -6,8 +6,9 @@ namespace Centrex\Inventory\Jobs;
 
 use Centrex\Inventory\Facades\Inventory;
 use Centrex\Inventory\Models\Supplier;
+use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\{ShouldBeUnique, ShouldQueue};
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\{InteractsWithQueue, SerializesModels};
 use Illuminate\Support\Facades\Log;
@@ -18,15 +19,25 @@ use Illuminate\Support\Facades\Log;
  *
  * Dispatch this after any payment affecting the supplier, or on demand to
  * repair drift (e.g. after manual DB edits or a missed observer run).
+ *
+ * ShouldBeUnique: see RecalculateCustomerCreditExposureJob — BillPaymentObserver and
+ * PaymentMirrorObserver can both dispatch this for the same underlying payment.
  */
-class RecalculateSupplierCreditExposureJob implements ShouldQueue
+class RecalculateSupplierCreditExposureJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
 
+    public int $uniqueFor = 60;
+
     public function __construct(public readonly int $supplierId) {}
+
+    public function uniqueId(): string
+    {
+        return (string) $this->supplierId;
+    }
 
     public function handle(): void
     {
@@ -48,10 +59,15 @@ class RecalculateSupplierCreditExposureJob implements ShouldQueue
             return;
         }
 
+        // Full models, not a lean column select: Bill::$balance (used below via
+        // resyncPurchaseOrderDueAmount()) is a computed accessor that queries the bill's own
+        // expenses() relation, so it needs a real Bill instance to call on.
         $bills = \Centrex\Accounting\Models\Bill::query()
             ->whereIn('id', $purchaseOrders->pluck('accounting_bill_id'))
-            ->get(['id', 'total', 'paid_amount', 'exchange_rate'])
+            ->get()
             ->keyBy('id');
+
+        $erp = app(ErpIntegration::class);
 
         foreach ($purchaseOrders as $purchaseOrder) {
             $bill = $bills->get($purchaseOrder->accounting_bill_id);
@@ -60,12 +76,12 @@ class RecalculateSupplierCreditExposureJob implements ShouldQueue
                 continue;
             }
 
-            $rate = (float) ($bill->exchange_rate ?? 1.0);
-
-            $purchaseOrder->updateQuietly([
-                'paid_amount' => round(max(0.0, (float) $bill->paid_amount * $rate), 4),
-                'due_amount'  => round(max(0.0, ((float) $bill->total - (float) $bill->paid_amount) * $rate), 4),
-            ]);
+            // Same formula BillPaymentObserver::updated() uses — total-paid_amount alone
+            // ignores AP-reducing discounts (see Bill::$balance), which previously let this
+            // job clobber a correct discount-adjusted due_amount with an inflated one on
+            // every recalculation run (mirrors the sale-side bug in
+            // RecalculateCustomerCreditExposureJob).
+            $erp->resyncPurchaseOrderDueAmount($purchaseOrder, $bill);
         }
 
         $snapshot = Inventory::supplierCreditSnapshot($this->supplierId);

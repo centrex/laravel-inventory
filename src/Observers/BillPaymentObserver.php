@@ -6,6 +6,7 @@ namespace Centrex\Inventory\Observers;
 
 use Centrex\Inventory\Jobs\RecalculateSupplierCreditExposureJob;
 use Centrex\Inventory\Models\PurchaseOrder;
+use Centrex\Inventory\Support\ErpIntegration;
 
 class BillPaymentObserver
 {
@@ -21,17 +22,15 @@ class BillPaymentObserver
             return;
         }
 
-        // $bill->total/paid_amount are already in base currency (see
-        // ErpIntegration::syncPurchaseOrderDocument()), same as PurchaseOrder::due_amount/paid_amount —
-        // no rate conversion needed here (multiplying by exchange_rate again double-converts).
-        $paid = round(max(0.0, (float) $bill->paid_amount), 4);
-        $due = round(max(0.0, (float) $bill->total - (float) $bill->paid_amount), 4);
+        // Delegate to ErpIntegration::resyncPurchaseOrderDueAmount() rather than recomputing
+        // total-paid_amount here: that formula ignores AP-reducing discounts (see Bill::$balance),
+        // so a payment recorded after a purchase discount silently overwrote the discount's
+        // due_amount reduction with a stale value (the same bug this mirrors on the sale side —
+        // see InvoicePaymentObserver).
+        $erp = app(ErpIntegration::class);
 
         foreach ($purchaseOrders as $purchaseOrder) {
-            $purchaseOrder->updateQuietly([
-                'paid_amount' => $paid,
-                'due_amount'  => $due,
-            ]);
+            $erp->resyncPurchaseOrderDueAmount($purchaseOrder, $bill);
         }
 
         $purchaseOrders->pluck('supplier_id')->unique()->each(

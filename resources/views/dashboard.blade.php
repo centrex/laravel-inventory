@@ -34,6 +34,16 @@
         @can('inventory.master-data.view')
         <x-tallui-button label="Warehouse Stocks" icon="o-cube" :link="route('inventory.entities.warehouse-products.index')" class="btn-outline btn-sm" />
         @endcan
+        @if (Route::has('inventory.payments.index'))
+        @can('inventory.payments.view')
+        <x-tallui-button label="Payments" icon="o-banknotes" :link="route('inventory.payments.index')" class="btn-outline btn-sm" />
+        @endcan
+        @endif
+        @if (Route::has('inventory.expenses.index'))
+        @can('inventory.expenses.view')
+        <x-tallui-button label="Expenses" icon="o-receipt-percent" :link="route('inventory.expenses.index')" class="btn-outline btn-sm" />
+        @endcan
+        @endif
         @if ($canViewForecast)
         <x-tallui-button label="Reports" icon="o-chart-bar" :link="route('inventory.reports.index')" class="btn-outline btn-sm" />
         @endif

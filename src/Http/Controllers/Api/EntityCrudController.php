@@ -13,10 +13,17 @@ use Illuminate\Support\Facades\{Gate, Validator};
 
 class EntityCrudController extends Controller
 {
-    public function index(Request $request, string $entity): JsonResponse
+    // 'entity' and 'recordId' are read from the route rather than taken as typed method
+    // parameters. These routes bind 'entity' via ->defaults('entity', ...) rather than a URI
+    // wildcard, so it lands after 'recordId' in $route->parametersWithoutNulls(); Laravel's
+    // ControllerDispatcher fills scalar (non-class) method parameters positionally from that
+    // array, so an (Request $request, string $entity, string $recordId) signature would
+    // actually receive them swapped. Pulling both by name from the route sidesteps that.
+    public function index(Request $request): JsonResponse
     {
         Gate::authorize('inventory.master-data.view');
 
+        $entity = $this->entity($request);
         $model = InventoryEntityRegistry::makeModel($entity);
         $query = $model->newQuery();
 
@@ -36,19 +43,20 @@ class EntityCrudController extends Controller
         );
     }
 
-    public function show(string $entity, int $recordId): JsonResponse
+    public function show(Request $request): JsonResponse
     {
         Gate::authorize('inventory.master-data.view');
 
-        $record = $this->findRecord($entity, $recordId);
+        $record = $this->findRecord($this->entity($request), $this->recordId($request));
 
         return response()->json($record);
     }
 
-    public function store(Request $request, string $entity): JsonResponse
+    public function store(Request $request): JsonResponse
     {
         Gate::authorize('inventory.master-data.manage');
 
+        $entity = $this->entity($request);
         $model = InventoryEntityRegistry::makeModel($entity);
         $payload = InventoryEntityRegistry::fillablePayload($entity, $request->all(), forCreate: true);
         $validator = Validator::make($payload, InventoryEntityRegistry::validationRules($entity, null, $payload));
@@ -61,11 +69,12 @@ class EntityCrudController extends Controller
         return response()->json($record->fresh(), 201);
     }
 
-    public function update(Request $request, string $entity, int $recordId): JsonResponse
+    public function update(Request $request): JsonResponse
     {
         Gate::authorize('inventory.master-data.manage');
 
-        $record = $this->findRecord($entity, $recordId);
+        $entity = $this->entity($request);
+        $record = $this->findRecord($entity, $this->recordId($request));
         $payload = InventoryEntityRegistry::fillablePayload($entity, $request->all());
         $validator = Validator::make($payload, InventoryEntityRegistry::validationRules($entity, $record, $payload));
         $validator->validate();
@@ -75,16 +84,27 @@ class EntityCrudController extends Controller
         return response()->json($record->fresh());
     }
 
-    public function destroy(string $entity, int $recordId): JsonResponse
+    public function destroy(Request $request): JsonResponse
     {
         Gate::authorize('inventory.master-data.manage');
 
-        $record = $this->findRecord($entity, $recordId);
+        $entity = $this->entity($request);
+        $record = $this->findRecord($entity, $this->recordId($request));
         $record->delete();
 
         return response()->json([
             'message' => Str::headline($entity) . ' deleted.',
         ]);
+    }
+
+    private function entity(Request $request): string
+    {
+        return (string) $request->route('entity');
+    }
+
+    private function recordId(Request $request): int
+    {
+        return (int) $request->route('recordId');
     }
 
     private function findRecord(string $entity, int $recordId): Model

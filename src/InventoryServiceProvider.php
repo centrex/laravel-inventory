@@ -7,7 +7,7 @@ namespace Centrex\Inventory;
 use Centrex\Inventory\Commands\{InventoryCommand, SnapshotTrendsCommand, SyncExchangeRatesCommand};
 use Centrex\Inventory\Listeners\ReconcileSaleReturnCreditMemos;
 use Centrex\Inventory\Models\{Customer, SaleOrder, Supplier};
-use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, InvoiceDiscountObserver, InvoicePaymentObserver, PairedOrderObserver, SupplierObserver};
+use Centrex\Inventory\Observers\{BillPaymentObserver, CustomerObserver, ExpenseMirrorObserver, InvoiceDiscountObserver, InvoicePaymentObserver, PairedOrderObserver, PaymentMirrorObserver, SupplierObserver};
 use Centrex\Inventory\Support\{AccountingInventorySnapshotProvider, ErpIntegration};
 use Illuminate\Support\Facades\{Blade, Event, Gate};
 use Illuminate\Support\ServiceProvider;
@@ -48,10 +48,15 @@ class InventoryServiceProvider extends ServiceProvider
 
             if (class_exists(\Centrex\Accounting\Models\Expense::class)) {
                 \Centrex\Accounting\Models\Expense::observe(InvoiceDiscountObserver::class);
+                \Centrex\Accounting\Models\Expense::observe(ExpenseMirrorObserver::class);
             }
 
             if (class_exists(\Centrex\Accounting\Models\Bill::class)) {
                 \Centrex\Accounting\Models\Bill::observe(BillPaymentObserver::class);
+            }
+
+            if (class_exists(\Centrex\Accounting\Models\Payment::class)) {
+                \Centrex\Accounting\Models\Payment::observe(PaymentMirrorObserver::class);
             }
 
             if (class_exists(\Centrex\Accounting\Events\InvoicePosted::class)) {
@@ -173,6 +178,13 @@ class InventoryServiceProvider extends ServiceProvider
             'inventory.customers.view',
             'inventory.invoices.view',
             'inventory.agent-orders.create',
+
+            // Payments & expenses (gated off entirely unless inventory.payments_ui.enabled —
+            // see routes/web.php)
+            'inventory.payments.view',
+            'inventory.payments.manage',
+            'inventory.expenses.view',
+            'inventory.expenses.manage',
         ];
 
         // Partner back-office gates: granted to users with a partner role.

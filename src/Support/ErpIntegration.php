@@ -1039,6 +1039,22 @@ class ErpIntegration
     }
 
     /**
+     * Purchase-side counterpart to resyncSaleOrderDueAmount() — same reasoning applies:
+     * Bill::$balance nets out AP-reducing discounts (accounts 5500-5504), which
+     * total-paid_amount alone ignores.
+     */
+    public function resyncPurchaseOrderDueAmount(PurchaseOrder $purchaseOrder, object $bill): void
+    {
+        $due = round((float) $bill->balance, 4);
+        $paid = round(max(0.0, (float) $bill->paid_amount), 4);
+
+        $purchaseOrder->forceFill([
+            'due_amount'  => $due,
+            'paid_amount' => $paid,
+        ])->saveQuietly();
+    }
+
+    /**
      * Attributes to merge into a sale order update once its due_amount clears to zero —
      * auto-completes the order rather than leaving it sitting at Fulfilled forever. Guarded by
      * SaleOrderStatus::canTransitionTo() so this only ever fires from FULFILLED (the only state

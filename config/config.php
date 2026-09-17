@@ -241,6 +241,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Payments & Expenses UI
+    |--------------------------------------------------------------------------
+    | inv_payments/inv_expenses are always kept in sync with laravel-accounting (see
+    | PaymentMirrorObserver/ExpenseMirrorObserver, gated by erp.accounting.enabled above)
+    | regardless of this flag — it only controls whether the inventory-side "Record
+    | Payment"/"Record Expense" screens and their routes are registered at all. Off by
+    | default: most installs manage payments/expenses through accounting's own UI, and this
+    | is an optional convenience surface for inventory-only users.
+    */
+    'payments_ui' => [
+        'enabled' => env('INVENTORY_PAYMENTS_UI_ENABLED', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Courier Integration (centrex/laravel-courier — optional peer package)
     |--------------------------------------------------------------------------
     | Parcel creation from the Dispatch Terminal. Sandbox and live credentials are

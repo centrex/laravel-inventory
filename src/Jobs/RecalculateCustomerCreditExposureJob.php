@@ -6,8 +6,9 @@ namespace Centrex\Inventory\Jobs;
 
 use Centrex\Inventory\Facades\Inventory;
 use Centrex\Inventory\Models\Customer;
+use Centrex\Inventory\Support\ErpIntegration;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\{ShouldBeUnique, ShouldQueue};
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\{InteractsWithQueue, SerializesModels};
 use Illuminate\Support\Facades\Log;
@@ -18,15 +19,28 @@ use Illuminate\Support\Facades\Log;
  *
  * Dispatch this after any payment affecting the customer, or on demand to
  * repair drift (e.g. after manual DB edits or a missed observer run).
+ *
+ * ShouldBeUnique: a single payment can trigger this twice in the same request —
+ * once from InvoicePaymentObserver (Invoice::paid_amount dirty) and once from
+ * PaymentMirrorObserver (the Payment row itself being saved) — since either can fire
+ * without the other in edge cases (a payment synced in from QuickBooks, a future
+ * write path). Both dispatches are otherwise redundant work against the same customer.
  */
-class RecalculateCustomerCreditExposureJob implements ShouldQueue
+class RecalculateCustomerCreditExposureJob implements ShouldBeUnique, ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
 
+    public int $uniqueFor = 60;
+
     public function __construct(public readonly int $customerId) {}
+
+    public function uniqueId(): string
+    {
+        return (string) $this->customerId;
+    }
 
     public function handle(): void
     {
@@ -48,10 +62,15 @@ class RecalculateCustomerCreditExposureJob implements ShouldQueue
             return;
         }
 
+        // Full models, not a lean column select: Invoice::$balance (used below via
+        // resyncSaleOrderDueAmount()) is a computed accessor that queries the invoice's own
+        // expenses()/creditMemos() relations, so it needs a real Invoice instance to call on.
         $invoices = \Centrex\Accounting\Models\Invoice::query()
             ->whereIn('id', $saleOrders->pluck('accounting_invoice_id'))
-            ->get(['id', 'total', 'paid_amount', 'exchange_rate'])
+            ->get()
             ->keyBy('id');
+
+        $erp = app(ErpIntegration::class);
 
         foreach ($saleOrders as $saleOrder) {
             $invoice = $invoices->get($saleOrder->accounting_invoice_id);
@@ -60,12 +79,11 @@ class RecalculateCustomerCreditExposureJob implements ShouldQueue
                 continue;
             }
 
-            $rate = (float) ($invoice->exchange_rate ?? 1.0);
-
-            $saleOrder->updateQuietly([
-                'paid_amount' => round(max(0.0, (float) $invoice->paid_amount * $rate), 4),
-                'due_amount'  => round(max(0.0, ((float) $invoice->total - (float) $invoice->paid_amount) * $rate), 4),
-            ]);
+            // Same formula InvoicePaymentObserver::updated() uses — total-paid_amount alone
+            // ignores AR-reducing discounts and issued credit memos (see Invoice::$balance),
+            // which previously let this job clobber a correct discount/credit-memo-adjusted
+            // due_amount with an inflated one on every recalculation run.
+            $erp->resyncSaleOrderDueAmount($saleOrder, $invoice);
         }
 
         $snapshot = Inventory::customerCreditSnapshot($this->customerId);

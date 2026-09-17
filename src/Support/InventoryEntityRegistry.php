@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Support;
 
 use Centrex\Inventory\Enums\PriceTierCode;
-use Centrex\Inventory\Models\{CommercialTeamMember, Coupon, Customer, Product, ProductBrand, ProductCategory, ProductPrice, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, Supplier, Warehouse, WarehouseProduct};
+use Centrex\Inventory\Models\{CommercialTeamMember, Coupon, Customer, Lot, Product, ProductBrand, ProductCategory, ProductPrice, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, Supplier, Warehouse, WarehouseProduct};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\{Arr, Str};
 use Illuminate\Validation\Rule;
@@ -243,6 +243,28 @@ class InventoryEntityRegistry
                     self::field('is_active', 'checkbox', ['boolean'], true),
                 ],
             ],
+            'lots' => [
+                'label'         => 'Lots',
+                'singular'      => 'Lot',
+                'model'         => Lot::class,
+                'search'        => ['lot_number', 'notes'],
+                'index_columns' => ['lot_number', 'product_id', 'variant_id', 'warehouse_id', 'qty_initial', 'qty_on_hand', 'unit_cost_amount', 'manufactured_at', 'expires_at'],
+                // qty_initial/qty_on_hand are deliberately NOT editable here — they're set at
+                // GRN creation (Inventory::createStockReceipt()) and moved only by posted
+                // receipts, sale fulfillment, transfers, and returns, each of which also writes
+                // a matching inv_stock_movements record. Editing them through this generic CRUD
+                // form would desync the lot balance from that ledger.
+                'form_fields' => [
+                    self::field('lot_number', 'text', ['required', 'string', 'max:100']),
+                    self::field('product_id', 'select', ['required', 'integer', 'exists:' . Product::class . ',id'], null, Product::class, 'name'),
+                    self::field('variant_id', 'select', ['nullable', 'integer', 'exists:' . ProductVariant::class . ',id'], null, ProductVariant::class, 'sku', label: 'Variant (leave blank for base product)'),
+                    self::field('warehouse_id', 'select', ['required', 'integer', 'exists:' . Warehouse::class . ',id'], null, Warehouse::class, 'name'),
+                    self::field('manufactured_at', 'date', ['nullable', 'date']),
+                    self::field('expires_at', 'date', ['nullable', 'date', 'after_or_equal:manufactured_at']),
+                    self::field('unit_cost_amount', 'number', ['nullable', 'numeric', 'min:0'], 0),
+                    self::field('notes', 'textarea', ['nullable', 'string', 'max:500']),
+                ],
+            ],
             'warehouse-products' => [
                 'label'         => 'Warehouse Stock',
                 'singular'      => 'Warehouse Stock',
@@ -317,6 +339,14 @@ class InventoryEntityRegistry
                 $typeId = $payload['attribute_type_id'] ?? null;
                 $fieldRules[] = Rule::unique($model::class, 'value')
                     ->where('attribute_type_id', $typeId)
+                    ->ignore($record?->getKey());
+            }
+
+            if ($entity === 'lots' && $field['name'] === 'lot_number') {
+                $fieldRules[] = Rule::unique($model::class, 'lot_number')
+                    ->where('product_id', $payload['product_id'] ?? null)
+                    ->where('variant_id', $payload['variant_id'] ?? null)
+                    ->where('warehouse_id', $payload['warehouse_id'] ?? null)
                     ->ignore($record?->getKey());
             }
 
