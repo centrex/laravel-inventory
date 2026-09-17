@@ -4,8 +4,7 @@ declare(strict_types = 1);
 
 use Centrex\Accounting\Facades\Accounting;
 use Centrex\Accounting\Models\{Account, Bill, Expense, Invoice};
-use Centrex\Accounting\Models\Customer as AccountingCustomer;
-use Centrex\Accounting\Models\Vendor as AccountingSupplier;
+use Centrex\Accounting\Models\{Customer as AccountingCustomer, Vendor as AccountingSupplier};
 use Centrex\Inventory\Jobs\{RecalculateCustomerCreditExposureJob, RecalculateSupplierCreditExposureJob};
 use Centrex\Inventory\Models\{Customer, PurchaseOrder, SaleOrder, Supplier, Warehouse};
 
@@ -88,7 +87,7 @@ it('does not clobber a discount-adjusted sale order due_amount when recalculatin
     $saleOrder->refresh();
     expect((float) $saleOrder->due_amount)->toBe(700.0);
 
-    $snapshot = \Centrex\Inventory\Facades\Inventory::customerCreditSnapshot($customer->id);
+    $snapshot = Centrex\Inventory\Facades\Inventory::customerCreditSnapshot($customer->id);
     expect((float) $snapshot['outstanding_exposure'])->toBe(700.0);
 });
 
@@ -164,6 +163,6 @@ it('does not clobber a discount-adjusted purchase order due_amount when recalcul
     $purchaseOrder->refresh();
     expect((float) $purchaseOrder->due_amount)->toBe(700.0);
 
-    $snapshot = \Centrex\Inventory\Facades\Inventory::supplierCreditSnapshot($supplier->id);
+    $snapshot = Centrex\Inventory\Facades\Inventory::supplierCreditSnapshot($supplier->id);
     expect((float) $snapshot['outstanding_exposure'])->toBe(700.0);
 });

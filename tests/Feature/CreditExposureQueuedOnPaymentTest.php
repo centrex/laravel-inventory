@@ -25,8 +25,8 @@ function seedAccountsForQueuedPaymentTest(): void
 }
 
 it('implements ShouldQueue on both credit-exposure recalculation jobs', function (): void {
-    expect(RecalculateCustomerCreditExposureJob::class)->toImplement(\Illuminate\Contracts\Queue\ShouldQueue::class);
-    expect(RecalculateSupplierCreditExposureJob::class)->toImplement(\Illuminate\Contracts\Queue\ShouldQueue::class);
+    expect(RecalculateCustomerCreditExposureJob::class)->toImplement(Illuminate\Contracts\Queue\ShouldQueue::class);
+    expect(RecalculateSupplierCreditExposureJob::class)->toImplement(Illuminate\Contracts\Queue\ShouldQueue::class);
 });
 
 it('queues exactly one customer credit-exposure recalculation per invoice payment', function (): void {
@@ -54,7 +54,7 @@ it('queues exactly one customer credit-exposure recalculation per invoice paymen
     $inventory->reserveStock($order->id);
     $inventory->fulfillSaleOrder($order->id);
 
-    $invoice = \Centrex\Accounting\Models\Invoice::findOrFail($order->fresh()->accounting_invoice_id);
+    $invoice = Centrex\Accounting\Models\Invoice::findOrFail($order->fresh()->accounting_invoice_id);
 
     app('accounting')->recordInvoicePayment($invoice->fresh(), [
         'date'         => today(),
