@@ -5,7 +5,7 @@ declare(strict_types = 1);
 use Centrex\Inventory\Http\Controllers\Web\{AsyncSelectController, DashboardController, LogisticsDashboardController};
 use Centrex\Inventory\Http\Livewire\Agents\{AgentCustomerCreatePage, AgentCustomersPage, AgentDashboard, AgentFormPage, AgentIndexPage, AgentInvoicesPage, AgentSaleOrderFormPage, ProAnalyticsDashboard};
 use Centrex\Inventory\Http\Livewire\Entities\{CustomerIndexPage, CustomerShowPage, EntityFormPage, EntityIndexPage, ProductIndexPage, ProductPriceSheetFormPage, ProductPriceSheetIndexPage, SupplierIndexPage, WarehouseProductMovementsPage, WarehouseStockIndexPage};
-use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ExpenseFormPage, ExpenseIndexPage, ForecastReportPage, InventoryReportsPage, PaymentFormPage, PaymentIndexPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
+use Centrex\Inventory\Http\Livewire\Transactions\{AdjustmentFormPage, AdjustmentIndexPage, AdjustmentShowPage, AgingReportPage, CustomerHeatMapPage, DispatchTerminalPage, ExpenseFormPage, ExpenseIndexPage, ForecastReportPage, InventoryReportsPage, PaymentFormPage, PaymentIndexPage, PosTerminalPage, PurchaseOrderFormPage, PurchaseOrderIndexPage, PurchaseOrderShowPage, PurchaseReportPage, PurchaseReturnFormPage, PurchaseReturnIndexPage, PurchaseReturnShowPage, SaleOrderFormPage, SaleOrderIndexPage, SaleOrderShowPage, SaleReturnFormPage, SaleReturnIndexPage, SaleReturnShowPage, SalesReportPage, ShipmentFormPage, ShipmentIndexPage, ShipmentShowPage, StockReportPage, TransferFormPage, TransferIndexPage, TransferShowPage};
 use Centrex\Inventory\Support\InventoryEntityRegistry;
 use Illuminate\Support\Facades\Route;
 
@@ -79,7 +79,9 @@ Route::middleware(config('inventory.web_middleware', ['web', 'auth']))
         Route::get('/shipments/create', ShipmentFormPage::class)->name('shipments.create');
         Route::get('/shipments/{recordId}/edit', ShipmentFormPage::class)->name('shipments.edit');
         Route::get('/shipments/{recordId}', ShipmentShowPage::class)->name('shipments.show');
+        Route::get('/adjustments', AdjustmentIndexPage::class)->name('adjustments.index');
         Route::get('/adjustments/create', AdjustmentFormPage::class)->name('adjustments.create');
+        Route::get('/adjustments/{recordId}', AdjustmentShowPage::class)->name('adjustments.show')->whereNumber('recordId');
         Route::get('/reports', InventoryReportsPage::class)->name('reports.index');
         Route::get('/reports/sales', SalesReportPage::class)->name('reports.sales');
         Route::get('/reports/purchases', PurchaseReportPage::class)->name('reports.purchases');

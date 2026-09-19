@@ -451,10 +451,28 @@ class ErpIntegration
 
     public function postStockReceipt(StockReceipt $stockReceipt): ?int
     {
-        if (!$this->enabled() || $stockReceipt->accounting_journal_entry_id) {
+        if (!$this->enabled()) {
             return $stockReceipt->accounting_journal_entry_id ? (int) $stockReceipt->accounting_journal_entry_id : null;
         }
 
+        // Locked and re-checked inside a transaction so a redelivered/retried queue job
+        // (PostStockReceiptAccountingEntryJob has no ShouldBeUnique guard, and this method
+        // has no other caller to rely on one) can't race past the "not yet posted" check
+        // and create a second journal entry for the same GRN — the second call blocks on
+        // this row lock until the first commits, then sees the id already set and returns.
+        return DB::transaction(function () use ($stockReceipt): ?int {
+            $existingId = StockReceipt::whereKey($stockReceipt->id)->lockForUpdate()->first()?->accounting_journal_entry_id;
+
+            if ($existingId) {
+                return (int) $existingId;
+            }
+
+            return $this->postStockReceiptEntry($stockReceipt);
+        });
+    }
+
+    private function postStockReceiptEntry(StockReceipt $stockReceipt): ?int
+    {
         $stockReceipt->loadMissing(['items', 'purchaseOrder']);
         $amount = round((float) $stockReceipt->items->sum(fn ($item) => (float) $item->qty_received * (float) $item->unit_cost_amount), 2);
 
@@ -614,10 +632,27 @@ class ErpIntegration
 
     public function postAdjustment(Adjustment $adjustment): ?int
     {
-        if (!$this->enabled() || $adjustment->accounting_journal_entry_id) {
+        if (!$this->enabled()) {
             return $adjustment->accounting_journal_entry_id ? (int) $adjustment->accounting_journal_entry_id : null;
         }
 
+        // Locked and re-checked inside a transaction: Inventory::postAdjustment() only
+        // guards the stock-side status transition against a double-click, not this
+        // (separately called) accounting step — a concurrent retry of a previously-failed
+        // posting attempt could otherwise race past the "not yet posted" check below.
+        return DB::transaction(function () use ($adjustment): ?int {
+            $existingId = Adjustment::whereKey($adjustment->id)->lockForUpdate()->first()?->accounting_journal_entry_id;
+
+            if ($existingId) {
+                return (int) $existingId;
+            }
+
+            return $this->postAdjustmentEntry($adjustment);
+        });
+    }
+
+    private function postAdjustmentEntry(Adjustment $adjustment): ?int
+    {
         $adjustment->loadMissing('items');
         $increaseAmount = 0.0;
         $decreaseAmount = 0.0;
@@ -708,6 +743,31 @@ class ErpIntegration
             return $saleReturn->accounting_journal_entry_id ? (int) $saleReturn->accounting_journal_entry_id : null;
         }
 
+        // Locked and re-checked inside a transaction: Inventory::postSaleReturn() only
+        // guards the stock-side status transition against a double-click, not this
+        // (separately called) accounting step — a concurrent retry of a previously-failed
+        // posting attempt could otherwise race past the "not yet posted" check below.
+        $entryId = DB::transaction(function () use ($saleReturn): ?int {
+            $existingId = SaleReturn::whereKey($saleReturn->id)->lockForUpdate()->first()?->accounting_journal_entry_id;
+
+            if ($existingId) {
+                return (int) $existingId;
+            }
+
+            return $this->postSaleReturnEntry($saleReturn);
+        });
+
+        $invoice = $this->postedInvoiceFor($saleReturn->saleOrder);
+
+        if ($invoice) {
+            $this->issueSaleReturnCreditMemo($saleReturn, $invoice);
+        }
+
+        return $entryId;
+    }
+
+    private function postSaleReturnEntry(SaleReturn $saleReturn): ?int
+    {
         $saleReturn->loadMissing(['items', 'saleOrder']);
 
         $totalCost = round((float) $saleReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_cost_amount), 2);
@@ -744,12 +804,6 @@ class ErpIntegration
 
             $saleReturn->forceFill(['accounting_journal_entry_id' => $entry->id])->saveQuietly();
             $entryId = (int) $entry->id;
-        }
-
-        $invoice = $this->postedInvoiceFor($saleReturn->saleOrder);
-
-        if ($invoice) {
-            $this->issueSaleReturnCreditMemo($saleReturn, $invoice);
         }
 
         return $entryId;
@@ -843,10 +897,27 @@ class ErpIntegration
      */
     public function postPurchaseReturn(PurchaseReturn $purchaseReturn): ?int
     {
-        if (!$this->enabled() || $purchaseReturn->accounting_journal_entry_id) {
+        if (!$this->enabled()) {
             return $purchaseReturn->accounting_journal_entry_id ? (int) $purchaseReturn->accounting_journal_entry_id : null;
         }
 
+        // Locked and re-checked inside a transaction: Inventory::postPurchaseReturn() only
+        // guards the stock-side status transition against a double-click, not this
+        // (separately called) accounting step — a concurrent retry of a previously-failed
+        // posting attempt could otherwise race past the "not yet posted" check below.
+        return DB::transaction(function () use ($purchaseReturn): ?int {
+            $existingId = PurchaseReturn::whereKey($purchaseReturn->id)->lockForUpdate()->first()?->accounting_journal_entry_id;
+
+            if ($existingId) {
+                return (int) $existingId;
+            }
+
+            return $this->postPurchaseReturnEntry($purchaseReturn);
+        });
+    }
+
+    private function postPurchaseReturnEntry(PurchaseReturn $purchaseReturn): ?int
+    {
         $purchaseReturn->loadMissing(['items', 'purchaseOrder']);
 
         $totalCost = round((float) $purchaseReturn->items->sum(fn ($item) => (float) $item->qty_returned * (float) $item->unit_cost_amount), 2);

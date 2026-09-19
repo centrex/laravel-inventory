@@ -78,7 +78,7 @@ trait ShowsAuditTrail
 
     private function auditTrailLabelFor(Model $record): string
     {
-        foreach (['sku', 'so_number', 'po_number', 'return_number', 'transfer_number', 'shipment_number', 'code', 'name'] as $attribute) {
+        foreach (['sku', 'so_number', 'po_number', 'return_number', 'transfer_number', 'shipment_number', 'adjustment_number', 'code', 'name'] as $attribute) {
             $value = $record->getAttribute($attribute);
 
             if (filled($value)) {

@@ -62,9 +62,10 @@ class AdjustmentFormPage extends Component
 
         return $this->onceForThisSubmission('inventory.adjustment.create', function () use ($validated) {
             $adjustment = app(Inventory::class)->createAdjustment($validated);
-            $this->dispatch('notify', type: 'success', message: "Adjustment {$adjustment->adjustment_number} created.");
+            app(Inventory::class)->postAdjustment((int) $adjustment->getKey());
+            $this->dispatch('notify', type: 'success', message: "Adjustment {$adjustment->adjustment_number} posted.");
 
-            return redirect()->route('inventory.adjustments.create');
+            return redirect()->route('inventory.adjustments.show', ['recordId' => $adjustment->getKey()]);
         });
     }
 

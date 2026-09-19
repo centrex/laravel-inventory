@@ -482,7 +482,10 @@ class InventoryServiceProvider extends ServiceProvider
         Livewire::component('inventory-stock-aging-card', Http\Livewire\Transactions\InventoryStockAgingCard::class);
         Livewire::component('inventory-due-aging-card', Http\Livewire\Transactions\InventoryDueAgingCard::class);
         Livewire::component('inventory-customer-heatmap', Http\Livewire\Transactions\CustomerHeatMapPage::class);
+        Livewire::component('inventory-adjustment-index', Http\Livewire\Transactions\AdjustmentIndexPage::class);
+        Livewire::component('inventory-adjustment-table', Http\Livewire\Transactions\AdjustmentTable::class);
         Livewire::component('inventory-adjustment-form', Http\Livewire\Transactions\AdjustmentFormPage::class);
+        Livewire::component('inventory-adjustment-show', Http\Livewire\Transactions\AdjustmentShowPage::class);
         Livewire::component('inventory-pos-terminal', Http\Livewire\Transactions\PosTerminalPage::class);
         Livewire::component('inventory-dispatch-terminal', Http\Livewire\Transactions\DispatchTerminalPage::class);
 

@@ -50,6 +50,9 @@
         @if(Route::has('payroll.entries.index'))
         <x-tallui-button label="Payroll" icon="o-users" :link="route('payroll.entries.index')" class="btn-outline btn-sm" />
         @endif
+        @can('inventory.adjustments.view')
+        <x-tallui-button label="Adjustments" icon="o-scale" :link="route('inventory.adjustments.index')" class="btn-outline btn-sm" />
+        @endcan
         @can('inventory.adjustments.create')
         <x-tallui-button label="Adjustment" icon="o-scale" :link="route('inventory.adjustments.create')" class="btn-primary btn-sm" />
         @endcan
@@ -146,11 +149,18 @@
             <span class="text-sm font-medium">Heat Map</span>
         </a>
         @endif
+        @can('inventory.adjustments.view')
+        <a href="{{ route('inventory.adjustments.index') }}"
+        class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
+            <x-heroicon-o-scale class="w-7 h-7 text-warning" />
+            <span class="text-sm font-medium">Adjustments</span>
+        </a>
+        @endcan
         @can('inventory.adjustments.create')
         <a href="{{ route('inventory.adjustments.create') }}"
         class="flex flex-col items-center gap-2 p-4 rounded-2xl border border-base-200 bg-base-100 hover:bg-base-200 transition cursor-pointer text-center">
-            <x-heroicon-o-scale class="w-7 h-7 text-warning" />
-            <span class="text-sm font-medium">Adjustment</span>
+            <x-heroicon-o-plus-circle class="w-7 h-7 text-warning" />
+            <span class="text-sm font-medium">New Adjustment</span>
         </a>
         @endcan
         @if(Route::has('payroll.entries.index'))
