@@ -106,7 +106,7 @@
                         @forelse ($viewingOrder->items as $item)
                             <tr>
                                 <td class="pl-4">
-                                    <div class="font-medium text-sm">{{ $item->variant?->display_name ?? $item->product?->name ?? '—' }}</div>
+                                    <div class="font-medium text-sm">{{ $item->product?->name ?? $item->variant?->display_name ?? '—' }}</div>
                                     <div class="text-xs text-base-content/50">{{ $item->variant?->sku ?: $item->product?->sku }}</div>
                                 </td>
                                 <td class="text-right font-mono text-sm">{{ number_format((float) $item->qty_ordered, 2) }}</td>

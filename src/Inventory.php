@@ -4060,7 +4060,7 @@ class Inventory
 
             return [
                 'customer_id'  => $so->customer_id,
-                'customer'     => $so->customer?->organization_name,
+                'customer'     => $so->customer?->organization_name ?: $so->customer?->name,
                 'so_number'    => $so->so_number,
                 'ordered_at'   => $so->ordered_at,
                 'due_amount'   => (float) $so->due_amount,
