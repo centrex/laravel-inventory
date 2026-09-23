@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions\Concerns;
 
 use Centrex\Inventory\Models\{SaleOrder, SaleReturn};
-use Centrex\Inventory\Support\CommercialTeamAccess;
+use Centrex\Inventory\Support\{CommercialTeamAccess, DayRange};
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -33,8 +33,8 @@ trait ScopesSalesReport
     {
         $query = SaleOrder::query()
             ->where('document_type', 'order')
-            ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
-            ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
+            ->when($this->startDate !== '', fn ($query) => $query->where('ordered_at', '>=', DayRange::from($this->startDate)))
+            ->when($this->endDate !== '', fn ($query) => $query->where('ordered_at', '<', DayRange::until($this->endDate)))
             ->when($this->customerId, fn ($query) => $query->where('customer_id', $this->customerId))
             ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)))
             ->when($this->employeeId, fn ($query) => $query->where('sales_executive_id', $this->employeeId));
@@ -69,8 +69,8 @@ trait ScopesSalesReport
         return SaleReturn::query()
             ->where('status', 'posted')
             ->whereIn('sale_order_id', $visibleOrders->select('id'))
-            ->when($this->startDate !== '', fn ($query) => $query->whereDate('returned_at', '>=', $this->startDate))
-            ->when($this->endDate !== '', fn ($query) => $query->whereDate('returned_at', '<=', $this->endDate))
+            ->when($this->startDate !== '', fn ($query) => $query->where('returned_at', '>=', DayRange::from($this->startDate)))
+            ->when($this->endDate !== '', fn ($query) => $query->where('returned_at', '<', DayRange::until($this->endDate)))
             ->when($this->customerId, fn ($query) => $query->where('customer_id', $this->customerId))
             ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)))
             ->when($this->employeeId, fn ($query) => $query->whereHas('saleOrder', fn ($orderQuery) => $orderQuery->where('sales_executive_id', $this->employeeId)));

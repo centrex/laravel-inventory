@@ -10,7 +10,7 @@ use Centrex\Inventory\Enums\{MovementType, PriceTierCode, PurchaseOrderStatus, S
 use Centrex\Inventory\Exceptions\{InsufficientStockException, InvalidTransitionException, PriceNotFoundException};
 use Centrex\Inventory\Jobs\{PostStockReceiptAccountingEntryJob, SyncPurchaseOrderAccountingDocumentJob, SyncSaleOrderAccountingDocumentJob, VoidStockReceiptAccountingEntryJob};
 use Centrex\Inventory\Models\{Adjustment, AdjustmentItem, Coupon, Customer, CustomerProductStat, Lot, PickList, PickListItem, Product, ProductCategory, ProductPrice, ProductTrendSnapshot, ProductVariant, ProductVariantAttributeType, ProductVariantAttributeValue, PurchaseOrder, PurchaseOrderItem, PurchaseReturn, PurchaseReturnItem, SaleOrder, SaleOrderItem, SaleReturn, SaleReturnItem, SerialNumber, Shipment, ShipmentBox, ShipmentBoxItem, ShipmentItem, StockMovement, StockReceipt, StockReceiptItem, Supplier, SupplierProductStat, Transfer, TransferBox, TransferBoxItem, TransferItem, Warehouse, WarehouseProduct};
-use Centrex\Inventory\Support\{CommercialTeamAccess, ErpIntegration, InventoryEntityRegistry, SalesTargetCalculator};
+use Centrex\Inventory\Support\{CommercialTeamAccess, DayRange, ErpIntegration, InventoryEntityRegistry, SalesTargetCalculator};
 use Centrex\LaravelOpenExchangeRates\Client as OpenExchangeRatesClient;
 use Centrex\LaravelOpenExchangeRates\Models\ExchangeRate as OpenExchangeRate;
 use Centrex\ModelData\Models\Data;
@@ -71,7 +71,7 @@ class Inventory
 
         return OpenExchangeRate::query()
             ->where('base', $baseCurrency)
-            ->whereDate('date', $effectiveDate)
+            ->where('date', '=', $effectiveDate)
             ->firstOrFail();
     }
 
@@ -4504,8 +4504,8 @@ class Inventory
             ->where('document_type', 'sale')
             ->when($status, fn ($q) => $q->where('status', $status))
             ->when($excludeTerminal, fn ($q) => $q->whereNotIn('status', [SaleOrderStatus::FULFILLED->value, SaleOrderStatus::COMPLETED->value, SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]))
-            ->when($from, fn ($q) => $q->whereDate('ordered_at', '>=', $from))
-            ->when($to, fn ($q) => $q->whereDate('ordered_at', '<=', $to))
+            ->when($from, fn ($q) => $q->where('ordered_at', '>=', DayRange::from($from)))
+            ->when($to, fn ($q) => $q->where('ordered_at', '<', DayRange::until($to)))
             ->latest('ordered_at')
             ->get();
     }
@@ -5038,11 +5038,11 @@ class Inventory
             ->whereNotIn('status', [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value]);
 
         if ($startDate !== '') {
-            $query->whereDate('ordered_at', '>=', $startDate);
+            $query->where('ordered_at', '>=', DayRange::from($startDate));
         }
 
         if ($endDate !== '') {
-            $query->whereDate('ordered_at', '<=', $endDate);
+            $query->where('ordered_at', '<', DayRange::until($endDate));
         }
 
         CommercialTeamAccess::applySalesScope($query);
@@ -5250,8 +5250,8 @@ class Inventory
                 $query->where('source_type', SaleOrder::class)
                     ->orWhereNotNull('inventory_sale_order_id');
             })
-            ->whereDate('invoice_date', '>=', $startDate->toDateString())
-            ->whereDate('invoice_date', '<=', $endDate->toDateString())
+            ->where('invoice_date', '>=', $startDate->toDateString())
+            ->where('invoice_date', '<=', $endDate->toDateString())
             ->get();
 
         $total = (float) $invoices->sum('base_total');
@@ -5276,8 +5276,8 @@ class Inventory
                 $query->where('source_type', PurchaseOrder::class)
                     ->orWhereNotNull('inventory_purchase_order_id');
             })
-            ->whereDate('bill_date', '>=', $startDate->toDateString())
-            ->whereDate('bill_date', '<=', $endDate->toDateString())
+            ->where('bill_date', '>=', $startDate->toDateString())
+            ->where('bill_date', '<=', $endDate->toDateString())
             ->get();
 
         $total = (float) $bills->sum('base_total');

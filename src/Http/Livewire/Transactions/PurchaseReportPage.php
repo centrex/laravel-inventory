@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace Centrex\Inventory\Http\Livewire\Transactions;
 
 use Centrex\Inventory\Models\{Product, ProductVariant, PurchaseOrder, PurchaseOrderItem, Supplier};
-use Centrex\Inventory\Support\CommercialTeamAccess;
+use Centrex\Inventory\Support\{CommercialTeamAccess, DayRange};
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\{Gate, Route};
@@ -106,8 +106,8 @@ class PurchaseReportPage extends Component
     {
         $query = PurchaseOrder::query()
             ->where('document_type', 'order')
-            ->when($this->startDate !== '', fn ($query) => $query->whereDate('ordered_at', '>=', $this->startDate))
-            ->when($this->endDate !== '', fn ($query) => $query->whereDate('ordered_at', '<=', $this->endDate))
+            ->when($this->startDate !== '', fn ($query) => $query->where('ordered_at', '>=', DayRange::from($this->startDate)))
+            ->when($this->endDate !== '', fn ($query) => $query->where('ordered_at', '<', DayRange::until($this->endDate)))
             ->when($this->supplierId, fn ($query) => $query->where('supplier_id', $this->supplierId))
             ->when($this->productId, fn ($query) => $query->whereHas('items', fn ($itemQuery) => $itemQuery->where('product_id', $this->productId)));
 

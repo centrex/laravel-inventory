@@ -32,7 +32,7 @@ final class InventoryReportsExporter
      */
     public static function download(array $params, string $filename): StreamedResponse
     {
-        $spreadsheet = (new self)->build($params);
+        $spreadsheet = (new self())->build($params);
 
         return response()->streamDownload(
             static function () use ($spreadsheet): void {
@@ -72,7 +72,7 @@ final class InventoryReportsExporter
         $dueAging = $inventory->dueAgingReport(fromDate: $agingFromDate);
         $forecast = $inventory->salesForecast(lookbackDays: $forecastLookbackDays, forecastDays: $forecastDays);
 
-        $spreadsheet = new Spreadsheet;
+        $spreadsheet = new Spreadsheet();
 
         $this->writeSummarySheet($spreadsheet, 0, [
             'sales'       => $salesOrders,
@@ -115,8 +115,8 @@ final class InventoryReportsExporter
         $query = CommercialTeamAccess::applySalesScope(
             SaleOrder::query()->where('document_type', 'order'),
         )
-            ->whereDate('ordered_at', '>=', $startDate)
-            ->whereDate('ordered_at', '<=', $endDate)
+            ->where('ordered_at', '>=', DayRange::from($startDate))
+            ->where('ordered_at', '<', DayRange::until($endDate))
             ->with(['customer', 'warehouse'])
             ->orderBy('ordered_at');
 
@@ -158,8 +158,8 @@ final class InventoryReportsExporter
         $query = CommercialTeamAccess::applyPurchaseScope(
             PurchaseOrder::query()->where('document_type', 'order'),
         )
-            ->whereDate('ordered_at', '>=', $startDate)
-            ->whereDate('ordered_at', '<=', $endDate)
+            ->where('ordered_at', '>=', DayRange::from($startDate))
+            ->where('ordered_at', '<', DayRange::until($endDate))
             ->with(['supplier', 'warehouse'])
             ->orderBy('ordered_at');
 
