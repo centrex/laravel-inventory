@@ -46,6 +46,25 @@ use Illuminate\Validation\ValidationException;
  */
 class Inventory
 {
+    /**
+     * Memoised `inventory.qty_tolerance`, keyed by application instance.
+     *
+     * The tolerance is consulted on nearly every quantity comparison, including inside the
+     * per-line loops of the receipt, fulfilment, transfer and adjustment paths — so it was
+     * being re-read from config dozens of times per posted document, each read a container
+     * resolve plus a dotted-key lookup. Keying by container identity keeps a rebuilt
+     * application (Testbench, Octane) from inheriting the previous one's value.
+     *
+     * @var array<int, float>
+     */
+    private static array $qtyTolerances = [];
+
+    /** Quantity comparison tolerance, used to absorb float rounding on decimal quantities. */
+    private function qtyTolerance(): float
+    {
+        return self::$qtyTolerances[spl_object_id(app())] ??= (float) config('inventory.qty_tolerance', 0.0001);
+    }
+
     // -------------------------------------------------------------------------
     // Exchange Rates
     // -------------------------------------------------------------------------
@@ -957,7 +976,7 @@ class Inventory
         foreach ($po->items as $item) {
             $remainingQty = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
 
-            if ($remainingQty <= (float) config('inventory.qty_tolerance', 0.0001)) {
+            if ($remainingQty <= $this->qtyTolerance()) {
                 continue;
             }
 
@@ -1030,7 +1049,7 @@ class Inventory
 
                 $pendingQty = max(0.0, (float) $poItem->qty_ordered - (float) $poItem->qty_received);
 
-                if ($qty > $pendingQty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($qty > $pendingQty + $this->qtyTolerance()) {
                     throw new \InvalidArgumentException("Cannot receive {$qty} units for purchase order item [{$poItem->id}]; only {$pendingQty} remain open.");
                 }
 
@@ -1045,7 +1064,7 @@ class Inventory
                     throw new \InvalidArgumentException('qty_damaged and qty_lost must be zero or greater.');
                 }
 
-                if ($qtyDamaged + $qtyLost > $qty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($qtyDamaged + $qtyLost > $qty + $this->qtyTolerance()) {
                     throw new \InvalidArgumentException("qty_damaged + qty_lost cannot exceed qty_received ({$qty}) for purchase order item [{$poItem->id}].");
                 }
 
@@ -1223,7 +1242,7 @@ class Inventory
                 // at post time — reverse the same quantity, not the full qty_received.
                 $qtyDamaged = (float) $item->qty_damaged;
                 $qtyGood = max(0.0, (float) $item->qty_received - $qtyDamaged - (float) $item->qty_lost);
-                $tolerance = (float) config('inventory.qty_tolerance', 0.0001);
+                $tolerance = $this->qtyTolerance();
 
                 $qtyBefore = (float) $wp->qty_on_hand;
 
@@ -1696,7 +1715,7 @@ class Inventory
 
                     $referenceKey = $productId . ':' . (int) ($variantId ?? 0);
 
-                    if (($requestedQuantities[$referenceKey] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    if (($requestedQuantities[$referenceKey] ?? 0.0) > $maxReturnable + $this->qtyTolerance()) {
                         throw ValidationException::withMessages([
                             'items' => ["Return quantity for product [{$productId}] exceeds the fulfilled quantity still available to return."],
                         ]);
@@ -1831,7 +1850,7 @@ class Inventory
 
                     $referenceKey = $productId . ':' . (int) ($variantId ?? 0);
 
-                    if (($requestedQuantities[$referenceKey] ?? 0.0) > $maxReturnable + (float) config('inventory.qty_tolerance', 0.0001)) {
+                    if (($requestedQuantities[$referenceKey] ?? 0.0) > $maxReturnable + $this->qtyTolerance()) {
                         throw ValidationException::withMessages([
                             'items' => ["Return quantity for product [{$productId}] exceeds the received quantity still available to return."],
                         ]);
@@ -1872,7 +1891,7 @@ class Inventory
                 $qty = (float) $item->qty_returned;
                 $qtyBefore = (float) $warehouseProduct->qty_on_hand;
 
-                if ($qtyBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                if ($qtyBefore + $this->qtyTolerance() < $qty) {
                     throw new InsufficientStockException("Insufficient stock to return product [{$item->product_id}] to supplier.");
                 }
 
@@ -2096,7 +2115,7 @@ class Inventory
         foreach ($warehouseProducts as $key => $wp) {
             $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
 
-            if ($available < $requested[$key] - (float) config('inventory.qty_tolerance', 0.0001)) {
+            if ($available < $requested[$key] - $this->qtyTolerance()) {
                 $productName = $wp->product?->name ?? "Product #{$wp->product_id}";
                 $shortages[] = "{$productName}: {$available} available, {$requested[$key]} required";
             }
@@ -2158,7 +2177,7 @@ class Inventory
 
                 $remainingToFulfill = max(0.0, (float) $item->qty_ordered - (float) $item->qty_fulfilled);
 
-                if ($qty > $remainingToFulfill + (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($qty > $remainingToFulfill + $this->qtyTolerance()) {
                     throw new \InvalidArgumentException("Cannot fulfill {$qty} units for sale order item [{$item->id}]; only {$remainingToFulfill} remain open.");
                 }
 
@@ -2174,7 +2193,7 @@ class Inventory
                     // Fulfill from the damaged bin — does not touch qty_on_hand or qty_reserved
                     $qtyDamaged = (float) $wp->qty_damaged;
 
-                    if ($qtyDamaged + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                    if ($qtyDamaged + $this->qtyTolerance() < $qty) {
                         throw new InsufficientStockException("Insufficient damaged stock for sale order item [{$item->id}]: available {$qtyDamaged}, requested {$qty}.");
                     }
 
@@ -2188,7 +2207,7 @@ class Inventory
                     ]);
                     $totalCogs += round($qty * $wac, 4);
 
-                    if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance')) {
+                    if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - $this->qtyTolerance()) {
                         $fullyFulfilled = false;
                     }
 
@@ -2202,11 +2221,11 @@ class Inventory
                 $qtyBefore = (float) $wp->qty_on_hand;
                 $reservedBefore = (float) $wp->qty_reserved;
 
-                if ($qtyBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                if ($qtyBefore + $this->qtyTolerance() < $qty) {
                     throw new InsufficientStockException("Insufficient on-hand stock for sale order item [{$item->id}]: available {$qtyBefore}, requested {$qty}.");
                 }
 
-                if ($reservedBefore + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                if ($reservedBefore + $this->qtyTolerance() < $qty) {
                     throw new InsufficientStockException("Insufficient reserved stock for sale order item [{$item->id}]: reserved {$reservedBefore}, requested {$qty}.");
                 }
 
@@ -2244,7 +2263,7 @@ class Inventory
                         throw new \InvalidArgumentException("Lot [{$lotId}] not found for product [{$item->product_id}] in warehouse [{$so->warehouse_id}].");
                     }
 
-                    if ((float) $lot->qty_on_hand + (float) config('inventory.qty_tolerance', 0.0001) < $qty) {
+                    if ((float) $lot->qty_on_hand + $this->qtyTolerance() < $qty) {
                         throw new InsufficientStockException("Insufficient lot stock for lot [{$lotId}]: available {$lot->qty_on_hand}, requested {$qty}.");
                     }
 
@@ -2273,7 +2292,7 @@ class Inventory
                         ->update(['status' => SerialNumber::STATUS_SOLD, 'sale_order_item_id' => $item->id]);
                 }
 
-                if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - (float) config('inventory.qty_tolerance')) {
+                if ((float) $item->qty_fulfilled + $qty < (float) $item->qty_ordered - $this->qtyTolerance()) {
                     $fullyFulfilled = false;
                 }
 
@@ -2589,7 +2608,7 @@ class Inventory
 
                 $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
 
-                if ($available < (float) $item->qty_sent - (float) config('inventory.qty_tolerance')) {
+                if ($available < (float) $item->qty_sent - $this->qtyTolerance()) {
                     throw new InsufficientStockException("Insufficient stock for transfer: product [{$item->product_id}] available {$available}, needed {$item->qty_sent}.");
                 }
 
@@ -2650,7 +2669,7 @@ class Inventory
                     continue;
                 }
 
-                if ($qtyReceived > $remainingQty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($qtyReceived > $remainingQty + $this->qtyTolerance()) {
                     throw new \InvalidArgumentException("Cannot receive {$qtyReceived} units for transfer item [{$item->id}]; only {$remainingQty} remain in transit.");
                 }
 
@@ -2671,7 +2690,7 @@ class Inventory
                 $totalReceived = (float) $item->qty_received + $qtyReceived;
                 $item->update(['qty_received' => $totalReceived, 'wac_dest_before_amount' => $destWacBefore, 'wac_dest_after_amount' => $newDestWac]);
 
-                if ($totalReceived < (float) $item->qty_sent - (float) config('inventory.qty_tolerance')) {
+                if ($totalReceived < (float) $item->qty_sent - $this->qtyTolerance()) {
                     $fullyReceived = false;
                 }
 
@@ -2739,7 +2758,7 @@ class Inventory
             }
 
             foreach ($adjustment->items as $item) {
-                if (abs((float) $item->qty_delta) < (float) config('inventory.qty_tolerance')) {
+                if (abs((float) $item->qty_delta) < $this->qtyTolerance()) {
                     continue;
                 }
 
@@ -3023,7 +3042,7 @@ class Inventory
             $sourceWp = $sourceWps[$wpId];
             $available = (float) $sourceWp->qty_on_hand - (float) $sourceWp->qty_reserved;
 
-            if ($qty > $available + (float) config('inventory.qty_tolerance', 0.0001)) {
+            if ($qty > $available + $this->qtyTolerance()) {
                 throw new InsufficientStockException(
                     "Insufficient stock for shipment: {$this->productLabel($sourceWp->product_id, $sourceWp->variant_id)} available {$available}, requested {$qty}.",
                 );
@@ -3327,7 +3346,7 @@ class Inventory
 
                 $available = (float) $wp->qty_on_hand - (float) $wp->qty_reserved;
 
-                if ($available < (float) $item->qty_sent - (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($available < (float) $item->qty_sent - $this->qtyTolerance()) {
                     throw new InsufficientStockException("Insufficient stock for shipment: product [{$item->product_id}] available {$available}, needed {$item->qty_sent}.");
                 }
 
@@ -3388,7 +3407,7 @@ class Inventory
                     continue;
                 }
 
-                if ($qtyReceived > $remainingQty + (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($qtyReceived > $remainingQty + $this->qtyTolerance()) {
                     throw new \InvalidArgumentException("Cannot receive {$qtyReceived} units for shipment item [{$item->id}]; only {$remainingQty} remain.");
                 }
 
@@ -3409,7 +3428,7 @@ class Inventory
                 $totalReceived = (float) $item->qty_received + $qtyReceived;
                 $item->update(['qty_received' => $totalReceived, 'wac_dest_before_amount' => $destWacBefore, 'wac_dest_after_amount' => $newDestWac]);
 
-                if ($totalReceived < (float) $item->qty_sent - (float) config('inventory.qty_tolerance', 0.0001)) {
+                if ($totalReceived < (float) $item->qty_sent - $this->qtyTolerance()) {
                     $fullyReceived = false;
                 }
 
@@ -3700,8 +3719,8 @@ class Inventory
             'outstanding_exposure'    => $exposure,
             'available_credit_amount' => round($limit - $exposure, 4),
             'is_over_limit'           => $limit > 0
-                ? $exposure > $limit + (float) config('inventory.qty_tolerance', 0.0001)
-                : $exposure > (float) config('inventory.qty_tolerance', 0.0001),
+                ? $exposure > $limit + $this->qtyTolerance()
+                : $exposure > $this->qtyTolerance(),
         ];
     }
 
@@ -3717,8 +3736,8 @@ class Inventory
             'outstanding_exposure'    => $exposure,
             'available_credit_amount' => round($limit - $exposure, 4),
             'is_over_limit'           => $limit > 0
-                ? $exposure > $limit + (float) config('inventory.qty_tolerance', 0.0001)
-                : $exposure > (float) config('inventory.qty_tolerance', 0.0001),
+                ? $exposure > $limit + $this->qtyTolerance()
+                : $exposure > $this->qtyTolerance(),
         ];
     }
 
@@ -3950,7 +3969,7 @@ class Inventory
      */
     private function fifoRemainingBatches(array $movements, float $qtyOnHand): array
     {
-        $tolerance = (float) config('inventory.qty_tolerance', 0.0001);
+        $tolerance = $this->qtyTolerance();
         $queue = [];
 
         foreach ($movements as $movement) {
@@ -4038,7 +4057,7 @@ class Inventory
             SaleOrderStatus::PROCESSING->value,
             SaleOrderStatus::PARTIAL->value,
         ];
-        $tolerance = (float) config('inventory.qty_tolerance', 0.0001);
+        $tolerance = $this->qtyTolerance();
         $now = now();
 
         $orders = SaleOrder::with('customer')
@@ -5413,8 +5432,8 @@ class Inventory
         $creditExposureBefore = $this->customerOutstandingExposure($customer->id);
         $creditExposureAfter = round($creditExposureBefore + $newOrderAmount, 4);
         $limitBreached = $creditLimit > 0
-            ? $creditExposureAfter > $creditLimit + (float) config('inventory.qty_tolerance', 0.0001)
-            : $creditExposureAfter > (float) config('inventory.qty_tolerance', 0.0001);
+            ? $creditExposureAfter > $creditLimit + $this->qtyTolerance()
+            : $creditExposureAfter > $this->qtyTolerance();
 
         if (!$limitBreached) {
             return [

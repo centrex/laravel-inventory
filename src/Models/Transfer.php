@@ -22,12 +22,6 @@ class Transfer extends Model implements Auditable
         return 'transfers';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'transfer_number', 'sale_order_id', 'warehouse_id',
         'from_warehouse_id', 'to_warehouse_id', 'supplier_id',

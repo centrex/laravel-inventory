@@ -17,12 +17,6 @@ class CommercialTeamMember extends Model
         return 'commercial_team_members';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'workflow',
         'user_id',

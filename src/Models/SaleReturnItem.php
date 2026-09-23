@@ -20,12 +20,6 @@ class SaleReturnItem extends Model implements Auditable
         return 'sale_return_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'sale_return_id',
         'sale_order_item_id',

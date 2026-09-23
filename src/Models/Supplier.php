@@ -23,12 +23,6 @@ class Supplier extends Model implements Auditable, HasMedia
         return 'suppliers';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'code', 'name', 'country_code', 'demographic_segment', 'demographic_data', 'currency', 'credit_limit_amount',
         'contact_name', 'contact_email', 'contact_phone',

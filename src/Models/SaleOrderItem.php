@@ -21,12 +21,6 @@ class SaleOrderItem extends Model implements Auditable
         return 'sale_order_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'sale_order_id', 'product_id', 'variant_id', 'lot_id', 'price_tier_code',
         'qty_ordered', 'qty_fulfilled', 'from_damaged',

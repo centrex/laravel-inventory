@@ -22,12 +22,6 @@ class SaleReturn extends Model implements Auditable
         return 'sale_returns';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'return_number',
         'sale_order_id',

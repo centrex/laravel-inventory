@@ -51,12 +51,6 @@ class Product extends Model implements Auditable, HasMedia
         return 'products';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected static function booted(): void
     {
         static::creating(function (Product $product): void {

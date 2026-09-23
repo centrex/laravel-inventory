@@ -22,12 +22,6 @@ class Partner extends Model implements Auditable
         return 'partners';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'name', 'type', 'api_key', 'customer_id', 'default_warehouse_id',
         'default_price_tier', 'can_view_stock', 'can_view_prices', 'can_create_orders',

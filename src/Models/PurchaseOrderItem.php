@@ -20,12 +20,6 @@ class PurchaseOrderItem extends Model implements Auditable
         return 'purchase_order_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'purchase_order_id', 'product_id', 'variant_id',
         'qty_ordered', 'qty_received',

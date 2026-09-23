@@ -28,12 +28,6 @@ class Expense extends Model implements Auditable
         return 'expenses';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'accounting_expense_id', 'direction', 'chargeable_type', 'chargeable_id',
         'sale_order_id', 'purchase_order_id', 'customer_id', 'supplier_id', 'warehouse_id',

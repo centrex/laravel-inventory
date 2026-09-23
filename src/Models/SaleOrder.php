@@ -81,12 +81,6 @@ class SaleOrder extends Model implements Auditable
         return 'sale_orders';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'so_number', 'document_type', 'warehouse_id', 'customer_id', 'coupon_id', 'price_tier_code',
         'coupon_code', 'coupon_name', 'coupon_discount_type', 'coupon_discount_value',

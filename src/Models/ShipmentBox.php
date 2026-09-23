@@ -20,12 +20,6 @@ class ShipmentBox extends Model implements Auditable
         return 'shipment_boxes';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'shipment_id',
         'box_code',

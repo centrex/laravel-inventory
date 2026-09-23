@@ -23,12 +23,6 @@ class Warehouse extends Model implements Auditable, HasMedia
         return 'warehouses';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'code', 'name', 'country_code', 'currency',
         'address', 'is_active', 'is_default', 'meta',

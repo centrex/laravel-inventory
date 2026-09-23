@@ -20,12 +20,6 @@ class StockReceiptItem extends Model implements Auditable
         return 'stock_receipt_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'stock_receipt_id', 'purchase_order_item_id', 'product_id', 'variant_id',
         'lot_id', 'serial_numbers',

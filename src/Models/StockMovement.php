@@ -23,12 +23,6 @@ class StockMovement extends Model implements Auditable
         return 'stock_movements';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'warehouse_id', 'product_id', 'variant_id', 'lot_id',
         'movement_type', 'direction',

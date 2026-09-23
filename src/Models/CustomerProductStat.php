@@ -20,12 +20,6 @@ class CustomerProductStat extends Model implements Auditable
         return 'customer_product_stats';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'customer_id',
         'product_id',
