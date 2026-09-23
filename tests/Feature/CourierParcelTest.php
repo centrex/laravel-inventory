@@ -255,7 +255,7 @@ it('creates the parcel as a separate step without touching stock', function (): 
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
     $component->parcelForm = array_merge(parcelFormFor('pathao'), [
@@ -281,7 +281,7 @@ it('creates a hand-carry parcel without any courier api call', function (): void
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
     $component->parcelForm = array_merge(parcelFormFor('hand_carry'), ['carried_by' => 'Karim']);
@@ -298,7 +298,7 @@ it('requires who carries a hand-carry parcel', function (): void {
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
     $component->parcelForm = parcelFormFor('hand_carry');
@@ -320,7 +320,7 @@ it('requires a redx delivery area id before booking', function (): void {
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
     $component->parcelForm = parcelFormFor('redx');
@@ -345,7 +345,7 @@ it('requires a pathao recipient city and zone before booking', function (): void
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
     $component->parcelForm = parcelFormFor('pathao');
@@ -364,7 +364,7 @@ it('requires a pathao recipient city and zone before booking', function (): void
 it('offers create parcel before ship, and ship once a tracking number exists', function (): void {
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $ref = new ReflectionClass($component);
     $flow = $ref->getMethod('saleFlowFor')->invoke($component, $saleOrder);
 
@@ -395,7 +395,7 @@ it('prefills the parcel form from the customer when opening the modal', function
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->openParcelModal($saleOrder->id);
 
     expect($component->parcelModalOpen)->toBeTrue()
@@ -426,7 +426,7 @@ it('loads redx areas and pickup stores when redx is selected in the modal', func
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->openParcelModal($saleOrder->id);
 
     expect($component->parcelForm['provider'])->toBe('redx')
@@ -463,7 +463,7 @@ it('cascades pathao city to zone to area selection in the modal', function (): v
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->openParcelModal($saleOrder->id);
 
     expect($component->parcelForm['provider'])->toBe('pathao')
@@ -488,7 +488,7 @@ it('requires both redx areas before booking', function (): void {
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->parcelOrderId = $saleOrder->id;
     $component->parcelModalOpen = true;
     $component->parcelForm = parcelFormFor('redx');
@@ -528,7 +528,7 @@ it('explains when an order has no courier parcel to track', function (): void {
 
     $saleOrder = makeCourierSaleOrder();
 
-    $component = new DispatchTerminalPage();
+    $component = new DispatchTerminalPage;
     $component->openTrackingModal($saleOrder->id);
 
     expect($component->trackingModalOpen)->toBeTrue()

@@ -103,50 +103,50 @@ class SnapshotTrendsCommand extends Command
 
         $saleItems = SaleOrderItem::query()
             ->join(
-                (new SaleOrder())->getTable() . ' as so',
+                (new SaleOrder)->getTable() . ' as so',
                 'so.id',
                 '=',
-                (new SaleOrderItem())->getTable() . '.sale_order_id',
+                (new SaleOrderItem)->getTable() . '.sale_order_id',
             )
             ->whereNotIn('so.status', [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value])
             ->where('so.document_type', 'order')
             ->whereBetween('so.ordered_at', [$periodStart, $periodEnd])
             ->select([
-                (new SaleOrderItem())->getTable() . '.product_id',
-                (new SaleOrderItem())->getTable() . '.variant_id',
+                (new SaleOrderItem)->getTable() . '.product_id',
+                (new SaleOrderItem)->getTable() . '.variant_id',
                 'so.warehouse_id',
                 'so.customer_id',
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.qty_ordered) as qty_sold'),
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.qty_fulfilled) as qty_fulfilled'),
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.line_total_amount) as revenue_amount'),
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.unit_cost_amount * ' . (new SaleOrderItem())->getTable() . '.qty_ordered) as cogs_amount'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.qty_ordered) as qty_sold'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.qty_fulfilled) as qty_fulfilled'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.line_total_amount) as revenue_amount'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.unit_cost_amount * ' . (new SaleOrderItem)->getTable() . '.qty_ordered) as cogs_amount'),
                 DB::raw('COUNT(DISTINCT so.id) as orders_count'),
                 DB::raw('COUNT(DISTINCT so.customer_id) as customers_count'),
             ])
             ->groupBy([
-                (new SaleOrderItem())->getTable() . '.product_id',
-                (new SaleOrderItem())->getTable() . '.variant_id',
+                (new SaleOrderItem)->getTable() . '.product_id',
+                (new SaleOrderItem)->getTable() . '.variant_id',
                 'so.warehouse_id',
             ])
             ->get();
 
         $returnItems = SaleReturnItem::query()
             ->join(
-                (new SaleReturn())->getTable() . ' as sr',
+                (new SaleReturn)->getTable() . ' as sr',
                 'sr.id',
                 '=',
-                (new SaleReturnItem())->getTable() . '.sale_return_id',
+                (new SaleReturnItem)->getTable() . '.sale_return_id',
             )
             ->whereBetween('sr.returned_at', [$periodStart, $periodEnd])
             ->select([
-                (new SaleReturnItem())->getTable() . '.product_id',
-                (new SaleReturnItem())->getTable() . '.variant_id',
+                (new SaleReturnItem)->getTable() . '.product_id',
+                (new SaleReturnItem)->getTable() . '.variant_id',
                 'sr.warehouse_id',
-                DB::raw('SUM(' . (new SaleReturnItem())->getTable() . '.qty_returned) as qty_returned_sale'),
+                DB::raw('SUM(' . (new SaleReturnItem)->getTable() . '.qty_returned) as qty_returned_sale'),
             ])
             ->groupBy([
-                (new SaleReturnItem())->getTable() . '.product_id',
-                (new SaleReturnItem())->getTable() . '.variant_id',
+                (new SaleReturnItem)->getTable() . '.product_id',
+                (new SaleReturnItem)->getTable() . '.variant_id',
                 'sr.warehouse_id',
             ])
             ->get()
@@ -154,22 +154,22 @@ class SnapshotTrendsCommand extends Command
 
         $receiptItems = StockReceiptItem::query()
             ->join(
-                (new StockReceipt())->getTable() . ' as grn',
+                (new StockReceipt)->getTable() . ' as grn',
                 'grn.id',
                 '=',
-                (new StockReceiptItem())->getTable() . '.stock_receipt_id',
+                (new StockReceiptItem)->getTable() . '.stock_receipt_id',
             )
             ->where('grn.status', 'posted')
             ->whereBetween('grn.received_at', [$periodStart, $periodEnd])
             ->select([
-                (new StockReceiptItem())->getTable() . '.product_id',
-                (new StockReceiptItem())->getTable() . '.variant_id',
+                (new StockReceiptItem)->getTable() . '.product_id',
+                (new StockReceiptItem)->getTable() . '.variant_id',
                 'grn.warehouse_id',
-                DB::raw('SUM(' . (new StockReceiptItem())->getTable() . '.qty_received) as qty_purchased'),
+                DB::raw('SUM(' . (new StockReceiptItem)->getTable() . '.qty_received) as qty_purchased'),
             ])
             ->groupBy([
-                (new StockReceiptItem())->getTable() . '.product_id',
-                (new StockReceiptItem())->getTable() . '.variant_id',
+                (new StockReceiptItem)->getTable() . '.product_id',
+                (new StockReceiptItem)->getTable() . '.variant_id',
                 'grn.warehouse_id',
             ])
             ->get()
@@ -226,44 +226,44 @@ class SnapshotTrendsCommand extends Command
 
         SaleOrderItem::query()
             ->join(
-                (new SaleOrder())->getTable() . ' as so',
+                (new SaleOrder)->getTable() . ' as so',
                 'so.id',
                 '=',
-                (new SaleOrderItem())->getTable() . '.sale_order_id',
+                (new SaleOrderItem)->getTable() . '.sale_order_id',
             )
             ->whereNotIn('so.status', [SaleOrderStatus::CANCELLED->value, SaleOrderStatus::RETURNED->value])
             ->where('so.document_type', 'order')
             ->whereNotNull('so.customer_id')
             ->select([
                 'so.customer_id',
-                (new SaleOrderItem())->getTable() . '.product_id',
-                (new SaleOrderItem())->getTable() . '.variant_id',
+                (new SaleOrderItem)->getTable() . '.product_id',
+                (new SaleOrderItem)->getTable() . '.variant_id',
                 DB::raw('COUNT(DISTINCT so.id) as total_orders'),
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.qty_ordered) as total_qty_ordered'),
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.qty_fulfilled) as total_qty_fulfilled'),
-                DB::raw('SUM(' . (new SaleOrderItem())->getTable() . '.line_total_amount) as total_revenue_amount'),
-                DB::raw('AVG(' . (new SaleOrderItem())->getTable() . '.unit_price_amount) as avg_unit_price_amount'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.qty_ordered) as total_qty_ordered'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.qty_fulfilled) as total_qty_fulfilled'),
+                DB::raw('SUM(' . (new SaleOrderItem)->getTable() . '.line_total_amount) as total_revenue_amount'),
+                DB::raw('AVG(' . (new SaleOrderItem)->getTable() . '.unit_price_amount) as avg_unit_price_amount'),
                 DB::raw('MIN(so.ordered_at) as first_ordered_at'),
                 DB::raw('MAX(so.ordered_at) as last_ordered_at'),
             ])
             ->groupBy([
                 'so.customer_id',
-                (new SaleOrderItem())->getTable() . '.product_id',
-                (new SaleOrderItem())->getTable() . '.variant_id',
+                (new SaleOrderItem)->getTable() . '.product_id',
+                (new SaleOrderItem)->getTable() . '.variant_id',
             ])
             ->chunkById(500, function (Collection $rows): void {
                 foreach ($rows as $row) {
                     $returnQty = (float) SaleReturnItem::query()
                         ->join(
-                            (new SaleReturn())->getTable() . ' as sr',
+                            (new SaleReturn)->getTable() . ' as sr',
                             'sr.id',
                             '=',
-                            (new SaleReturnItem())->getTable() . '.sale_return_id',
+                            (new SaleReturnItem)->getTable() . '.sale_return_id',
                         )
                         ->where('sr.customer_id', $row->customer_id)
-                        ->where((new SaleReturnItem())->getTable() . '.product_id', $row->product_id)
-                        ->where((new SaleReturnItem())->getTable() . '.variant_id', $row->variant_id)
-                        ->sum((new SaleReturnItem())->getTable() . '.qty_returned');
+                        ->where((new SaleReturnItem)->getTable() . '.product_id', $row->product_id)
+                        ->where((new SaleReturnItem)->getTable() . '.variant_id', $row->variant_id)
+                        ->sum((new SaleReturnItem)->getTable() . '.qty_returned');
 
                     $totalOrdered = (float) $row->total_qty_ordered;
                     $returnRate = $totalOrdered > 0 ? round($returnQty / $totalOrdered * 100, 4) : 0.0;
@@ -294,24 +294,24 @@ class SnapshotTrendsCommand extends Command
                         ],
                     );
                 }
-            }, (new SaleOrderItem())->getTable() . '.id');
+            }, (new SaleOrderItem)->getTable() . '.id');
     }
 
     private function calcCustomerProductInterval(int $customerId, int $productId, mixed $variantId): ?float
     {
         $dates = SaleOrder::query()
             ->join(
-                (new SaleOrderItem())->getTable() . ' as soi',
+                (new SaleOrderItem)->getTable() . ' as soi',
                 'soi.sale_order_id',
                 '=',
-                (new SaleOrder())->getTable() . '.id',
+                (new SaleOrder)->getTable() . '.id',
             )
-            ->where((new SaleOrder())->getTable() . '.customer_id', $customerId)
+            ->where((new SaleOrder)->getTable() . '.customer_id', $customerId)
             ->where('soi.product_id', $productId)
             ->where('soi.variant_id', $variantId)
-            ->whereNotIn((new SaleOrder())->getTable() . '.status', [SaleOrderStatus::CANCELLED->value])
-            ->orderBy((new SaleOrder())->getTable() . '.ordered_at')
-            ->pluck((new SaleOrder())->getTable() . '.ordered_at')
+            ->whereNotIn((new SaleOrder)->getTable() . '.status', [SaleOrderStatus::CANCELLED->value])
+            ->orderBy((new SaleOrder)->getTable() . '.ordered_at')
+            ->pluck((new SaleOrder)->getTable() . '.ordered_at')
             ->filter()
             ->values();
 
@@ -334,31 +334,31 @@ class SnapshotTrendsCommand extends Command
 
         PurchaseOrderItem::query()
             ->join(
-                (new PurchaseOrder())->getTable() . ' as po',
+                (new PurchaseOrder)->getTable() . ' as po',
                 'po.id',
                 '=',
-                (new PurchaseOrderItem())->getTable() . '.purchase_order_id',
+                (new PurchaseOrderItem)->getTable() . '.purchase_order_id',
             )
             ->whereNotIn('po.status', ['cancelled'])
             ->where('po.document_type', 'order')
             ->select([
                 'po.supplier_id',
-                (new PurchaseOrderItem())->getTable() . '.product_id',
-                (new PurchaseOrderItem())->getTable() . '.variant_id',
+                (new PurchaseOrderItem)->getTable() . '.product_id',
+                (new PurchaseOrderItem)->getTable() . '.variant_id',
                 DB::raw('COUNT(DISTINCT po.id) as total_orders'),
-                DB::raw('SUM(' . (new PurchaseOrderItem())->getTable() . '.qty_ordered) as total_qty_ordered'),
-                DB::raw('SUM(' . (new PurchaseOrderItem())->getTable() . '.qty_received) as total_qty_received'),
-                DB::raw('SUM(' . (new PurchaseOrderItem())->getTable() . '.line_total_amount) as total_cost_amount'),
-                DB::raw('AVG(' . (new PurchaseOrderItem())->getTable() . '.unit_price_amount) as avg_unit_cost_amount'),
-                DB::raw('MIN(' . (new PurchaseOrderItem())->getTable() . '.unit_price_amount) as min_unit_cost_amount'),
-                DB::raw('MAX(' . (new PurchaseOrderItem())->getTable() . '.unit_price_amount) as max_unit_cost_amount'),
+                DB::raw('SUM(' . (new PurchaseOrderItem)->getTable() . '.qty_ordered) as total_qty_ordered'),
+                DB::raw('SUM(' . (new PurchaseOrderItem)->getTable() . '.qty_received) as total_qty_received'),
+                DB::raw('SUM(' . (new PurchaseOrderItem)->getTable() . '.line_total_amount) as total_cost_amount'),
+                DB::raw('AVG(' . (new PurchaseOrderItem)->getTable() . '.unit_price_amount) as avg_unit_cost_amount'),
+                DB::raw('MIN(' . (new PurchaseOrderItem)->getTable() . '.unit_price_amount) as min_unit_cost_amount'),
+                DB::raw('MAX(' . (new PurchaseOrderItem)->getTable() . '.unit_price_amount) as max_unit_cost_amount'),
                 DB::raw('MIN(po.ordered_at) as first_ordered_at'),
                 DB::raw('MAX(po.ordered_at) as last_ordered_at'),
             ])
             ->groupBy([
                 'po.supplier_id',
-                (new PurchaseOrderItem())->getTable() . '.product_id',
-                (new PurchaseOrderItem())->getTable() . '.variant_id',
+                (new PurchaseOrderItem)->getTable() . '.product_id',
+                (new PurchaseOrderItem)->getTable() . '.variant_id',
             ])
             ->chunkById(500, function (Collection $rows): void {
                 foreach ($rows as $row) {
@@ -396,32 +396,32 @@ class SnapshotTrendsCommand extends Command
                         ],
                     );
                 }
-            }, (new PurchaseOrderItem())->getTable() . '.id');
+            }, (new PurchaseOrderItem)->getTable() . '.id');
     }
 
     private function calcSupplierLeadTimeMetrics(int $supplierId, int $productId, mixed $variantId): array
     {
         $pos = PurchaseOrder::query()
             ->join(
-                (new PurchaseOrderItem())->getTable() . ' as poi',
+                (new PurchaseOrderItem)->getTable() . ' as poi',
                 'poi.purchase_order_id',
                 '=',
-                (new PurchaseOrder())->getTable() . '.id',
+                (new PurchaseOrder)->getTable() . '.id',
             )
             ->join(
-                (new StockReceipt())->getTable() . ' as grn',
+                (new StockReceipt)->getTable() . ' as grn',
                 'grn.purchase_order_id',
                 '=',
-                (new PurchaseOrder())->getTable() . '.id',
+                (new PurchaseOrder)->getTable() . '.id',
             )
-            ->where((new PurchaseOrder())->getTable() . '.supplier_id', $supplierId)
+            ->where((new PurchaseOrder)->getTable() . '.supplier_id', $supplierId)
             ->where('poi.product_id', $productId)
             ->where('poi.variant_id', $variantId)
             ->where('grn.status', 'posted')
-            ->whereNotNull((new PurchaseOrder())->getTable() . '.ordered_at')
+            ->whereNotNull((new PurchaseOrder)->getTable() . '.ordered_at')
             ->select([
-                (new PurchaseOrder())->getTable() . '.ordered_at',
-                (new PurchaseOrder())->getTable() . '.expected_at',
+                (new PurchaseOrder)->getTable() . '.ordered_at',
+                (new PurchaseOrder)->getTable() . '.expected_at',
                 'grn.received_at',
             ])
             ->get();

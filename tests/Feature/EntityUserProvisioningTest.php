@@ -147,7 +147,7 @@ it('links an existing user account to a customer and can unlink it again', funct
     ]);
 
     $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
-    $existingUser = new $userModel();
+    $existingUser = new $userModel;
     $existingUser->forceFill([
         'name'     => 'Pre-existing User',
         'email'    => 'preexisting@example.com',

@@ -71,7 +71,7 @@ class AgentCustomerCreatePage extends Component
 
         $this->validate([
             'name'              => 'required|string|max:255',
-            'code'              => 'required|string|max:30|unique:' . (new Customer())->getTable() . ',code',
+            'code'              => 'required|string|max:30|unique:' . (new Customer)->getTable() . ',code',
             'organizationName'  => 'nullable|string|max:255',
             'email'             => 'nullable|email|max:255',
             'phone'             => 'nullable|string|max:50',

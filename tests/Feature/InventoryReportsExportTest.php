@@ -11,7 +11,7 @@ beforeEach(function (): void {
 });
 
 it('exports every report as one multi-sheet workbook with a Summary tab plus one tab per report', function (): void {
-    $component = new InventoryReportsPage();
+    $component = new InventoryReportsPage;
     $component->mount();
 
     $response = $component->exportAll();

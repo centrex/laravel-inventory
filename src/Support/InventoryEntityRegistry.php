@@ -315,7 +315,7 @@ class InventoryEntityRegistry
     {
         $modelClass = self::modelClass($entity);
 
-        return new $modelClass();
+        return new $modelClass;
     }
 
     public static function validationRules(string $entity, ?Model $record = null, array $payload = []): array
@@ -477,7 +477,7 @@ class InventoryEntityRegistry
                 continue;
             }
 
-            $related = new $field['related_model']();
+            $related = new $field['related_model'];
             $query = $related->newQuery();
 
             if ($entity === 'customers' && $field['name'] === 'sales_owner_id') {

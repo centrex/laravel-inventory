@@ -95,7 +95,7 @@ it('exports the credit memo refundable amount, not its status, in the Refundable
     $memo = $saleReturn->fresh()->creditMemo;
     expect($memo)->not->toBeNull();
 
-    $table = new SaleReturnTable();
+    $table = new SaleReturnTable;
     $table->columnDefs = array_map(fn ($col): array => $col->toArray(), $table->columns());
 
     ob_start();

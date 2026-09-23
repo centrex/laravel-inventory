@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
  * range and, for the due-aging report, sale_orders.due_amount — none of which were indexed,
  * so every report render did a full table scan on these tables.
  */
-return new class() extends Migration
+return new class extends Migration
 {
     public function up(): void
     {

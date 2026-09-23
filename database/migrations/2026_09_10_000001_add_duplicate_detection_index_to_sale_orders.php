@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Schema;
  * walks the entire table before concluding there's no match — cost grows with total order
  * history rather than with actual duplicate submissions.
  */
-return new class() extends Migration
+return new class extends Migration
 {
     public function up(): void
     {

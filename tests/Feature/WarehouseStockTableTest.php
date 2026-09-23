@@ -6,7 +6,7 @@ use Centrex\Inventory\Http\Livewire\Entities\WarehouseStockTable;
 use Centrex\Inventory\Models\{Product, Warehouse, WarehouseProduct};
 
 it('routes the sku column search through the product/variant relation instead of a bare column', function (): void {
-    $table = new WarehouseStockTable();
+    $table = new WarehouseStockTable;
     $query = $table->query();
 
     $method = new ReflectionMethod($table, 'applySearchConstraint');
@@ -20,7 +20,7 @@ it('routes the sku column search through the product/variant relation instead of
 });
 
 it('merges sku into the product column and shows a b2b retail price column', function (): void {
-    $keys = collect((new WarehouseStockTable())->columns())
+    $keys = collect((new WarehouseStockTable)->columns())
         ->map(fn ($column) => $column->toArray()['key'])
         ->all();
 
@@ -51,7 +51,7 @@ it('computes net saleable stock as qty_on_hand minus qty_reserved via a sortable
         'wac_amount'     => 10,
     ]);
 
-    $table = new WarehouseStockTable();
+    $table = new WarehouseStockTable;
     $row = $table->query()->where('warehouse_id', $warehouse->id)->firstOrFail();
 
     // Selected as a SQL alias so ->orderBy('net_saleable_stock') works; the model's own

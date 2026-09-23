@@ -45,7 +45,7 @@ class EntityUserProvisioner
         /** @var class-string<Model> $userModel */
         $userModel = (string) config('auth.providers.users.model', 'App\\Models\\User');
 
-        $user = new $userModel();
+        $user = new $userModel;
         $user->forceFill([
             'name'     => $record->getAttribute($fields['name']) ?: $record->getAttribute('name'),
             'email'    => $email,

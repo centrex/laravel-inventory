@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
  * the index to include moved_at lets both the range scan and the ordering come straight from
  * the index.
  */
-return new class() extends Migration
+return new class extends Migration
 {
     public function up(): void
     {

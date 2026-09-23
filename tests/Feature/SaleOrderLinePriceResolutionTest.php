@@ -11,7 +11,7 @@ function resolveLinePrice(int $warehouseId, int $productId, string $tierCode): P
 {
     Gate::define('inventory.sale-orders.create', fn ($user = null) => true);
 
-    $page = new SaleOrderFormPage();
+    $page = new SaleOrderFormPage;
     $page->mount();
     $page->warehouse_id = $warehouseId;
 

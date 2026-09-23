@@ -19,7 +19,7 @@ use Centrex\Inventory\Models\{Customer, SaleOrder, Warehouse};
  */
 function resolveSaleOrderDispatchInfo(SaleOrder $saleOrder, ?array $metadata = null): ?array
 {
-    $component = new SaleOrderShowPage();
+    $component = new SaleOrderShowPage;
     $component->record = $saleOrder;
 
     $ref = new ReflectionClass($component);
