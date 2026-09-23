@@ -100,12 +100,28 @@ class SaleReturnFormPage extends Component
         $selectedOrder = $this->selectedSaleOrder();
         $availableProducts = $this->availableProducts();
 
+        // Only the selected customer is materialised; the async-select endpoint serves the
+        // rest on demand. Loading every customer here rebuilt the full <option> list on each
+        // Livewire round-trip. Likewise, without a chosen order there is nothing meaningful
+        // to preselect, so the product list stays empty rather than fetching every product.
+        /** @var Customer|null $selectedCustomer */
+        $selectedCustomer = $this->customer_id
+            ? Customer::query()->whereKey($this->customer_id)->first()
+            : null;
+
         return view('inventory::livewire.transactions.sale-return-form', [
-            'warehouses' => Warehouse::query()->orderBy('name')->get(),
-            'customers'  => Customer::query()->orderBy('name')->get(),
-            'products'   => $selectedOrder
+            'warehouses'              => Warehouse::query()->orderBy('name')->get(['id', 'name']),
+            'selectedCustomerOptions' => $selectedCustomer
+                ? [
+                    $selectedCustomer->id => [
+                        'label'    => (string) ($selectedCustomer->organization_name ?: $selectedCustomer->name),
+                        'sublabel' => filled($selectedCustomer->phone) ? (string) $selectedCustomer->phone : null,
+                    ],
+                ]
+                : [],
+            'products' => $selectedOrder
                 ? collect($availableProducts)->sortBy('name')->values()->all()
-                : Product::query()->orderBy('name')->get()->all(),
+                : [],
             'selectedOrder'            => $selectedOrder,
             'availableProducts'        => $availableProducts,
             'selectedSaleOrderOptions' => $selectedOrder

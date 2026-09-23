@@ -26,7 +26,19 @@
                     </div>
                 </x-tallui-form-group>
             @else
-                <x-tallui-form-group label="Customer"><x-tallui-select wire:model="customer_id"><option value="">Optional</option>@foreach($customers as $customer)<option value="{{ $customer->id }}">{{ $customer->name }}</option>@endforeach</x-tallui-select></x-tallui-form-group>
+                <x-tallui-form-group label="Customer">
+                    <div wire:key="sale-return-customer-{{ $customer_id ?? 'none' }}">
+                        <x-tallui-select
+                            name="customer_id"
+                            wire:model="customer_id"
+                            :value="$customer_id"
+                            searchable
+                            placeholder="Optional"
+                            :options="$selectedCustomerOptions"
+                            :search-url="parse_url(route('inventory.async-select', ['resource' => 'customers']), PHP_URL_PATH)"
+                        />
+                    </div>
+                </x-tallui-form-group>
             @endif
             <x-tallui-form-group label="Returned At"><x-tallui-input type="date" wire:model="returned_at" /></x-tallui-form-group>
         </div>

@@ -74,12 +74,16 @@
                         @php($selectedProduct = $products->firstWhere('id', (int) ($item['product_id'] ?? 0)))
                         <tr wire:key="adj-item-{{ $index }}" class="even:bg-base-200/50 hover:bg-base-200">
                             <td class="pl-5 py-2">
-                                <x-tallui-select name="items.{{ $index }}.product_id" wire:model.live="items.{{ $index }}.product_id" class="select-sm w-full max-w-sm">
-                                    <option value="">Select product…</option>
-                                    @foreach ($products as $product)
-                                        <option value="{{ $product->id }}">{{ $product->name }}</option>
-                                    @endforeach
-                                </x-tallui-select>
+                                <x-tallui-select
+                                    name="items.{{ $index }}.product_id"
+                                    wire:model.live="items.{{ $index }}.product_id"
+                                    :value="$item['product_id'] ?? null"
+                                    searchable
+                                    class="select-sm w-full max-w-sm"
+                                    placeholder="Select product…"
+                                    :options="$selectedProductOptions"
+                                    :search-url="parse_url(route('inventory.async-select', ['resource' => 'products']), PHP_URL_PATH)"
+                                />
                             </td>
                             <td class="py-2">
                                 @if ($selectedProduct && $selectedProduct->variants->isNotEmpty())
