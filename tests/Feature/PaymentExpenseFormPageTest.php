@@ -33,7 +33,7 @@ function registerPaymentExpenseTargetRoutesForTest(): void
 function actingAsInventoryAdminForPaymentTests(): void
 {
     Gate::define('inventory-admin', fn () => true);
-    test()->actingAs(new class extends Authenticatable
+    test()->actingAs(new class() extends Authenticatable
     {
         protected $table = 'users';
 

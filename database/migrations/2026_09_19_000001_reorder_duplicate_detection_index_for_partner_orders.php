@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Schema;
  * condition pushdown — created_by (when present) is still checked against the index itself
  * rather than requiring a row lookup.
  */
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {

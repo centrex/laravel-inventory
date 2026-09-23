@@ -55,7 +55,7 @@ it('paginates recent sale orders instead of capping at a fixed limit', function 
         ]);
     }
 
-    $component = new InventoryRecentSaleOrdersCard;
+    $component = new InventoryRecentSaleOrdersCard();
     $component->startDate = now()->subDay()->toDateString();
     $component->endDate = now()->addDay()->toDateString();
     $component->customerId = $customer->id;
@@ -105,7 +105,7 @@ it('respects a smaller per-page size', function (): void {
         ]);
     }
 
-    $component = new InventoryRecentSaleOrdersCard;
+    $component = new InventoryRecentSaleOrdersCard();
     $component->startDate = now()->subDay()->toDateString();
     $component->endDate = now()->addDay()->toDateString();
     $component->customerId = $customer->id;

@@ -73,7 +73,7 @@ it('reports posted returns grouped by product, and excludes draft returns', func
         'items'         => [['product_id' => $product->id, 'qty_returned' => 1]],
     ]);
 
-    $component = new InventoryReturnedProductsCard;
+    $component = new InventoryReturnedProductsCard();
     $component->startDate = now()->subDay()->toDateString();
     $component->endDate = now()->addDay()->toDateString();
 
@@ -141,7 +141,7 @@ it('narrows returned products to the selected customer', function (): void {
     ]);
     $inventory->postSaleReturn($returnB->id);
 
-    $componentForA = new InventoryReturnedProductsCard;
+    $componentForA = new InventoryReturnedProductsCard();
     $componentForA->startDate = now()->subDay()->toDateString();
     $componentForA->endDate = now()->addDay()->toDateString();
     $componentForA->customerId = $customerA->id;
