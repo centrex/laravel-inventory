@@ -10086,11 +10086,6 @@ parameters:
 			path: src/Support/ErpIntegration.php
 
 		-
-			message: "#^Parameter \\#1 \\$data of method Centrex\\\\Accounting\\\\Accounting\\:\\:createJournalEntry\\(\\) expects array\\{date\\: string, reference\\?\\: string, type\\?\\: string, description\\?\\: string, currency\\?\\: string, exchange_rate\\?\\: float, sbu_code\\?\\: string, lines\\: array\\<int, array\\{account_id\\: int, type\\: string, amount\\: float, description\\?\\: string, reference\\?\\: string\\}\\>\\}, array given\\.$#"
-			count: 1
-			path: src/Support/ErpIntegration.php
-
-		-
 			message: "#^Parameter \\#2 \\$invoice of method Centrex\\\\Inventory\\\\Support\\\\ErpIntegration\\:\\:resyncSaleOrderDueAmount\\(\\) expects object, Centrex\\\\Accounting\\\\Models\\\\Invoice\\|null given\\.$#"
 			count: 1
 			path: src/Support/ErpIntegration.php
