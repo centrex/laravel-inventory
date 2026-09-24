@@ -171,6 +171,9 @@ trait ManagesSaleOrderLifecycle
         // batched query still locks exactly the same rows (no more, no less — the grouped
         // orWhere below matches only the requested product+variant pairs, not every variant
         // of a product) but does it in one round trip.
+        // Canonical lock order — see the matching comment in ManagesReturns. Two sale orders
+        // racing to reserve overlapping products must lock the shared WarehouseProduct rows in
+        // the same order, or they can deadlock each holding one row the other needs.
         $warehouseProducts = WarehouseProduct::where('warehouse_id', $so->warehouse_id)
             ->where(function ($query) use ($pairs): void {
                 foreach ($pairs as [$productId, $variantId]) {
@@ -180,6 +183,8 @@ trait ManagesSaleOrderLifecycle
                     });
                 }
             })
+            ->orderBy('product_id')
+            ->orderBy('variant_id')
             ->lockForUpdate()
             ->get()
             ->keyBy(fn (WarehouseProduct $wp): string => "{$wp->product_id}:{$wp->variant_id}");
@@ -243,7 +248,12 @@ trait ManagesSaleOrderLifecycle
                 throw new InvalidTransitionException("Sale order #{$soId} cannot be fulfilled from status [{$so->status->value}].");
             }
 
-            $items = $so->items()->with('product')->lockForUpdate()->get();
+            // Canonical (product_id, variant_id) order — see the matching comment in
+            // ManagesReturns. The SaleOrder-level lock above only serializes concurrent
+            // fulfilment of *this* order; two different orders touching overlapping products
+            // still lock their WarehouseProduct rows in whatever order this query returns
+            // them unless that order is pinned here.
+            $items = $so->items()->with('product')->orderBy('product_id')->orderBy('variant_id')->lockForUpdate()->get();
             $fullyFulfilled = true;
 
             foreach ($items as $item) {
@@ -426,13 +436,21 @@ trait ManagesSaleOrderLifecycle
 
     public function cancelSaleOrder(int $soId): SaleOrder
     {
-        $so = SaleOrder::with('items')->findOrFail($soId);
-        $this->assertSaleOrderAccess($so);
-        $this->assertTransition($so->status, SaleOrderStatus::CANCELLED, "sale order #{$soId}");
+        $result = DB::transaction(function () use ($soId): SaleOrder {
+            // Locked and status-checked inside the transaction — see fulfillSaleOrder()'s
+            // comment above. The status check that decides whether to release reservations
+            // used to run against a $so loaded *before* the transaction opened; two racing
+            // cancel calls could each see the same stale PROCESSING/PARTIAL status and each
+            // release the same reserved quantity, double-crediting qty_reserved back (the
+            // per-row lockForUpdate() below serializes the actual writes, but both still
+            // compute their release amount from the same pre-lock qty_fulfilled snapshot).
+            $so = SaleOrder::with('items')->lockForUpdate()->findOrFail($soId);
+            $this->assertSaleOrderAccess($so);
+            $this->assertTransition($so->status, SaleOrderStatus::CANCELLED, "sale order #{$soId}");
 
-        $result = DB::transaction(function () use ($so): SaleOrder {
             if (in_array($so->status, [SaleOrderStatus::PROCESSING, SaleOrderStatus::PARTIAL], true)) {
-                foreach ($so->items as $item) {
+                // Canonical lock order — see the matching comment in ManagesReturns.
+                foreach ($so->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                     $reserved = (float) $item->qty_ordered - (float) $item->qty_fulfilled;
 
                     if ($reserved > 0) {
