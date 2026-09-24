@@ -160,7 +160,7 @@ trait HasSharedInventoryHelpers
      */
     private function lockWarehouseProduct(int $warehouseId, int $productId, ?int $variantId = null): WarehouseProduct
     {
-        $model = new WarehouseProduct();
+        $model = new WarehouseProduct;
         $variantId = $this->normalizeVariantId($variantId, $productId);
 
         $existing = WarehouseProduct::where('warehouse_id', $warehouseId)
