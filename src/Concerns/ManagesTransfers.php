@@ -229,11 +229,18 @@ trait ManagesTransfers
     /** Dispatch transfer: decrement source stock, track qty_in_transit. */
     public function dispatchTransfer(int $transferId): Transfer
     {
-        $transfer = Transfer::with('items.product')->findOrFail($transferId);
-        $this->assertTransition($transfer->status, TransferStatus::DISPATCHED, "transfer #{$transferId}");
+        return DB::transaction(function () use ($transferId): Transfer {
+            // Locked and status-checked inside the transaction so two concurrent dispatch
+            // calls for the same transfer can't both pass the status check and each decrement
+            // source stock / increment qty_in_transit for the same shipment — the second call
+            // blocks on this row lock until the first commits, then sees status=dispatched
+            // and throws instead of double-dispatching.
+            $transfer = Transfer::with('items.product')->lockForUpdate()->findOrFail($transferId);
+            $this->assertTransition($transfer->status, TransferStatus::DISPATCHED, "transfer #{$transferId}");
 
-        return DB::transaction(function () use ($transfer): Transfer {
-            foreach ($transfer->items as $item) {
+            // Lock source stock rows in a canonical (product_id, variant_id) order, not
+            // line-entry order — see the matching comment in ManagesReturns.
+            foreach ($transfer->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $transfer->from_warehouse_id)
                     ->where('product_id', $item->product_id)
                     ->where('variant_id', $item->variant_id)
@@ -284,16 +291,20 @@ trait ManagesTransfers
      */
     public function receiveTransfer(int $transferId, array $receivedQtys = []): Transfer
     {
-        $transfer = Transfer::with('items.product')->findOrFail($transferId);
+        return DB::transaction(function () use ($transferId, $receivedQtys): Transfer {
+            // Locked inside the transaction — see dispatchTransfer() above. This also
+            // serializes concurrent *partial* receives of the same transfer: qty_received is
+            // read-then-written per item, so two overlapping calls without this lock could
+            // each compute the same "remaining" quantity and double-credit destination stock.
+            $transfer = Transfer::with('items.product')->lockForUpdate()->findOrFail($transferId);
 
-        if (!in_array($transfer->status, [TransferStatus::DISPATCHED, TransferStatus::PARTIAL])) {
-            throw new InvalidTransitionException("Transfer #{$transferId} is not in transit.");
-        }
+            if (!in_array($transfer->status, [TransferStatus::DISPATCHED, TransferStatus::PARTIAL])) {
+                throw new InvalidTransitionException("Transfer #{$transferId} is not in transit.");
+            }
 
-        return DB::transaction(function () use ($transfer, $receivedQtys): Transfer {
             $fullyReceived = true;
 
-            foreach ($transfer->items as $item) {
+            foreach ($transfer->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                 $remainingQty = max(0.0, (float) $item->qty_sent - (float) $item->qty_received);
                 $qtyReceived = isset($receivedQtys[$item->id])
                     ? (float) $receivedQtys[$item->id]
