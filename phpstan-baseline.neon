@@ -486,16 +486,6 @@ parameters:
 			path: src/Enums/PriceTierCode.php
 
 		-
-			message: "#^Call to method getPlainApiKey\\(\\) on an unknown class Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 2
-			path: src/Http/Controllers/Api/InventoryWorkflowController.php
-
-		-
-			message: "#^Call to method toArray\\(\\) on an unknown class Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 2
-			path: src/Http/Controllers/Api/InventoryWorkflowController.php
-
-		-
 			message: "#^Parameter \\$createdBy of method Centrex\\\\Inventory\\\\Support\\\\DuplicateSaleOrderDetector\\:\\:find\\(\\) expects int\\|null, int\\|string given\\.$#"
 			count: 1
 			path: src/Http/Controllers/Api/InventoryWorkflowController.php
@@ -6426,26 +6416,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Call to static method create\\(\\) on an unknown class Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Call to static method findOrFail\\(\\) on an unknown class Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Call to static method generateApiKey\\(\\) on an unknown class Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Call to static method when\\(\\) on an unknown class Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Cannot access offset 'age_bucket' on mixed\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -6567,11 +6537,6 @@ parameters:
 
 		-
 			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:createInterWarehouseShipment\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:createPartner\\(\\) has invalid return type Centrex\\\\Inventory\\\\Partner\\.$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -6896,11 +6861,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:rotatePartnerApiKey\\(\\) has invalid return type Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:salesAssignment\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -6971,11 +6931,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:updatePartner\\(\\) has invalid return type Centrex\\\\Inventory\\\\Partner\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:updatePartner\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -7002,6 +6957,11 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Adjustment, mixed\\>, array\\<string, Centrex\\\\Inventory\\\\Enums\\\\StockReceiptStatus\\:\\:POSTED\\> given\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>, array\\<string, string\\> given\\.$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -7122,6 +7082,11 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\:\\:firstOrCreate\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Lot, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 1
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>, array\\<string, mixed\\> given\\.$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -7313,6 +7278,11 @@ parameters:
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Lot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Lot, 'warehouse_id' given\\.$#"
 			count: 5
+			path: src/Inventory.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Partner, 'is_active' given\\.$#"
+			count: 1
 			path: src/Inventory.php
 
 		-

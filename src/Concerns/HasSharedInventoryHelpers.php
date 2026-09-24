@@ -20,6 +20,25 @@ use Illuminate\Support\Facades\DB;
 trait HasSharedInventoryHelpers
 {
     /**
+     * Memoised `inventory.qty_tolerance`, keyed by application instance.
+     *
+     * The tolerance is consulted on nearly every quantity comparison, including inside the
+     * per-line loops of the receipt, fulfilment, transfer and adjustment paths — so it was
+     * being re-read from config dozens of times per posted document, each read a container
+     * resolve plus a dotted-key lookup. Keying by container identity keeps a rebuilt
+     * application (Testbench, Octane) from inheriting the previous one's value.
+     *
+     * @var array<int, float>
+     */
+    private static array $qtyTolerances = [];
+
+    /** Quantity comparison tolerance, used to absorb float rounding on decimal quantities. */
+    private function qtyTolerance(): float
+    {
+        return self::$qtyTolerances[spl_object_id(app())] ??= (float) config('inventory.qty_tolerance', 0.0001);
+    }
+
+    /**
      * Recalculate the weighted-average cost after receiving $qtyIn units at $unitCostAmount each.
      *
      * Formula: (currentQty × currentWAC + qtyIn × unitCost) / (currentQty + qtyIn)
