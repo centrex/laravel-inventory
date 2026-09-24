@@ -106,14 +106,21 @@ trait ManagesReturns
 
     public function postSaleReturn(int $saleReturnId): SaleReturn
     {
-        $saleReturn = SaleReturn::query()->with('items')->findOrFail($saleReturnId);
+        $saleReturn = DB::transaction(function () use ($saleReturnId): SaleReturn {
+            // Locked and status-checked inside the transaction so a double-click on a slow
+            // connection (or a client retrying after a timeout) can't post the same return
+            // twice — the second call blocks on this row lock until the first commits, then
+            // sees status=posted and throws instead of double-crediting stock.
+            $saleReturn = SaleReturn::query()->with('items')->lockForUpdate()->findOrFail($saleReturnId);
 
-        if ($saleReturn->status !== 'draft') {
-            throw new InvalidTransitionException("Sale return #{$saleReturn->return_number} is already {$saleReturn->status}.");
-        }
+            if ($saleReturn->status !== 'draft') {
+                throw new InvalidTransitionException("Sale return #{$saleReturn->return_number} is already {$saleReturn->status}.");
+            }
 
-        $saleReturn = DB::transaction(function () use ($saleReturn): SaleReturn {
-            foreach ($saleReturn->items as $item) {
+            // Lock rows in a canonical (product_id, variant_id) order, not line-entry order —
+            // two documents touching the same products in different item order would otherwise
+            // acquire these locks in opposite order under concurrency, risking a deadlock.
+            foreach ($saleReturn->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                 $warehouseProduct = $this->lockWarehouseProduct($saleReturn->warehouse_id, $item->product_id, $item->variant_id);
                 $qty = (float) $item->qty_returned;
                 $qtyBefore = (float) $warehouseProduct->qty_on_hand;
@@ -227,14 +234,16 @@ trait ManagesReturns
 
     public function postPurchaseReturn(int $purchaseReturnId): PurchaseReturn
     {
-        $purchaseReturn = PurchaseReturn::query()->with('items')->findOrFail($purchaseReturnId);
+        $purchaseReturn = DB::transaction(function () use ($purchaseReturnId): PurchaseReturn {
+            // Locked and status-checked inside the transaction — see postSaleReturn() above.
+            $purchaseReturn = PurchaseReturn::query()->with('items')->lockForUpdate()->findOrFail($purchaseReturnId);
 
-        if ($purchaseReturn->status !== 'draft') {
-            throw new InvalidTransitionException("Purchase return #{$purchaseReturn->return_number} is already {$purchaseReturn->status}.");
-        }
+            if ($purchaseReturn->status !== 'draft') {
+                throw new InvalidTransitionException("Purchase return #{$purchaseReturn->return_number} is already {$purchaseReturn->status}.");
+            }
 
-        $purchaseReturn = DB::transaction(function () use ($purchaseReturn): PurchaseReturn {
-            foreach ($purchaseReturn->items as $item) {
+            // Canonical lock order — see the matching comment in postSaleReturn() above.
+            foreach ($purchaseReturn->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                 $warehouseProduct = $this->lockWarehouseProduct($purchaseReturn->warehouse_id, $item->product_id, $item->variant_id);
                 $qty = (float) $item->qty_returned;
                 $qtyBefore = (float) $warehouseProduct->qty_on_hand;

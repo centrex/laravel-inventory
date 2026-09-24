@@ -349,14 +349,19 @@ trait ManagesInterWarehouseShipments
 
     public function dispatchInterWarehouseShipment(int $shipmentId): Shipment
     {
-        $shipment = Shipment::with('items.product')->findOrFail($shipmentId);
+        return DB::transaction(function () use ($shipmentId): Shipment {
+            // Locked and status-checked inside the transaction — see the matching fix in
+            // ManagesTransfers::dispatchTransfer(). Without this, two concurrent dispatch
+            // calls for the same shipment could each pass the status check and each
+            // decrement source stock / increment qty_in_transit for one physical shipment.
+            $shipment = Shipment::with('items.product')->lockForUpdate()->findOrFail($shipmentId);
 
-        if ($shipment->status !== ShipmentStatus::DRAFT) {
-            throw new InvalidTransitionException("Shipment #{$shipmentId} is not in draft status.");
-        }
+            if ($shipment->status !== ShipmentStatus::DRAFT) {
+                throw new InvalidTransitionException("Shipment #{$shipmentId} is not in draft status.");
+            }
 
-        return DB::transaction(function () use ($shipment): Shipment {
-            foreach ($shipment->items as $item) {
+            // Canonical lock order — see the matching comment in ManagesReturns/ManagesTransfers.
+            foreach ($shipment->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                 $wp = WarehouseProduct::where('warehouse_id', $shipment->from_warehouse_id)
                     ->where('product_id', $item->product_id)
                     ->where('variant_id', $item->variant_id)
@@ -409,16 +414,18 @@ trait ManagesInterWarehouseShipments
 
     public function receiveInterWarehouseShipment(int $shipmentId, array $receivedQtys = []): Shipment
     {
-        $shipment = Shipment::with('items.product')->findOrFail($shipmentId);
+        return DB::transaction(function () use ($shipmentId, $receivedQtys): Shipment {
+            // Locked inside the transaction — see receiveTransfer()'s matching fix. Also
+            // serializes concurrent partial receives of the same shipment for the same reason.
+            $shipment = Shipment::with('items.product')->lockForUpdate()->findOrFail($shipmentId);
 
-        if (!in_array($shipment->status, [ShipmentStatus::IN_TRANSIT, ShipmentStatus::PARTIAL])) {
-            throw new InvalidTransitionException("Shipment #{$shipmentId} is not in transit.");
-        }
+            if (!in_array($shipment->status, [ShipmentStatus::IN_TRANSIT, ShipmentStatus::PARTIAL])) {
+                throw new InvalidTransitionException("Shipment #{$shipmentId} is not in transit.");
+            }
 
-        return DB::transaction(function () use ($shipment, $receivedQtys): Shipment {
             $fullyReceived = true;
 
-            foreach ($shipment->items as $item) {
+            foreach ($shipment->items->sortBy([['product_id', 'asc'], ['variant_id', 'asc']]) as $item) {
                 $remainingQty = max(0.0, (float) $item->qty_sent - (float) $item->qty_received);
                 $qtyReceived = isset($receivedQtys[$item->id]) ? (float) $receivedQtys[$item->id] : $remainingQty;
 

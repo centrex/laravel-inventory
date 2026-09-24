@@ -64,15 +64,17 @@ trait ManagesPickPackShip
     /** Mark a pick list as actively being picked (draft → picking). */
     public function startPicking(int $pickListId): PickList
     {
-        $pickList = PickList::findOrFail($pickListId);
+        return DB::transaction(function () use ($pickListId): PickList {
+            $pickList = PickList::lockForUpdate()->findOrFail($pickListId);
 
-        if ($pickList->status !== 'draft') {
-            throw new InvalidTransitionException("Pick list #{$pickListId} is not in draft status.");
-        }
+            if ($pickList->status !== 'draft') {
+                throw new InvalidTransitionException("Pick list #{$pickListId} is not in draft status.");
+            }
 
-        $pickList->update(['status' => 'picking']);
+            $pickList->update(['status' => 'picking']);
 
-        return $pickList->refresh();
+            return $pickList->refresh();
+        });
     }
 
     /**
@@ -82,13 +84,13 @@ trait ManagesPickPackShip
      */
     public function confirmPick(int $pickListId, array $pickedQtys): PickList
     {
-        $pickList = PickList::with('items')->findOrFail($pickListId);
+        return DB::transaction(function () use ($pickListId, $pickedQtys): PickList {
+            $pickList = PickList::with('items')->lockForUpdate()->findOrFail($pickListId);
 
-        if ($pickList->status !== 'picking') {
-            throw new InvalidTransitionException("Pick list #{$pickListId} must be in 'picking' status to confirm.");
-        }
+            if ($pickList->status !== 'picking') {
+                throw new InvalidTransitionException("Pick list #{$pickListId} must be in 'picking' status to confirm.");
+            }
 
-        return DB::transaction(function () use ($pickList, $pickedQtys): PickList {
             foreach ($pickList->items as $item) {
                 $data = $pickedQtys[$item->id] ?? null;
 
@@ -169,43 +171,55 @@ trait ManagesPickPackShip
      */
     public function dispatchShipment(int $shipmentId): Shipment
     {
-        $shipment = Shipment::with('items')->findOrFail($shipmentId);
+        return DB::transaction(function () use ($shipmentId): Shipment {
+            // Locked and status-checked inside the transaction. fulfillSaleOrder() opens its
+            // own DB::transaction(), which nests as a savepoint under this one, so the
+            // shipment-level lock stays held for its full duration — without it, two racing
+            // dispatch calls for the same shipment could both pass the 'pending' check and
+            // both call fulfillSaleOrder(); the first succeeds, and if the second then throws
+            // (fulfillSaleOrder's own guard rejects the now-already-fulfilled quantity), that
+            // exception would previously propagate before this method's own status update ran,
+            // leaving the shipment stuck at 'pending' despite stock already having moved.
+            $shipment = Shipment::with('items')->lockForUpdate()->findOrFail($shipmentId);
 
-        if ($shipment->status !== 'pending') {
-            throw new InvalidTransitionException("Shipment #{$shipmentId} is already {$shipment->status}.");
-        }
+            if ($shipment->status !== 'pending') {
+                throw new InvalidTransitionException("Shipment #{$shipmentId} is already {$shipment->status}.");
+            }
 
-        // Build fulfilledQtys from shipment items for fulfillSaleOrder
-        $fulfilledQtys = $shipment->items
-            ->mapWithKeys(fn (ShipmentItem $item) => [
-                $item->sale_order_item_id => [
-                    'qty'    => (float) $item->qty_shipped,
-                    'lot_id' => $item->lot_id,
-                ],
-            ])
-            ->all();
+            // Build fulfilledQtys from shipment items for fulfillSaleOrder
+            $fulfilledQtys = $shipment->items
+                ->mapWithKeys(fn (ShipmentItem $item) => [
+                    $item->sale_order_item_id => [
+                        'qty'    => (float) $item->qty_shipped,
+                        'lot_id' => $item->lot_id,
+                    ],
+                ])
+                ->all();
 
-        $this->fulfillSaleOrder((int) $shipment->sale_order_id, $fulfilledQtys);
+            $this->fulfillSaleOrder((int) $shipment->sale_order_id, $fulfilledQtys);
 
-        $shipment->update([
-            'status'        => 'dispatched',
-            'dispatched_at' => now(),
-        ]);
+            $shipment->update([
+                'status'        => 'dispatched',
+                'dispatched_at' => now(),
+            ]);
 
-        return $shipment->refresh();
+            return $shipment->refresh();
+        });
     }
 
     /** Mark a shipment as delivered. */
     public function markShipmentDelivered(int $shipmentId): Shipment
     {
-        $shipment = Shipment::findOrFail($shipmentId);
+        return DB::transaction(function () use ($shipmentId): Shipment {
+            $shipment = Shipment::lockForUpdate()->findOrFail($shipmentId);
 
-        if ($shipment->status !== 'dispatched') {
-            throw new InvalidTransitionException("Shipment #{$shipmentId} must be dispatched before marking delivered.");
-        }
+            if ($shipment->status !== 'dispatched') {
+                throw new InvalidTransitionException("Shipment #{$shipmentId} must be dispatched before marking delivered.");
+            }
 
-        $shipment->update(['status' => 'delivered']);
+            $shipment->update(['status' => 'delivered']);
 
-        return $shipment->refresh();
+            return $shipment->refresh();
+        });
     }
 }

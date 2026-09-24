@@ -174,77 +174,95 @@ trait ManagesPurchaseOrders
     /** Transition a PO from DRAFT → SUBMITTED (sets ordered_at if not already set). */
     public function submitPurchaseOrder(int $poId): PurchaseOrder
     {
-        $po = PurchaseOrder::findOrFail($poId);
-        $this->assertPurchaseOrderAccess($po);
-        $this->assertTransition($po->status, PurchaseOrderStatus::SUBMITTED, "purchase order #{$poId}");
-        $po->update(['status' => PurchaseOrderStatus::SUBMITTED, 'ordered_at' => $po->ordered_at ?? now()]);
+        return DB::transaction(function () use ($poId): PurchaseOrder {
+            $po = PurchaseOrder::lockForUpdate()->findOrFail($poId);
+            $this->assertPurchaseOrderAccess($po);
+            $this->assertTransition($po->status, PurchaseOrderStatus::SUBMITTED, "purchase order #{$poId}");
+            $po->update(['status' => PurchaseOrderStatus::SUBMITTED, 'ordered_at' => $po->ordered_at ?? now()]);
 
-        return $po;
+            return $po;
+        });
     }
 
     /** Transition a PO from SUBMITTED → CONFIRMED and sync the document to accounting. */
     public function confirmPurchaseOrder(int $poId): PurchaseOrder
     {
-        $po = PurchaseOrder::findOrFail($poId);
-        $this->assertPurchaseOrderAccess($po);
-        $this->assertTransition($po->status, PurchaseOrderStatus::CONFIRMED, "purchase order #{$poId}");
-        $po->update(['status' => PurchaseOrderStatus::CONFIRMED]);
-        SyncPurchaseOrderAccountingDocumentJob::dispatch($po->id);
+        return DB::transaction(function () use ($poId): PurchaseOrder {
+            // Locked and status-checked inside the transaction so a double-click can't confirm
+            // (and double-dispatch the accounting sync for) the same PO twice.
+            $po = PurchaseOrder::lockForUpdate()->findOrFail($poId);
+            $this->assertPurchaseOrderAccess($po);
+            $this->assertTransition($po->status, PurchaseOrderStatus::CONFIRMED, "purchase order #{$poId}");
+            $po->update(['status' => PurchaseOrderStatus::CONFIRMED]);
+            SyncPurchaseOrderAccountingDocumentJob::dispatch($po->id);
 
-        return $po->refresh();
+            return $po->refresh();
+        });
     }
 
     public function receivePurchaseOrder(int $poId, array $receivedQtys = [], array $options = []): PurchaseOrder
     {
-        $po = PurchaseOrder::with('items')->findOrFail($poId);
-        $this->assertPurchaseOrderAccess($po);
+        return DB::transaction(function () use ($poId, $receivedQtys, $options): PurchaseOrder {
+            // Locked and status-checked inside the transaction, wrapping the whole receive —
+            // remaining-quantity computation, GRN creation, and posting — as one atomic unit.
+            // createStockReceipt()/postStockReceipt() open their own DB::transaction() calls,
+            // which Laravel nests as savepoints under this one rather than starting fresh, so
+            // the PO-level lock stays held for the full duration. Without it, two concurrent
+            // (or one retried-after-timeout) calls could each compute the same "remaining"
+            // quantity from a pre-lock read and each create a separate GRN for it — receiving
+            // the same delivery into stock twice.
+            $po = PurchaseOrder::with('items')->lockForUpdate()->findOrFail($poId);
+            $this->assertPurchaseOrderAccess($po);
 
-        if (!in_array($po->status, [PurchaseOrderStatus::CONFIRMED, PurchaseOrderStatus::PARTIAL], true)) {
-            throw new InvalidTransitionException("Purchase order #{$poId} cannot be received from status [{$po->status->value}].");
-        }
-
-        $items = [];
-
-        foreach ($po->items as $item) {
-            $remainingQty = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
-
-            if ($remainingQty <= $this->qtyTolerance()) {
-                continue;
+            if (!in_array($po->status, [PurchaseOrderStatus::CONFIRMED, PurchaseOrderStatus::PARTIAL], true)) {
+                throw new InvalidTransitionException("Purchase order #{$poId} cannot be received from status [{$po->status->value}].");
             }
 
-            $qty = array_key_exists($item->id, $receivedQtys)
-                ? (float) $receivedQtys[$item->id]
-                : $remainingQty;
+            $items = [];
 
-            if ($qty <= 0) {
-                continue;
+            foreach ($po->items as $item) {
+                $remainingQty = max(0.0, (float) $item->qty_ordered - (float) $item->qty_received);
+
+                if ($remainingQty <= $this->qtyTolerance()) {
+                    continue;
+                }
+
+                $qty = array_key_exists($item->id, $receivedQtys)
+                    ? (float) $receivedQtys[$item->id]
+                    : $remainingQty;
+
+                if ($qty <= 0) {
+                    continue;
+                }
+
+                $items[] = [
+                    'purchase_order_item_id' => $item->id,
+                    'qty_received'           => $qty,
+                    'unit_cost_local'        => (float) $item->unit_price_local,
+                ];
             }
 
-            $items[] = [
-                'purchase_order_item_id' => $item->id,
-                'qty_received'           => $qty,
-                'unit_cost_local'        => (float) $item->unit_price_local,
-            ];
-        }
+            if ($items === []) {
+                throw new \InvalidArgumentException("Purchase order #{$poId} has no remaining quantity to receive.");
+            }
 
-        if ($items === []) {
-            throw new \InvalidArgumentException("Purchase order #{$poId} has no remaining quantity to receive.");
-        }
+            $grn = $this->createStockReceipt($poId, $items, $options);
+            $this->postStockReceipt((int) $grn->getKey());
 
-        $grn = $this->createStockReceipt($poId, $items, $options);
-        $this->postStockReceipt((int) $grn->getKey());
-
-        return PurchaseOrder::query()->with(['items.product', 'supplier', 'warehouse'])->findOrFail($poId);
+            return PurchaseOrder::query()->with(['items.product', 'supplier', 'warehouse'])->findOrFail($poId);
+        });
     }
 
     /** Transition a PO from DRAFT|SUBMITTED → CANCELLED. */
     public function cancelPurchaseOrder(int $poId): PurchaseOrder
     {
-        $po = PurchaseOrder::findOrFail($poId);
-        $this->assertPurchaseOrderAccess($po);
-        $this->assertTransition($po->status, PurchaseOrderStatus::CANCELLED, "purchase order #{$poId}");
-        $po->update(['status' => PurchaseOrderStatus::CANCELLED]);
+        return DB::transaction(function () use ($poId): PurchaseOrder {
+            $po = PurchaseOrder::lockForUpdate()->findOrFail($poId);
+            $this->assertPurchaseOrderAccess($po);
+            $this->assertTransition($po->status, PurchaseOrderStatus::CANCELLED, "purchase order #{$poId}");
+            $po->update(['status' => PurchaseOrderStatus::CANCELLED]);
 
-        return $po;
+            return $po;
+        });
     }
 }
