@@ -4,9 +4,11 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Concerns;
 
+use Centrex\Accounting\Models\{Bill, Invoice};
 use Centrex\Inventory\Enums\{PurchaseOrderStatus, SaleOrderStatus};
-use Centrex\Inventory\Models\{Customer, PurchaseOrderItem, SaleOrder, SaleOrderItem, WarehouseProduct};
+use Centrex\Inventory\Models\{Customer, PurchaseOrder, PurchaseOrderItem, SaleOrder, SaleOrderItem, WarehouseProduct};
 use Centrex\Inventory\Support\{CommercialTeamAccess, DayRange, SalesTargetCalculator};
+use DateTimeInterface;
 use Illuminate\Support\{Carbon, Collection};
 
 /**
@@ -682,5 +684,126 @@ trait GeneratesSalesForecast
             })
             ->sortByDesc('forecast_revenue')
             ->values();
+    }
+
+    private function historicalCustomerCollectionRatio(DateTimeInterface $startDate, DateTimeInterface $endDate): float
+    {
+        $invoiceClass = Invoice::class;
+
+        if (!class_exists($invoiceClass)) {
+            return 0.8;
+        }
+
+        $invoices = $invoiceClass::query()
+            ->where(function ($query): void {
+                $query->where('source_type', SaleOrder::class)
+                    ->orWhereNotNull('inventory_sale_order_id');
+            })
+            ->where('invoice_date', '>=', $startDate->toDateString())
+            ->where('invoice_date', '<=', $endDate->toDateString())
+            ->get();
+
+        $total = (float) $invoices->sum('base_total');
+
+        if ($total <= 0) {
+            return 0.8;
+        }
+
+        return max(0.1, min(1.0, round((float) $invoices->sum('base_paid_amount') / $total, 4)));
+    }
+
+    private function historicalSupplierPaymentRatio(DateTimeInterface $startDate, DateTimeInterface $endDate): float
+    {
+        $billClass = Bill::class;
+
+        if (!class_exists($billClass)) {
+            return 0.7;
+        }
+
+        $bills = $billClass::query()
+            ->where(function ($query): void {
+                $query->where('source_type', PurchaseOrder::class)
+                    ->orWhereNotNull('inventory_purchase_order_id');
+            })
+            ->where('bill_date', '>=', $startDate->toDateString())
+            ->where('bill_date', '<=', $endDate->toDateString())
+            ->get();
+
+        $total = (float) $bills->sum('base_total');
+
+        if ($total <= 0) {
+            return 0.7;
+        }
+
+        return max(0.1, min(1.0, round((float) $bills->sum('base_paid_amount') / $total, 4)));
+    }
+
+    private function buildForecastTimeline(
+        Collection $productForecast,
+        int $forecastDays,
+        float $collectionRatio,
+        float $supplierPaymentRatio,
+    ): array {
+        $months = max(3, (int) ceil($forecastDays / 30));
+        $categories = [];
+        $qtySeries = [];
+        $revenueSeries = [];
+        $cashInSeries = [];
+        $cashOutSeries = [];
+        $netSeries = [];
+        $forecastEnd = now()->copy()->addDays($forecastDays);
+
+        for ($offset = 0; $offset < $months; $offset++) {
+            $monthStart = now()->copy()->startOfMonth()->addMonths($offset);
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            $periodEnd = $monthEnd->lessThan($forecastEnd) ? $monthEnd : $forecastEnd;
+            $days = (float) $monthStart->diffInDaysFiltered(
+                fn ($date): bool => $date <= $periodEnd,
+                $monthEnd->copy()->addDay(),
+            );
+
+            if ($days <= 0) {
+                break;
+            }
+
+            $monthQty = round((float) $productForecast->sum(fn (array $product): float => (float) $product['avg_daily_qty'] * $days), 2);
+            $monthRevenue = round((float) $productForecast->sum(fn (array $product): float => (float) $product['avg_daily_revenue'] * $days), 2);
+            $monthOutflow = round((float) $productForecast->sum(function (array $product) use ($forecastDays, $days): float {
+                $gapQty = (float) $product['forecast_gap_qty'];
+
+                if ($gapQty <= 0 || $forecastDays <= 0) {
+                    return 0.0;
+                }
+
+                return ($gapQty / $forecastDays) * $days * ((float) $product['forecast_procurement_cost'] / max(0.0001, $gapQty));
+            }), 2);
+            $monthCashIn = round($monthRevenue * $collectionRatio, 2);
+            $monthCashOut = round($monthOutflow * $supplierPaymentRatio, 2);
+
+            $categories[] = $monthStart->format('M Y');
+            $qtySeries[] = $monthQty;
+            $revenueSeries[] = $monthRevenue;
+            $cashInSeries[] = $monthCashIn;
+            $cashOutSeries[] = $monthCashOut;
+            $netSeries[] = round($monthCashIn - $monthCashOut, 2);
+        }
+
+        return [
+            'categories' => $categories,
+            'series'     => [
+                ['name' => 'Forecast Qty', 'data' => $qtySeries],
+                ['name' => 'Forecast Revenue', 'data' => $revenueSeries],
+                ['name' => 'Cash In', 'data' => $cashInSeries],
+                ['name' => 'Cash Out', 'data' => $cashOutSeries],
+                ['name' => 'Net Cash', 'data' => $netSeries],
+            ],
+            'totals' => [
+                'qty'      => round(array_sum($qtySeries), 2),
+                'revenue'  => round(array_sum($revenueSeries), 2),
+                'cash_in'  => round(array_sum($cashInSeries), 2),
+                'cash_out' => round(array_sum($cashOutSeries), 2),
+                'cash_net' => round(array_sum($netSeries), 2),
+            ],
+        ];
     }
 }
