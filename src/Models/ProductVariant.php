@@ -22,12 +22,6 @@ class ProductVariant extends Model implements Auditable
         return 'product_variants';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'product_id', 'sku', 'name', 'barcode',
         'weight_kg', 'sort_order', 'is_active',

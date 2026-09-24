@@ -60,12 +60,6 @@ class PurchaseOrder extends Model implements Auditable
         return 'purchase_orders';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'po_number', 'document_type', 'warehouse_id', 'supplier_id',
         'currency', 'exchange_rate',

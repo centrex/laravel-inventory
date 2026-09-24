@@ -17,12 +17,6 @@ class ProductTrendSnapshot extends Model
         return 'product_trend_snapshots';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'product_id',
         'variant_id',

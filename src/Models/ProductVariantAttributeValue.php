@@ -20,12 +20,6 @@ class ProductVariantAttributeValue extends Model implements Auditable
         return 'product_variant_attribute_values';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'attribute_type_id', 'value', 'display_value', 'color_hex', 'sort_order',
     ];

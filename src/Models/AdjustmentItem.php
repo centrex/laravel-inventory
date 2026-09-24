@@ -20,12 +20,6 @@ class AdjustmentItem extends Model implements Auditable
         return 'adjustment_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'adjustment_id', 'product_id', 'variant_id',
         'qty_system', 'qty_actual', 'qty_delta',

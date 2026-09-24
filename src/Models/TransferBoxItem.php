@@ -20,12 +20,6 @@ class TransferBoxItem extends Model implements Auditable
         return 'transfer_box_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'transfer_box_id',
         'product_id',

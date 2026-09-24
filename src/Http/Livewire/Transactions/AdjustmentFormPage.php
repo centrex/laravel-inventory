@@ -84,10 +84,33 @@ class AdjustmentFormPage extends Component
 
     public function render(): View
     {
+        // Only the products actually referenced by the current rows are loaded. This used to
+        // fetch every product with every variant on each render — and since render() re-runs
+        // on every Livewire round-trip, and the blade repeats the whole list as <option> tags
+        // once per adjustment row, the cost was (products x rows) on each keystroke.
+        $selectedProductIds = collect($this->items)
+            ->pluck('product_id')
+            ->filter()
+            ->map(static fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        $products = $selectedProductIds->isEmpty()
+            ? collect()
+            : Product::query()->with('variants')->whereIn('id', $selectedProductIds)->orderBy('name')->get();
+
         return view('inventory::livewire.transactions.adjustment-form', [
-            'warehouses' => Warehouse::query()->orderBy('name')->get(),
-            'products'   => Product::query()->with('variants')->orderBy('name')->get(),
-            'reasons'    => AdjustmentReason::cases(),
+            'warehouses'             => Warehouse::query()->orderBy('name')->get(['id', 'name']),
+            'products'               => $products,
+            'selectedProductOptions' => $products->mapWithKeys(
+                static fn (Product $product): array => [
+                    $product->id => [
+                        'label'    => (string) $product->name,
+                        'sublabel' => filled($product->sku) ? (string) $product->sku : null,
+                    ],
+                ],
+            )->all(),
+            'reasons' => AdjustmentReason::cases(),
         ]);
     }
 

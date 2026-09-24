@@ -20,12 +20,6 @@ class SupplierProductStat extends Model implements Auditable
         return 'supplier_product_stats';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'supplier_id',
         'product_id',

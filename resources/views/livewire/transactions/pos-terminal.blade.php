@@ -258,12 +258,18 @@
                 </div>
 
                 {{-- Customer — per tab --}}
-                <select wire:model.live="tabCustomers.{{ $activeTabId }}" class="select select-sm select-bordered w-full">
-                    <option value="">Walk-in customer</option>
-                    @foreach ($customers as $c)
-                        <option value="{{ $c->id }}">{{ $c->name }}</option>
-                    @endforeach
-                </select>
+                <div wire:key="pos-customer-select-{{ $activeTabId }}-{{ $tabCustomers[$activeTabId] ?? 'none' }}">
+                    <x-tallui-select
+                        name="tabCustomers.{{ $activeTabId }}"
+                        wire:model.live="tabCustomers.{{ $activeTabId }}"
+                        :value="$tabCustomers[$activeTabId] ?? null"
+                        searchable
+                        class="select-sm"
+                        placeholder="Walk-in customer"
+                        :options="$selectedCustomerOptions"
+                        :search-url="parse_url(route('inventory.async-select', ['resource' => 'customers']), PHP_URL_PATH)"
+                    />
+                </div>
 
                 <div class="flex items-center gap-2">
                     <input

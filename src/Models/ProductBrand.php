@@ -23,12 +23,6 @@ class ProductBrand extends Model implements Auditable, HasMedia
         return 'product_brands';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'name', 'slug', 'description', 'sort_order', 'is_active',
     ];
@@ -37,6 +31,16 @@ class ProductBrand extends Model implements Auditable, HasMedia
         'sort_order' => 'integer',
         'is_active'  => 'boolean',
     ];
+
+    /**
+     * The appended `primary_image_url` accessor resolves through getFirstMediaUrl(), which
+     * queries the media table whenever the relation is not already loaded — one query per
+     * model on any toArray()/toJson(), i.e. every API listing and every Livewire payload.
+     * Eager-loading it turns that N+1 into a single query per result set.
+     *
+     * @var list<string>
+     */
+    protected $with = ['media'];
 
     protected $appends = [
         'primary_image_url',

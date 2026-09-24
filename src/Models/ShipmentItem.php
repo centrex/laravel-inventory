@@ -20,12 +20,6 @@ class ShipmentItem extends Model implements Auditable
         return 'shipment_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'shipment_id', 'product_id', 'variant_id',
         'qty_sent', 'qty_received',

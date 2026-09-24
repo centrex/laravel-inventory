@@ -603,9 +603,24 @@ class PosTerminalPage extends Component
             }
         }
 
+        // Only the currently-selected customer is materialised here; the rest of the list is
+        // served on demand by the async-select endpoint as the cashier types. Loading every
+        // customer instead meant a full table scan and a full <option> list rebuilt on every
+        // keystroke in the product search, since render() re-runs on each Livewire round-trip.
+        $customerId = $this->tabCustomers[$this->activeTabId] ?? null;
+        /** @var Customer|null $selectedCustomer */
+        $selectedCustomer = $customerId ? Customer::query()->whereKey($customerId)->first() : null;
+
         return view('inventory::livewire.transactions.pos-terminal', [
-            'warehouses'      => Warehouse::query()->orderBy('name')->get(),
-            'customers'       => Customer::query()->orderBy('name')->get(),
+            'warehouses'              => Warehouse::query()->orderBy('name')->get(['id', 'name']),
+            'selectedCustomerOptions' => $selectedCustomer
+                ? [
+                    $selectedCustomer->id => [
+                        'label'    => (string) ($selectedCustomer->organization_name ?: $selectedCustomer->name),
+                        'sublabel' => filled($selectedCustomer->phone) ? (string) $selectedCustomer->phone : null,
+                    ],
+                ]
+                : [],
             'products'        => $products,
             'priceTiers'      => PriceTierCode::options(),
             'cartItems'       => $cart?->content() ?? collect(),

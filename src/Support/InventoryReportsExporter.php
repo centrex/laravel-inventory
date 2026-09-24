@@ -115,8 +115,8 @@ final class InventoryReportsExporter
         $query = CommercialTeamAccess::applySalesScope(
             SaleOrder::query()->where('document_type', 'order'),
         )
-            ->whereDate('ordered_at', '>=', $startDate)
-            ->whereDate('ordered_at', '<=', $endDate)
+            ->where('ordered_at', '>=', DayRange::from($startDate))
+            ->where('ordered_at', '<', DayRange::until($endDate))
             ->with(['customer', 'warehouse'])
             ->orderBy('ordered_at');
 
@@ -158,8 +158,8 @@ final class InventoryReportsExporter
         $query = CommercialTeamAccess::applyPurchaseScope(
             PurchaseOrder::query()->where('document_type', 'order'),
         )
-            ->whereDate('ordered_at', '>=', $startDate)
-            ->whereDate('ordered_at', '<=', $endDate)
+            ->where('ordered_at', '>=', DayRange::from($startDate))
+            ->where('ordered_at', '<', DayRange::until($endDate))
             ->with(['supplier', 'warehouse'])
             ->orderBy('ordered_at');
 

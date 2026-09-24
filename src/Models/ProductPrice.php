@@ -21,12 +21,6 @@ class ProductPrice extends Model implements Auditable
         return 'product_prices';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'product_id', 'variant_id', 'price_tier_code', 'warehouse_id',
         'price_amount', 'cost_price', 'moq', 'preorder_moq',

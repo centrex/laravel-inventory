@@ -18,12 +18,6 @@ class Agent extends Model
         return 'agents';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'code', 'name', 'email', 'phone', 'zone', 'area',
         'price_tier_code', 'commission_rate_pct', 'customer_id',

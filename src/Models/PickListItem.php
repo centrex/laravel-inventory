@@ -20,12 +20,6 @@ class PickListItem extends Model implements Auditable
         return 'pick_list_items';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'pick_list_id', 'sale_order_item_id', 'product_id', 'variant_id',
         'lot_id', 'bin_location', 'qty_to_pick', 'qty_picked', 'serial_numbers',

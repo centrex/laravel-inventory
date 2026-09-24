@@ -21,12 +21,6 @@ class PurchaseReturn extends Model implements Auditable
         return 'purchase_returns';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'return_number',
         'purchase_order_id',

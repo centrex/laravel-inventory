@@ -20,12 +20,6 @@ class PickList extends Model implements Auditable
         return 'pick_lists';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'pick_number', 'sale_order_id', 'warehouse_id', 'assigned_to',
         'status', 'notes', 'picked_at', 'created_by',

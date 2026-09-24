@@ -39,12 +39,6 @@ class WarehouseProduct extends Model implements Auditable
         return 'warehouse_products';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'warehouse_id', 'product_id', 'variant_id',
         'qty_on_hand', 'qty_reserved', 'qty_in_transit', 'qty_damaged',

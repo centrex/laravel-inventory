@@ -4,10 +4,13 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory\Models;
 
+use Centrex\Inventory\Concerns\AddTablePrefix;
 use Illuminate\Database\Eloquent\Relations\{BelongsTo, Pivot};
 
 class AgentCustomer extends Pivot
 {
+    use AddTablePrefix;
+
     public $incrementing = true;
 
     protected $fillable = [
@@ -19,12 +22,9 @@ class AgentCustomer extends Pivot
         'assigned_at' => 'date',
     ];
 
-    public function __construct(array $attributes = [])
+    protected function getTableSuffix(): string
     {
-        parent::__construct($attributes);
-        $prefix = config('inventory.table_prefix', 'inv_') ?: 'inv_';
-        $this->setTable($prefix . 'agent_customers');
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
+        return 'agent_customers';
     }
 
     public function agent(): BelongsTo

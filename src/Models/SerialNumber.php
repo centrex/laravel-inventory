@@ -33,12 +33,6 @@ class SerialNumber extends Model implements Auditable
         return 'serial_numbers';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'serial_number', 'product_id', 'variant_id', 'lot_id', 'warehouse_id',
         'purchase_order_item_id', 'sale_order_item_id', 'status',

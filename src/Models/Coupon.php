@@ -21,12 +21,6 @@ class Coupon extends Model implements Auditable
         return 'coupons';
     }
 
-    public function __construct(array $attributes = [])
-    {
-        parent::__construct($attributes);
-        $this->setConnection(config('inventory.drivers.database.connection', config('database.default')));
-    }
-
     protected $fillable = [
         'code',
         'name',
