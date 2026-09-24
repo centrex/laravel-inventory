@@ -2,12 +2,12 @@
 
 declare(strict_types = 1);
 
-namespace Centrex\Inventory\Concerns;
+namespace Centrex\Inventory\Services;
 
 use Centrex\Inventory\Models\{CustomerProductStat, ProductTrendSnapshot, SupplierProductStat};
 use Illuminate\Support\Collection;
 
-trait GeneratesProductTrendAnalytics
+class ProductTrendAnalyticsService
 {
     /**
      * Returns trend snapshots for a single product, ordered chronologically.

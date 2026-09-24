@@ -5631,56 +5631,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$avg_order_interval_days\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$avg_unit_price_amount\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$first_ordered_at\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$last_ordered_at\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$product_id\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$return_rate_pct\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$total_orders\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$total_qty_ordered\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$total_revenue_amount\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$variant_id\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Lot\\:\\:\\$qty_on_hand\\.$#"
 			count: 2
 			path: src/Inventory.php
@@ -5722,16 +5672,6 @@ parameters:
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\:\\:\\$warehouse_id\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\:\\:\\$product_id\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\:\\:\\$snapshot_date\\.$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -6221,76 +6161,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$avg_lead_time_days\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$avg_unit_cost_amount\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$first_ordered_at\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$fulfillment_rate_pct\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$last_ordered_at\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$max_unit_cost_amount\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$min_unit_cost_amount\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$on_time_receipt_rate_pct\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$product_id\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_cost_amount\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_orders\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_qty_ordered\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_qty_received\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$variant_id\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\Transfer\\:\\:\\$from_warehouse_id\\.$#"
 			count: 3
 			path: src/Inventory.php
@@ -6497,12 +6367,12 @@ parameters:
 
 		-
 			message: "#^Cannot cast mixed to float\\.$#"
-			count: 56
+			count: 42
 			path: src/Inventory.php
 
 		-
 			message: "#^Cannot cast mixed to int\\.$#"
-			count: 14
+			count: 13
 			path: src/Inventory.php
 
 		-
@@ -6631,8 +6501,8 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:customerProductStats\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
-			count: 2
+			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:customerProductStats\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
 			path: src/Inventory.php
 
 		-
@@ -6786,17 +6656,7 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:productTrends\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:profitabilityReport\\(\\) return type has no value type specified in iterable type array\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:profitabilityReport\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -6906,8 +6766,8 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:supplierProductStats\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
-			count: 2
+			message: "#^Method Centrex\\\\Inventory\\\\Inventory\\:\\:supplierProductStats\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
 			path: src/Inventory.php
 
 		-
@@ -6957,11 +6817,6 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Adjustment, mixed\\>, array\\<string, Centrex\\\\Inventory\\\\Enums\\\\StockReceiptStatus\\:\\:POSTED\\> given\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>, array\\<string, string\\> given\\.$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -7082,11 +6937,6 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\:\\:firstOrCreate\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Lot, mixed\\>, array\\<string, mixed\\> given\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>, array\\<string, mixed\\> given\\.$#"
 			count: 1
 			path: src/Inventory.php
 
@@ -7246,11 +7096,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat, 'customer_id' given\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Lot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Lot, 'expires_at' given\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -7278,11 +7123,6 @@ parameters:
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Lot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Lot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Lot, 'warehouse_id' given\\.$#"
 			count: 5
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Partner, 'is_active' given\\.$#"
-			count: 1
 			path: src/Inventory.php
 
 		-
@@ -7322,26 +7162,6 @@ parameters:
 
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductPrice, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductPrice\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductPrice, 'warehouse_id' given\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'period' given\\.$#"
-			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'product_id' given\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'snapshot_date' given\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'warehouse_id' given\\.$#"
 			count: 2
 			path: src/Inventory.php
 
@@ -7413,11 +7233,6 @@ parameters:
 		-
 			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\StockMovement\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\StockMovement, 'warehouse_id' given\\.$#"
 			count: 3
-			path: src/Inventory.php
-
-		-
-			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat, 'supplier_id' given\\.$#"
-			count: 1
 			path: src/Inventory.php
 
 		-
@@ -7556,11 +7371,6 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\SaleOrder\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
 			count: 1
 			path: src/Inventory.php
@@ -7576,18 +7386,8 @@ parameters:
 			path: src/Inventory.php
 
 		-
-			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
-			count: 1
-			path: src/Inventory.php
-
-		-
 			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\WarehouseProduct\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
 			count: 2
-			path: src/Inventory.php
-
-		-
-			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int\\|string,Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
-			count: 1
 			path: src/Inventory.php
 
 		-
@@ -7617,7 +7417,7 @@ parameters:
 
 		-
 			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int\\|string,array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
-			count: 2
+			count: 1
 			path: src/Inventory.php
 
 		-
@@ -9299,6 +9099,256 @@ parameters:
 			message: "#^Parameter \\#3 \\$b2cTier of method Centrex\\\\Inventory\\\\Services\\\\AgentOrderService\\:\\:resolveItemPrices\\(\\) expects string, mixed given\\.$#"
 			count: 1
 			path: src/Services/AgentOrderService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\PartnerService\\:\\:createPartner\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/PartnerService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\PartnerService\\:\\:listPartners\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Services/PartnerService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\PartnerService\\:\\:updatePartner\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/PartnerService.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of method Illuminate\\\\Database\\\\Eloquent\\\\Model\\:\\:update\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>, array\\<string, string\\> given\\.$#"
+			count: 1
+			path: src/Services/PartnerService.php
+
+		-
+			message: "#^Parameter \\#1 \\$attributes of static method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\:\\:create\\(\\) expects array\\<model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>, array\\<string, mixed\\> given\\.$#"
+			count: 1
+			path: src/Services/PartnerService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\Partner, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\Partner\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\Partner, 'is_active' given\\.$#"
+			count: 1
+			path: src/Services/PartnerService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$avg_order_interval_days\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$avg_unit_price_amount\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$first_ordered_at\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$last_ordered_at\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$product_id\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$return_rate_pct\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$total_orders\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$total_qty_ordered\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$total_revenue_amount\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\:\\:\\$variant_id\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\:\\:\\$product_id\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\:\\:\\$snapshot_date\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$avg_lead_time_days\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$avg_unit_cost_amount\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$first_ordered_at\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$fulfillment_rate_pct\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$last_ordered_at\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$max_unit_cost_amount\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$min_unit_cost_amount\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$on_time_receipt_rate_pct\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$product_id\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_cost_amount\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_orders\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_qty_ordered\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$total_qty_received\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Access to an undefined property Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\:\\:\\$variant_id\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Cannot cast mixed to float\\.$#"
+			count: 14
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Cannot cast mixed to int\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\ProductTrendAnalyticsService\\:\\:customerProductStats\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\ProductTrendAnalyticsService\\:\\:productTrends\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\ProductTrendAnalyticsService\\:\\:productTrends\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\ProductTrendAnalyticsService\\:\\:profitabilityReport\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\ProductTrendAnalyticsService\\:\\:profitabilityReport\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Method Centrex\\\\Inventory\\\\Services\\\\ProductTrendAnalyticsService\\:\\:supplierProductStats\\(\\) return type with generic class Illuminate\\\\Support\\\\Collection does not specify its types\\: TKey, TValue$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat, 'customer_id' given\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'period' given\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'product_id' given\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'snapshot_date' given\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot, 'warehouse_id' given\\.$#"
+			count: 2
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Parameter \\#1 \\$column of method Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\>\\:\\:where\\(\\) expects array\\<int\\|model property of Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat, mixed\\>\\|\\(Closure\\(Illuminate\\\\Database\\\\Eloquent\\\\Builder\\<Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\>\\)\\: mixed\\)\\|Illuminate\\\\Contracts\\\\Database\\\\Query\\\\Expression\\|model property of Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat, 'supplier_id' given\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\CustomerProductStat\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int,Centrex\\\\Inventory\\\\Models\\\\SupplierProductStat\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int\\|string,Illuminate\\\\Database\\\\Eloquent\\\\Collection\\<int, Centrex\\\\Inventory\\\\Models\\\\ProductTrendSnapshot\\>\\>\\:\\:map\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
+
+		-
+			message: "#^Return type of call to method Illuminate\\\\Support\\\\Collection\\<int\\|string,array\\<string, mixed\\>\\>\\:\\:values\\(\\) contains unresolvable type\\.$#"
+			count: 1
+			path: src/Services/ProductTrendAnalyticsService.php
 
 		-
 			message: "#^Access to an undefined property Centrex\\\\Accounting\\\\Models\\\\FiscalPeriod\\:\\:\\$end_date\\.$#"
