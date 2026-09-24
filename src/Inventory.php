@@ -4,6 +4,10 @@ declare(strict_types = 1);
 
 namespace Centrex\Inventory;
 
+use Centrex\Inventory\Models\Partner;
+use Centrex\Inventory\Services\{PartnerService, ProductTrendAnalyticsService};
+use Illuminate\Support\Collection;
+
 /**
  * Central service class for all inventory operations.
  *
@@ -27,20 +31,21 @@ namespace Centrex\Inventory;
  *   Entity Queries      – products, variants, lots, customers, sale orders
  *   Sales Forecast      – the heaviest computation: demand/cash-flow projection
  *   Inventory Helpers   – cross-cutting: transitions, credit overrides, document metadata
- *   Partner Management  – API partners (dropshippers, e-commerce, marketplaces)
- *   Product Trend & Profitability Analytics
+ *
+ * Two sections are composed services rather than traits — Partner Management
+ * ({@see PartnerService}) and Product Trend & Profitability Analytics
+ * ({@see ProductTrendAnalyticsService}) — since neither depends on the shared
+ * helpers/locking machinery the other sections share, and this class just forwards to them.
  */
 class Inventory
 {
     use Concerns\GeneratesInventoryReports;
-    use Concerns\GeneratesProductTrendAnalytics;
     use Concerns\GeneratesSalesForecast;
     use Concerns\HasInventoryHelpers;
     use Concerns\HasSharedInventoryHelpers;
     use Concerns\ManagesAdjustments;
     use Concerns\ManagesExchangeRates;
     use Concerns\ManagesInterWarehouseShipments;
-    use Concerns\ManagesPartners;
     use Concerns\ManagesPickPackShip;
     use Concerns\ManagesPricing;
     use Concerns\ManagesPurchaseOrders;
@@ -51,4 +56,65 @@ class Inventory
     use Concerns\ManagesStockReceipts;
     use Concerns\ManagesTransfers;
     use Concerns\QueriesInventoryEntities;
+
+    public function __construct(
+        private readonly PartnerService $partners = new PartnerService(),
+        private readonly ProductTrendAnalyticsService $productTrendAnalytics = new ProductTrendAnalyticsService(),
+    ) {}
+
+    /** @see PartnerService::createPartner() */
+    public function createPartner(array $data): Partner
+    {
+        return $this->partners->createPartner($data);
+    }
+
+    /** @see PartnerService::updatePartner() */
+    public function updatePartner(int $partnerId, array $data): Partner
+    {
+        return $this->partners->updatePartner($partnerId, $data);
+    }
+
+    /** @see PartnerService::rotatePartnerApiKey() */
+    public function rotatePartnerApiKey(int $partnerId): Partner
+    {
+        return $this->partners->rotatePartnerApiKey($partnerId);
+    }
+
+    /** @see PartnerService::listPartners() */
+    public function listPartners(bool $activeOnly = true): Collection
+    {
+        return $this->partners->listPartners($activeOnly);
+    }
+
+    /** @see ProductTrendAnalyticsService::productTrends() */
+    public function productTrends(
+        int $productId,
+        string $period = 'daily',
+        int $days = 30,
+        ?int $warehouseId = null,
+    ): array {
+        return $this->productTrendAnalytics->productTrends($productId, $period, $days, $warehouseId);
+    }
+
+    /** @see ProductTrendAnalyticsService::customerProductStats() */
+    public function customerProductStats(int $customerId): array
+    {
+        return $this->productTrendAnalytics->customerProductStats($customerId);
+    }
+
+    /** @see ProductTrendAnalyticsService::supplierProductStats() */
+    public function supplierProductStats(int $supplierId): array
+    {
+        return $this->productTrendAnalytics->supplierProductStats($supplierId);
+    }
+
+    /** @see ProductTrendAnalyticsService::profitabilityReport() */
+    public function profitabilityReport(
+        string $from,
+        string $to,
+        string $groupBy = 'product',
+        ?int $warehouseId = null,
+    ): array {
+        return $this->productTrendAnalytics->profitabilityReport($from, $to, $groupBy, $warehouseId);
+    }
 }

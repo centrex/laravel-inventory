@@ -2,12 +2,12 @@
 
 declare(strict_types = 1);
 
-namespace Centrex\Inventory\Concerns;
+namespace Centrex\Inventory\Services;
 
 use Centrex\Inventory\Models\Partner;
 use Illuminate\Support\Collection;
 
-trait ManagesPartners
+class PartnerService
 {
     /**
      * Create a new API partner (dropshipper / e-commerce / B2B / marketplace).
