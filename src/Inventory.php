@@ -58,8 +58,8 @@ class Inventory
     use Concerns\QueriesInventoryEntities;
 
     public function __construct(
-        private readonly PartnerService $partners = new PartnerService(),
-        private readonly ProductTrendAnalyticsService $productTrendAnalytics = new ProductTrendAnalyticsService(),
+        private readonly PartnerService $partners = new PartnerService,
+        private readonly ProductTrendAnalyticsService $productTrendAnalytics = new ProductTrendAnalyticsService,
     ) {}
 
     /** @see PartnerService::createPartner() */
